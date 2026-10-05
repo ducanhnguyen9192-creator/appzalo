@@ -1,0 +1,52 @@
+[
+  {
+    "id": 1,
+    "name": "Vé máy bay",
+    "image": "flight"
+  },
+  {
+    "id": 2,
+    "name": "Tour trong nước",
+    "image": "domestic-tour"
+  },
+  {
+    "id": 3,
+    "name": "Tour quốc tế",
+    "image": "international-tour"
+  },
+  {
+    "id": 4,
+    "name": "Combo du lịch",
+    "image": "combo"
+  },
+  {
+    "id": 5,
+    "name": "Khách sạn",
+    "image": "hotel"
+  },
+  {
+    "id": 6,
+    "name": "Visa",
+    "image": "visa"
+  },
+  {
+    "id": 7,
+    "name": "eSIM",
+    "image": "esim"
+  },
+  {
+    "id": 8,
+    "name": "Dịch vụ sân bay",
+    "image": "airport"
+  },
+  {
+    "id": 9,
+    "name": "Thuê xe",
+    "image": "car"
+  },
+  {
+    "id": 10,
+    "name": "Bảo hiểm du lịch",
+    "image": "insurance"
+  }
+]

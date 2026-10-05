@@ -1,0 +1,114 @@
+[
+  {
+    "id": 1,
+    "categoryId": 1,
+    "name": "Vietnam Airlines mở rộng ưu đãi vé máy bay",
+    "image": "/images/news/news-1.jpg",
+    "publishedAt": "28/09/2026",
+    "summary": "Cập nhật các chương trình ưu đãi vé máy bay và hành trình nổi bật dành cho khách hàng.",
+    "details": [
+      {
+        "title": "Nội dung",
+        "content": "Firstclass Travel cập nhật thông tin chương trình ưu đãi vé máy bay, điều kiện áp dụng và các hành trình phù hợp để khách hàng thuận tiện lựa chọn."
+      }
+    ]
+  },
+  {
+    "id": 2,
+    "categoryId": 1,
+    "name": "Kinh nghiệm săn vé máy bay giá tốt",
+    "image": "/images/news/news-2.jpg",
+    "publishedAt": "27/09/2026",
+    "summary": "Một số lưu ý giúp chủ động hơn khi tìm vé và lựa chọn thời điểm đặt vé.",
+    "details": [
+      {
+        "title": "Nội dung",
+        "content": "Nên linh hoạt ngày bay, so sánh nhiều khung giờ và kiểm tra kỹ điều kiện vé, hành lý, đổi hoàn trước khi xác nhận đặt chỗ."
+      }
+    ]
+  },
+  {
+    "id": 3,
+    "categoryId": 3,
+    "name": "Điểm đến quốc tế nổi bật cuối năm",
+    "image": "/images/news/news-3.jpg",
+    "publishedAt": "26/09/2026",
+    "summary": "Gợi ý một số hành trình quốc tế phù hợp cho kỳ nghỉ và mùa lễ hội cuối năm.",
+    "details": [
+      {
+        "title": "Nội dung",
+        "content": "Các hành trình Nhật Bản, Hàn Quốc, Trung Quốc, châu Âu và Đông Nam Á tiếp tục được nhiều khách hàng quan tâm trong mùa du lịch cuối năm."
+      }
+    ]
+  },
+  {
+    "id": 4,
+    "categoryId": 2,
+    "name": "Gợi ý du lịch trong nước cho kỳ nghỉ ngắn",
+    "image": "/images/news/news-4.jpg",
+    "publishedAt": "25/09/2026",
+    "summary": "Các điểm đến thuận tiện cho hành trình 3 ngày 2 đêm hoặc 4 ngày 3 đêm.",
+    "details": [
+      {
+        "title": "Nội dung",
+        "content": "Đà Nẵng, Phú Quốc, Nha Trang, Quy Nhơn và Đà Lạt là những lựa chọn phù hợp cho kỳ nghỉ ngắn với nhiều khung giờ bay."
+      }
+    ]
+  },
+  {
+    "id": 5,
+    "categoryId": 5,
+    "name": "Cách chọn khách sạn phù hợp cho chuyến đi",
+    "image": "/images/news/news-5.jpg",
+    "publishedAt": "24/09/2026",
+    "summary": "Các tiêu chí quan trọng khi lựa chọn khách sạn cho gia đình, công tác hoặc nghỉ dưỡng.",
+    "details": [
+      {
+        "title": "Nội dung",
+        "content": "Nên cân nhắc vị trí, loại phòng, bữa sáng, chính sách trẻ em, giờ nhận trả phòng và điều kiện hủy trước khi đặt."
+      }
+    ]
+  },
+  {
+    "id": 6,
+    "categoryId": 6,
+    "name": "Những lưu ý khi chuẩn bị hồ sơ visa",
+    "image": "/images/news/news-6.jpg",
+    "publishedAt": "23/09/2026",
+    "summary": "Chuẩn bị hồ sơ đầy đủ giúp quá trình nộp visa thuận lợi hơn.",
+    "details": [
+      {
+        "title": "Nội dung",
+        "content": "Khách hàng nên kiểm tra yêu cầu hồ sơ theo từng quốc gia, thời hạn hộ chiếu và thời gian xét duyệt trước ngày khởi hành dự kiến."
+      }
+    ]
+  },
+  {
+    "id": 7,
+    "categoryId": 7,
+    "name": "eSIM du lịch: tiện lợi khi đi nước ngoài",
+    "image": "/images/news/news-7.jpg",
+    "publishedAt": "22/09/2026",
+    "summary": "eSIM giúp kết nối dữ liệu nhanh mà không cần thay SIM vật lý.",
+    "details": [
+      {
+        "title": "Nội dung",
+        "content": "Trước khi mua eSIM, cần kiểm tra thiết bị có hỗ trợ eSIM, vùng phủ sóng và dung lượng dữ liệu phù hợp với hành trình."
+      }
+    ]
+  },
+  {
+    "id": 8,
+    "categoryId": 8,
+    "name": "Dịch vụ sân bay giúp hành trình thuận tiện hơn",
+    "image": "/images/news/news-8.jpg",
+    "publishedAt": "21/09/2026",
+    "summary": "Tìm hiểu các dịch vụ hỗ trợ tại sân bay dành cho khách công tác và khách du lịch.",
+    "details": [
+      {
+        "title": "Nội dung",
+        "content": "Các dịch vụ như hỗ trợ thủ tục, phòng chờ và đưa đón sân bay có thể giúp hành trình thuận tiện hơn tùy nhu cầu."
+      }
+    ]
+  }
+]
