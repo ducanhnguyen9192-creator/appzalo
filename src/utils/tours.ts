@@ -6,6 +6,7 @@ export const TOUR_KINDS: Record<TourKind, string> = { domestic: "Tour trong n∆∞·
 export const API_BASE = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "");
 
 export function categoryPath(id: number) {
+  if (id === 1) return "/flights";
   if (id === 7) return "/esims";
   const kind = ({ 2: "domestic", 3: "international", 4: "combo" } as Record<number, string>)[id];
   return kind ? `/tours?type=${kind}` : `/category/${id}`;

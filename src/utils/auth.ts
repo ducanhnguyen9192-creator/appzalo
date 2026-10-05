@@ -17,6 +17,9 @@ export async function authRequest(path: string, body?: Record<string, string>, a
   if (path === "me" && response.status === 401) return null;
   const data = await response.json().catch(() => null);
   if (!response.ok) throw new Error(data?.message ?? "Máy chủ chưa sẵn sàng. Vui lòng thử lại.");
+  if (path === "logout" && audience === "customer") {
+    try { sessionStorage.removeItem("firstclass.flight-draft.v1"); } catch {}
+  }
   return data?.user ?? null;
 }
 

@@ -164,7 +164,7 @@ test("booking history is account-scoped, retry-safe and records admin-confirmed 
   const data = { requestKey: "11111111-1111-1111-1111-111111111111", tripType: "roundtrip", origin: "Hà Nội (HAN)", destination: "Đà Nẵng (DAD)", departureDate: "2027-01-10", returnDate: "2027-01-13", adults: 1, children: 0, infants: 0, cabin: "Phổ thông", fullName: "Khách thử nghiệm", phone: "0901234567", note: "Cần hành lý", user_id: "forged", status: "ticketed" };
   assert.equal((await api("bookings", data)).status, 401);
   assert.equal((await api("bookings", data, cookie)).status, 401);
-  for (const invalid of [{ departureDate: "2027-02-30" }, { returnDate: "2026-12-01" }, { destination: data.origin }, { adults: 0 }, { children: -1 }, { infants: 2 }, { cabin: "invalid" }, { phone: "bad" }, { requestKey: "bad" }]) assert.equal((await api("bookings", { ...data, ...invalid }, customerCookie)).status, 400);
+  for (const invalid of [{ departureDate: "2027-02-30" }, { departureDate: "2000-01-01" }, { returnDate: "2026-12-01" }, { destination: data.origin }, { adults: 0 }, { children: -1 }, { infants: 2 }, { cabin: "invalid" }, { phone: "bad" }, { requestKey: "bad" }]) assert.equal((await api("bookings", { ...data, ...invalid }, customerCookie)).status, 400);
   const created = await api("bookings", data, customerCookie);
   assert.equal(created.status, 201);
   const { booking } = await created.json();

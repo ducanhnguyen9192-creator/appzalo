@@ -6,7 +6,7 @@ import { useState } from "react";
 
 export function CategoryDestination() {
   const { id } = useParams();
-  return [2, 3, 4, 7].includes(Number(id)) ? <Navigate to={categoryPath(Number(id))} replace /> : <ProductListPage />;
+  return [1, 2, 3, 4, 7].includes(Number(id)) ? <Navigate to={categoryPath(Number(id))} replace /> : <ProductListPage />;
 }
 
 export default function ToursPage() {

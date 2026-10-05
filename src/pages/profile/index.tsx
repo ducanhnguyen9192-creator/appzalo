@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import toast from "react-hot-toast";
+
 import AccountPanel from "@/components/account-panel";
 import { Account, authRequest } from "@/utils/auth";
 
@@ -21,10 +21,6 @@ export default function ProfilePage() {
   };
   useEffect(() => { loadAccount(); }, []);
 
-  const comingSoon = (feature: string) => {
-    toast(`${feature} đang được cập nhật`);
-  };
-
   const quickItems = [
     {
       title: "Yêu cầu đặt vé",
@@ -39,49 +35,16 @@ export default function ProfilePage() {
       action: () => navigate("/history"),
     },
     {
-      title: "Tour đã đăng ký",
-      description: "Theo dõi hành trình",
+      title: "Tour du lịch",
+      description: "Khám phá tour có sẵn",
       icon: "🧳",
-      action: () => comingSoon("Tour đã đăng ký"),
+      action: () => navigate("/tours"),
     },
     {
       title: "Hỗ trợ",
       description: "Firstclass hỗ trợ bạn",
       icon: "💬",
-      action: () => comingSoon("Trung tâm hỗ trợ"),
-    },
-  ];
-
-  const menuItems = [
-    {
-      title: "Thông tin cá nhân",
-      subtitle: "Họ tên, số điện thoại, email",
-      icon: "👤",
-      action: () => comingSoon("Thông tin cá nhân"),
-    },
-    {
-      title: "Thông tin xuất hóa đơn",
-      subtitle: "Lưu thông tin doanh nghiệp",
-      icon: "🏢",
-      action: () => comingSoon("Thông tin xuất hóa đơn"),
-    },
-    {
-      title: "Hành khách thường xuyên",
-      subtitle: "Lưu thông tin người thường đi cùng",
-      icon: "👥",
-      action: () => comingSoon("Hành khách thường xuyên"),
-    },
-    {
-      title: "Chính sách & điều khoản",
-      subtitle: "Quy định sử dụng dịch vụ",
-      icon: "📄",
-      action: () => comingSoon("Chính sách & điều khoản"),
-    },
-    {
-      title: "Bảo mật & quyền riêng tư",
-      subtitle: "Quản lý dữ liệu và quyền truy cập",
-      icon: "🔒",
-      action: () => comingSoon("Bảo mật & quyền riêng tư"),
+      action: () => navigate("/support"),
     },
   ];
 
@@ -166,45 +129,6 @@ export default function ProfilePage() {
       </div>
 
       <div className="px-4 mt-5">
-        <div className="text-sm font-semibold text-gray-700 mb-2 px-1">
-          Tài khoản & tiện ích
-        </div>
-
-        <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm">
-          {menuItems.map((item, index) => (
-            <button
-              key={item.title}
-              type="button"
-              onClick={item.action}
-              className={`w-full flex items-center gap-3 px-4 py-4 text-left active:bg-gray-50 ${
-                index !== menuItems.length - 1
-                  ? "border-b border-gray-100"
-                  : ""
-              }`}
-            >
-              <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center text-lg shrink-0">
-                {item.icon}
-              </div>
-
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium text-gray-900">
-                  {item.title}
-                </div>
-
-                <div className="text-xs text-gray-500 mt-1">
-                  {item.subtitle}
-                </div>
-              </div>
-
-              <div className="text-gray-300 text-lg">
-                ›
-              </div>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="px-4 mt-5">
         <div className="bg-white rounded-2xl border border-gray-100 p-4">
           <div className="font-semibold text-gray-900">
             Cần hỗ trợ?
@@ -216,7 +140,7 @@ export default function ProfilePage() {
 
           <button
             type="button"
-            onClick={() => comingSoon("Kênh hỗ trợ")}
+            onClick={() => navigate("/support")}
             className="w-full mt-4 border border-blue-600 text-blue-600 font-medium rounded-xl py-3 active:bg-blue-50"
           >
             Liên hệ hỗ trợ

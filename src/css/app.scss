@@ -76,6 +76,8 @@ input, select, textarea { min-width: 0; }
   .flight-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; align-items: start; }
   .flight-fields > * { margin-top: 0 !important; min-width: 0; }
   .flight-contact, .flight-submit, .flight-note { grid-column: 1 / -1; }
+  .flight-swap, .flight-auth { grid-column: 1 / -1; }
+  .flight-auth .account-panel { margin-inline: 0; }
   .flight-contact-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
   .flight-contact-fields > * { margin-top: 0 !important; }
   .flight-contact-fields > :last-child { grid-column: 1 / -1; }

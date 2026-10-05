@@ -1,6 +1,7 @@
 import { FormEvent, useState } from "react";
 import toast from "react-hot-toast";
 import { Account, authRequest } from "@/utils/auth";
+import { Link } from "react-router-dom";
 
 type Props = {
   account: Account | null;
@@ -18,6 +19,7 @@ export default function AccountPanel({ account, loading, error, onChange, onRetr
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const inputClass = "w-full border border-gray-200 rounded-xl px-3 py-3 mt-1 bg-white text-gray-900";
   const buttonClass = "w-full bg-blue-600 text-white font-medium rounded-xl py-3 disabled:opacity-50";
 
@@ -83,8 +85,10 @@ export default function AccountPanel({ account, loading, error, onChange, onRetr
                 <input className={inputClass} type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="username" required maxLength={254} />
               </label>
               <label className="block text-sm font-medium">Mật khẩu
-                <input className={inputClass} type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete={mode === "register" ? "new-password" : "current-password"} required minLength={8} maxLength={128} />
+                <input className={inputClass} type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} autoComplete={mode === "register" ? "new-password" : "current-password"} required minLength={8} maxLength={128} />
               </label>
+              <button type="button" aria-pressed={showPassword} className="text-sm text-blue-600" onClick={() => setShowPassword((value) => !value)}>{showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}</button>
+              {mode === "login" && <Link to="/support" className="block text-sm text-blue-600">Quên mật khẩu? Liên hệ hỗ trợ</Link>}
               {mode === "register" && <>
                 <p className="text-xs text-gray-500">Mật khẩu từ 8 đến 128 ký tự.</p>
                 <label className="block text-sm font-medium">Xác nhận mật khẩu

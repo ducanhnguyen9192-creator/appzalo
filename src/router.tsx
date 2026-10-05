@@ -4,6 +4,7 @@ import TourDetail from "@/pages/tours/detail";
 import EsimsPage from "@/pages/esims";
 import EsimDetail from "@/pages/esims/detail";
 import HistoryPage from "@/pages/history";
+import SupportPage from "@/pages/support";
 import AdminPage from "@/pages/admin";
 import Layout from "@/components/layout";
 import CartPage from "@/pages/cart";
@@ -23,6 +24,7 @@ const router = createBrowserRouter(
       path: "/",
       element: <Layout />,
       children: [
+        { path: "/support", element: <SupportPage />, handle: { title: "Hỗ trợ & tư vấn" } },
         { path: "/history", element: <HistoryPage />, handle: { title: "Lịch sử của bạn" } },
         { path: "/esims", element: <EsimsPage />, handle: { title: "eSIM du lịch" } },
         { path: "/esims/:id", element: <EsimDetail />, handle: { title: "Chi tiết eSIM", scrollRestoration: 0 } },

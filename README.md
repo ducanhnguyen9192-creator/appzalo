@@ -162,6 +162,14 @@ Trong **Admin → Yêu cầu & giao dịch**, nhân viên xem yêu cầu, cập 
 
 API quản trị: `GET /api/admin/bookings?page=1`, `POST /api/admin/bookings/status` (`id`, `status`, `response`), `POST /api/admin/bookings/payment` (`bookingId`, `amount` VNĐ, `reference`, `paidAt` ISO UTC, `note`). Chỉ phiên quản trị được cập nhật yêu cầu và ghi nhận giao dịch.
 
+## Điều hướng, hỗ trợ và form đặt vé
+
+Tiện ích vé máy bay mở `/flights`; các liên kết cũ `/category/1` cũng được chuyển về form này. Tin tức có bộ lọc chủ đề và tìm kiếm bài viết. Các trang dịch vụ khác hiển thị bài viết đúng danh mục cùng nút tư vấn; các nút tài khoản chưa có chức năng đã được gỡ khỏi giao diện.
+
+Trang `/support` dùng OA Zalo `887244279805076722`: mở chat bằng SDK trong Zalo, mở link OA khi dùng trình duyệt web. Hotline chưa được cấu hình. Liên kết quên mật khẩu dẫn tới hỗ trợ để xử lý thủ công, chưa có quy trình đặt lại mật khẩu tự động.
+
+Khách có thể nhập hành trình trước khi đăng nhập. Form có gợi ý sân bay, đảo điểm đi/đến, thông báo lỗi theo từng ô và kiểm tra ngày bay cùng số hành khách ở cả giao diện và backend. Đăng nhập tại chỗ giữ lại nội dung; người dùng bấm gửi để xác nhận sau khi đăng nhập. Bản nháp lưu trong `sessionStorage`, hết hạn sau 24 giờ, được xóa khi gửi thành công hoặc đăng xuất; có nút xóa thủ công. Đây là yêu cầu tư vấn vé, chưa phải xác nhận mua vé hoặc thanh toán.
+
 ## Nguồn gốc
 
 Dự án được phát triển từ template ZaUI Fashion của Zalo và đã tùy chỉnh cho FirstClass Travel. Thông tin bản quyền của template được giữ trong file `LICENSE`.

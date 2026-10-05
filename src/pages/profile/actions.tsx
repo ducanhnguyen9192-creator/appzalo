@@ -32,7 +32,7 @@ export default function ProfileActions() {
     {
       label: "Hỗ trợ",
       icon: ProfileIcon,
-      onClick: comingSoon,
+      onClick: () => navigate("/support"),
     },
   ];
 

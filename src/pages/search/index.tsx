@@ -37,7 +37,7 @@ export function EmptySearchResult() {
     <div className="p-6 space-y-4 flex flex-col items-center">
       <SearchIconLarge />
       <div className="text-inactive text-center text-2xs">
-        Không có sản phẩm bạn tìm kiếm
+        Không tìm thấy bài viết phù hợp. Thử từ khóa khác.
       </div>
     </div>
   );
@@ -60,7 +60,7 @@ export function RecommendedProducts() {
   const recommendedProducts = useAtomValue(recommendedProductsState);
 
   return (
-    <Section title="Gợi ý sản phẩm">
+    <Section title="Gợi ý bài viết">
       <div className="py-2 px-4 flex space-x-2 overflow-x-auto">
         {recommendedProducts.map((product) => (
           <div
