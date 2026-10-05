@@ -153,6 +153,38 @@ test("renaming a cookie cannot change its session audience", async (t) => {
   assert.equal((await request("me", null, forgedCustomer)).status, 401);
 });
 
+test("admin image uploads persist and can be used as banner images", async (t) => {
+  const { api, server, cookie } = await adminFixture(t);
+  const base = `http://127.0.0.1:${server.address().port}`;
+  const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jFz8AAAAASUVORK5CYII=", "base64");
+  const response = await fetch(`${base}/api/admin/uploads`, { method: "POST", headers: { Cookie: cookie, "Content-Type": "image/png" }, body: png });
+  assert.equal(response.status, 201);
+  const { image } = await response.json();
+  assert.match(image, /^\/api\/media\/[a-f0-9-]{36}\.png$/);
+  const stored = await fetch(`${base}${image}`);
+  assert.equal(stored.status, 200);
+  assert.equal(stored.headers.get("content-type"), "image/png");
+  assert.equal(stored.headers.get("x-content-type-options"), "nosniff");
+  assert.deepEqual(Buffer.from(await stored.arrayBuffer()), png);
+  const banner = await api("admin/banners/save", { title: "Uploaded banner", image, active: true }, cookie);
+  assert.equal(banner.status, 201);
+  assert.ok((await (await api("content/banners")).json()).includes(image));
+});
+
+test("uploads require admin session and reject unsafe or oversized files", async (t) => {
+  const { server, request, cookie } = await adminFixture(t);
+  const base = `http://127.0.0.1:${server.address().port}`;
+  const upload = (body, type, session, extra = {}) => fetch(`${base}/api/admin/uploads`, { method: "POST", headers: { "Content-Type": type, ...(session ? { Cookie: session } : {}), ...extra }, body });
+  assert.equal((await upload("file", "image/png")).status, 401);
+  const registered = await request("register", account);
+  assert.equal((await upload("file", "image/png", registered.headers.get("set-cookie"))).status, 401);
+  assert.equal((await upload("<svg onload='alert(1)'/>", "image/svg+xml", cookie)).status, 415);
+  assert.equal((await upload("not a PNG image", "image/png", cookie)).status, 415);
+  assert.equal((await upload(Buffer.alloc(5 * 1024 * 1024 + 1), "image/png", cookie)).status, 413);
+  assert.equal((await upload("file", "image/png", cookie, { Origin: "https://untrusted.example" })).status, 403);
+  assert.equal((await fetch(`${base}/api/media/not-a-real-file.png`)).status, 404);
+});
+
 test("register, restore session, logout and login with normalized email", async (t) => {
   const { request } = await start(t);
   assert.equal((await request("me")).status, 401);

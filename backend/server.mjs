@@ -1,6 +1,6 @@
 import { createServer } from "node:http";
 import { DatabaseSync } from "node:sqlite";
-import { mkdirSync, readFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync, existsSync, createReadStream } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { randomBytes, randomUUID, scrypt, timingSafeEqual, createHash } from "node:crypto";
@@ -8,6 +8,9 @@ import { promisify } from "node:util";
 
 const deriveKey = promisify(scrypt);
 const SESSION_SECONDS = 7 * 24 * 60 * 60;
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+const MEDIA_PATH = /^\/api\/media\/([a-f0-9-]{36}\.(png|jpg|webp|gif))$/;
+const IMAGE_TYPES = { png: "image/png", jpg: "image/jpeg", webp: "image/webp", gif: "image/gif" };
 const hashToken = (value) => createHash("sha256").update(value).digest("hex");
 const publicUser = (row) => ({ id: row.id, name: row.name, email: row.email, role: row.role ?? "customer" });
 class HttpError extends Error {
@@ -35,6 +38,32 @@ async function readJson(req, limit = 8192) {
     if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error();
     return value;
   } catch { throw new HttpError(400, "Dữ liệu không hợp lệ."); }
+}
+
+async function readImage(req) {
+  if (Number(req.headers["content-length"]) > MAX_IMAGE_BYTES) {
+    req.resume();
+    throw new HttpError(413, "Ảnh phải nhỏ hơn hoặc bằng 5 MB.");
+  }
+  const data = await new Promise((resolveBody, reject) => {
+    const chunks = []; let size = 0; let exceeded = false;
+    req.on("data", (chunk) => {
+      size += chunk.length;
+      if (size > MAX_IMAGE_BYTES) {
+        if (!exceeded) { exceeded = true; chunks.length = 0; reject(new HttpError(413, "Ảnh phải nhỏ hơn hoặc bằng 5 MB.")); }
+      } else if (!exceeded) chunks.push(chunk);
+    });
+    req.on("end", () => { if (!exceeded) resolveBody(Buffer.concat(chunks)); });
+    req.on("error", reject);
+    req.on("aborted", () => reject(new HttpError(400, "Tải ảnh bị gián đoạn.")));
+  });
+  let extension;
+  if (data.length >= 12 && data.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))) extension = "png";
+  else if (data.length >= 12 && data[0] === 255 && data[1] === 216 && data[2] === 255) extension = "jpg";
+  else if (data.length >= 12 && ["GIF87a", "GIF89a"].includes(data.subarray(0, 6).toString("ascii"))) extension = "gif";
+  else if (data.length >= 12 && data.subarray(0, 4).toString("ascii") === "RIFF" && data.subarray(8, 12).toString("ascii") === "WEBP") extension = "webp";
+  if (!extension || req.headers["content-type"]?.split(";")[0] !== IMAGE_TYPES[extension]) throw new HttpError(415, "Chỉ hỗ trợ ảnh JPG, PNG, WebP hoặc GIF.");
+  return { data, extension };
 }
 
 function openDatabase(databasePath) {
@@ -97,7 +126,7 @@ export async function provisionAdmin({ email, password, name = "Quản trị Fir
 
 const articleRow = (row) => ({ ...JSON.parse(row.data), id: row.id, published: Boolean(row.published) });
 function imageUrl(value) {
-  if (typeof value !== "string" || value.length > 2000 || !(value.startsWith("/images/") || value.startsWith("https://"))) throw new HttpError(400, "Ảnh phải là URL HTTPS hoặc đường dẫn /images/.");
+  if (typeof value !== "string" || value.length > 2000 || !(value.startsWith("/images/") || value.startsWith("https://") || MEDIA_PATH.test(value))) throw new HttpError(400, "Hãy chọn ảnh từ máy hoặc nhập URL ảnh HTTPS.");
   if (value.startsWith("https://")) {
     try { const url = new URL(value); if (url.username || url.password) throw new Error(); } catch { throw new HttpError(400, "URL ảnh không hợp lệ."); }
   }
@@ -105,7 +134,9 @@ function imageUrl(value) {
 }
 
 export function createAuthServer(options = {}) {
-  const db = openDatabase(options.databasePath ?? defaultDatabasePath());
+  const databasePath = options.databasePath ?? defaultDatabasePath();
+  const db = openDatabase(databasePath);
+  const uploadsDirectory = options.uploadsDirectory ?? resolve(dirname(databasePath === ":memory:" ? defaultDatabasePath() : databasePath), "uploads");
   const origins = new Set(options.allowedOrigins ?? (process.env.AUTH_ALLOWED_ORIGINS ?? "http://127.0.0.1:5173,http://localhost:5173").split(",").map((x) => x.trim()).filter(Boolean));
   const secure = options.secureCookies ?? (process.env.COOKIE_SECURE === "true" || process.env.NODE_ENV === "production");
   const sameSite = process.env.COOKIE_SAME_SITE ?? "Lax";
@@ -167,6 +198,18 @@ export function createAuthServer(options = {}) {
         res.writeHead(204); res.end(); return;
       }
       if (req.method === "GET" && path === "/api/health") return send(200, { ok: true });
+      const media = path.match(MEDIA_PATH);
+      if (req.method === "GET" && media) {
+        const file = resolve(uploadsDirectory, media[1]);
+        if (!existsSync(file)) throw new HttpError(404, "Không tìm thấy ảnh.");
+        res.setHeader("Content-Type", IMAGE_TYPES[media[2]]);
+        res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+        res.setHeader("Content-Security-Policy", "default-src 'none'; sandbox");
+        const stream = createReadStream(file);
+        stream.on("error", () => res.destroy());
+        stream.pipe(res);
+        return;
+      }
       if (req.method === "GET" && path === "/api/content/products") {
         return send(200, db.prepare("SELECT * FROM articles WHERE published = 1 ORDER BY id DESC").all().map((row) => {
           const item = articleRow(row);
@@ -178,6 +221,14 @@ export function createAuthServer(options = {}) {
         const admin = getSessionUser(req, "admin");
         if (!admin) throw new HttpError(401, "Vui lòng đăng nhập quản trị.");
         if (admin.role !== "admin") throw new HttpError(403, "Bạn không có quyền quản trị.");
+        if (req.method === "POST" && path === "/api/admin/uploads") {
+          rateLimit(req, res);
+          const { data, extension } = await readImage(req);
+          mkdirSync(uploadsDirectory, { recursive: true });
+          const filename = `${randomUUID()}.${extension}`;
+          writeFileSync(resolve(uploadsDirectory, filename), data, { flag: "wx" });
+          return send(201, { image: `/api/media/${filename}` });
+        }
         if (req.method === "GET" && path === "/api/admin/overview") return send(200, {
           customers: db.prepare("SELECT COUNT(*) AS count FROM users WHERE role = 'customer'").get().count,
           disabled: db.prepare("SELECT COUNT(*) AS count FROM users WHERE disabled = 1").get().count,

@@ -76,7 +76,7 @@ Mở `http://127.0.0.1:5173/admin` khi backend và demo web đang chạy. Trang 
 - Tổng quan số khách hàng, tài khoản bị khóa, bài viết và banner đang hiển thị.
 - Tìm tài khoản theo tên/email, xem ngày tạo và khóa/mở khóa khách hàng. Khóa sẽ thu hồi các phiên đăng nhập hiện có.
 - Thêm/sửa tin tức và ưu đãi, lưu bản nháp hoặc bật hiển thị.
-- Thêm/sửa banner và bật/tắt hiển thị, sử dụng URL ảnh HTTPS hoặc đường dẫn ảnh có sẵn `/images/`.
+- Thêm/sửa banner và bật/tắt hiển thị; chọn ảnh trực tiếp từ máy hoặc điện thoại, có ảnh xem trước.
 - Đổi mật khẩu quản trị; các phiên cũ bị thu hồi.
 
 Tạo tài khoản quản trị riêng trên máy chủ bằng lệnh:
@@ -91,7 +91,13 @@ API `/api/admin/*` yêu cầu phiên có vai trò `admin`; đăng ký công khai
 
 Đăng nhập quản trị sử dụng `/api/admin/auth/login`, `/api/admin/auth/me` và `/api/admin/auth/logout` với cookie riêng `firstclass_admin_session`. Trang khách hàng sử dụng `/api/auth/*` và cookie `firstclass_customer_session`. Phiên được ràng buộc với từng khu vực trên máy chủ; đăng nhập/đăng xuất một bên không ảnh hưởng bên kia. Tài khoản quản trị chỉ đăng nhập tại `/admin`, tài khoản khách hàng tại `/profile`. Khi cập nhật từ phiên dùng chung cũ, các phiên cũ được thu hồi và cần đăng nhập lại; tài khoản và mật khẩu vẫn giữ nguyên.
 
-Tin tức và banner của app được lấy từ `/api/content/products` và `/api/content/banners`, chỉ trả về nội dung đã bật hiển thị. Nội dung mẫu được nạp vào SQLite một lần khi khởi tạo. Sau khi sửa trong admin, tải lại ứng dụng để cập nhật dữ liệu. Demo cần backend để tải tin tức và banner. Tài khoản, nội dung đã sửa và mật khẩu quản trị chỉ nằm trong cơ sở dữ liệu tại máy chủ, không được đồng bộ bằng Git; cần sao lưu SQLite riêng. Hiện chưa hỗ trợ tải file ảnh, quản lý yêu cầu vé hoặc tự lấy ưu đãi từ Checkfly.
+Tin tức và banner của app được lấy từ `/api/content/products` và `/api/content/banners`, chỉ trả về nội dung đã bật hiển thị. Nội dung mẫu được nạp vào SQLite một lần khi khởi tạo. Sau khi sửa trong admin, tải lại ứng dụng để cập nhật dữ liệu. Demo cần backend để tải tin tức và banner. Tài khoản, nội dung đã sửa và mật khẩu quản trị chỉ nằm trong cơ sở dữ liệu tại máy chủ, không được đồng bộ bằng Git; cần sao lưu SQLite riêng. Hiện chưa hỗ trợ quản lý yêu cầu vé hoặc tự lấy ưu đãi từ Checkfly.
+
+### Tải ảnh từ máy
+
+Trong **Banner → Sửa / Thêm banner**, bấm **Chọn tệp** tại mục **Ảnh banner**, chọn ảnh, chờ ảnh xem trước rồi bấm **Lưu banner**. Ảnh bài viết cũng dùng cùng bộ chọn file. Hỗ trợ JPG, PNG, WebP, GIF tối đa 5 MB; backend kiểm tra định dạng từ nội dung file và chỉ nhận upload từ phiên quản trị. Có thể tiếp tục nhập URL ảnh trong mục mở rộng bên dưới.
+
+Ảnh được gửi đến `POST /api/admin/uploads`, lưu trong `backend/data/uploads/` (cùng thư mục với SQLite khi đổi `DB_PATH`) và phục vụ qua `/api/media/<mã ảnh>`. Không cần thêm ảnh vào `images`, sửa code hay commit ảnh. Chọn ảnh chỉ tải file lên; nội dung công khai thay đổi sau khi bấm Lưu. Ảnh đã tải lên có URL công khai, kể cả khi bài viết/banner còn là bản nháp; không dùng chức năng này để lưu tài liệu riêng tư. Khi triển khai thật, dùng ổ đĩa bền vững và sao lưu cả SQLite lẫn thư mục uploads. Ảnh đã tải lên chưa dùng hoặc đã thay thế được giữ lại, chưa tự động dọn.
 
 ## Cấu hình ứng dụng
 

@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useState } from "react";
 import { Account, adminAuthRequest as authRequest } from "@/utils/auth";
+import ImagePicker from "./image-picker";
 
 type Customer = Account & { disabled: number; created_at: number };
 type Article = { id?: number; name: string; image: string; summary: string; content: string; publishedAt: string; categoryId: number; type: "news" | "offer"; published: boolean };
@@ -66,6 +67,18 @@ export default function AdminPage() {
     catch (e) { setError(e instanceof Error ? e.message : "Không thể kết nối máy chủ."); }
     finally { setBusy(false); }
   }
+  async function uploadImage(file: File, target: "banner" | "article") {
+    await act(async () => {
+      if (file.size > 5 * 1024 * 1024) throw new Error("Ảnh phải nhỏ hơn hoặc bằng 5 MB.");
+      if (!["image/jpeg", "image/png", "image/webp", "image/gif"].includes(file.type)) throw new Error("Chọn ảnh JPG, PNG, WebP hoặc GIF.");
+      const response = await fetch(`${apiBase}/api/admin/uploads`, { method: "POST", credentials: "include", headers: { "Content-Type": file.type }, body: file });
+      const result = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(result?.message ?? "Không tải được ảnh. Vui lòng thử lại.");
+      if (target === "banner") setBanner((current) => current ? { ...current, image: result.image } : null);
+      else setArticle((current) => current ? { ...current, image: result.image } : null);
+      setNotice("Đã tải ảnh lên. Bấm Lưu để áp dụng vào nội dung.");
+    });
+  }
   async function login(event: FormEvent) {
     event.preventDefault();
     await act(async () => {
@@ -131,7 +144,7 @@ export default function AdminPage() {
               <h3 className="font-semibold">{article.id ? "Sửa bài viết" : "Bài viết mới"}</h3>
               <label className="block text-sm">Tiêu đề<input required minLength={3} maxLength={200} className={input} value={article.name} onChange={(e) => setArticle({ ...article, name: e.target.value })} /></label>
               <div className="grid sm:grid-cols-3 gap-4"><label className="text-sm">Loại nội dung<select className={input} value={article.type} onChange={(e) => setArticle({ ...article, type: e.target.value as Article["type"] })}><option value="news">Tin tức</option><option value="offer">Ưu đãi</option></select></label><label className="text-sm">Ngày hiển thị<input maxLength={30} className={input} value={article.publishedAt} onChange={(e) => setArticle({ ...article, publishedAt: e.target.value })} /></label><label className="text-sm">Danh mục<select className={input} value={article.categoryId} onChange={(e) => setArticle({ ...article, categoryId: Number(e.target.value) })}>{["Vé máy bay", "Tour trong nước", "Tour quốc tế", "Combo du lịch", "Khách sạn", "Visa", "eSIM", "Dịch vụ sân bay", "Thuê xe", "Bảo hiểm du lịch"].map((name, index) => <option key={name} value={index + 1}>{name}</option>)}</select></label></div>
-              <label className="block text-sm">URL ảnh<input required maxLength={2000} className={input} value={article.image} onChange={(e) => setArticle({ ...article, image: e.target.value })} /><span className="text-xs text-gray-500">Dùng URL HTTPS hoặc ảnh có sẵn tại /images/.</span></label>
+              <ImagePicker label="Ảnh bài viết" image={article.image} disabled={busy} onChange={(image) => setArticle({ ...article, image })} onUpload={(file) => uploadImage(file, "article")} />
               <label className="block text-sm">Tóm tắt<textarea maxLength={1000} className={input} value={article.summary} onChange={(e) => setArticle({ ...article, summary: e.target.value })} /></label>
               <label className="block text-sm">Nội dung<textarea rows={6} maxLength={20000} className={input} value={article.content} onChange={(e) => setArticle({ ...article, content: e.target.value })} /></label>
               <label className="flex gap-2 items-center text-sm"><input type="checkbox" checked={article.published} onChange={(e) => setArticle({ ...article, published: e.target.checked })} />Hiển thị trong ứng dụng</label>
@@ -143,8 +156,7 @@ export default function AdminPage() {
             <button className={primary} disabled={busy} onClick={() => setBanner(initialBanner())}>+ Thêm banner</button>
             {banner && <form className="bg-white rounded-2xl border border-gray-100 p-5 space-y-4" onSubmit={(e) => { e.preventDefault(); act(async () => { await adminApi("banners/save", banner); setBanner(null); await refresh(); setNotice("Đã lưu banner. Tải lại ứng dụng để xem thay đổi."); }); }}>
               <label className="block text-sm">Tên banner<input required minLength={2} maxLength={200} className={input} value={banner.title} onChange={(e) => setBanner({ ...banner, title: e.target.value })} /></label>
-              <label className="block text-sm">URL ảnh banner<input required maxLength={2000} className={input} value={banner.image} onChange={(e) => setBanner({ ...banner, image: e.target.value })} /></label>
-              <p className="text-xs text-gray-500">Dùng URL HTTPS hoặc ảnh có sẵn tại /images/.</p>
+              <ImagePicker label="Ảnh banner" image={banner.image} disabled={busy} onChange={(image) => setBanner({ ...banner, image })} onUpload={(file) => uploadImage(file, "banner")} />
               <label className="flex gap-2 items-center text-sm"><input type="checkbox" checked={banner.active} onChange={(e) => setBanner({ ...banner, active: e.target.checked })} />Bật hiển thị banner</label>
               <div className="flex gap-2"><button className={primary} disabled={busy}>Lưu banner</button><button type="button" className={secondary} disabled={busy} onClick={() => setBanner(null)}>Hủy</button></div>
             </form>}
