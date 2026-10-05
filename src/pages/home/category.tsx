@@ -9,7 +9,7 @@ export default function Category() {
 
   return (
     <Section title="Danh mục tiện ích" viewMoreTo="/categories">
-      <div className="pt-2.5 pb-4 flex space-x-6 overflow-x-auto px-4">
+      <div className="home-category-list pt-2.5 pb-4 flex space-x-6 overflow-x-auto px-4">
         {categories.map((category) => (
           <TransitionLink
             key={category.id}

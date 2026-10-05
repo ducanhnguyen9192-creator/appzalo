@@ -9,7 +9,7 @@ export default function Tintuc() {
 
   return (
     <Section title="Tin tức" viewMoreTo="/tin-tuc">
-      <div className="grid grid-cols-2 gap-x-4 gap-y-5 px-4 pb-4">
+      <div className="news-grid grid grid-cols-2 gap-x-4 gap-y-5 px-4 pb-4">
         {products.map((product) => {
           const image = product.image;
 
@@ -20,10 +20,10 @@ export default function Tintuc() {
               onClick={() =>
                 navigate(`/product/${product.id}`)
               }
-              className="text-left w-full"
+              className="news-card text-left w-full"
             >
               {/* Ảnh */}
-              <div className="w-full aspect-square overflow-hidden rounded-lg bg-gray-100">
+              <div className="news-image w-full aspect-square overflow-hidden rounded-lg bg-gray-100">
                 <img
                   src={image}
                   alt={product.name}

@@ -9,12 +9,13 @@ import HorizontalDivider from "@/components/horizontal-divider";
 const HomePage: React.FunctionComponent = () => {
   const navigate = useNavigate();
   return (
-    <div className="min-h-full bg-section">
-      <div className="bg-background pt-2">
-        <SearchBar onClick={() => navigate("/search")} />
-        <Banners />
+    <div className="home-page min-h-full bg-section">
+      <div className="home-tools bg-background pt-2">
+        <div className="desktop-home-intro"><h1>Khám phá cùng FirstClass Travel</h1><p>Vé máy bay, tour và dịch vụ cho hành trình của bạn.</p></div>
+        <div className="home-search"><SearchBar onClick={() => navigate("/search")} /></div>
       </div>
-      <div className="bg-background space-y-2 mt-2">
+      <div className="home-banner bg-background"><Banners /></div>
+      <div className="home-services bg-background space-y-2 mt-2">
         <Category />
       </div>
       <HorizontalDivider />

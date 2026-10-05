@@ -73,7 +73,7 @@ export default function ProductDetailPage() {
   }
 
   return (
-    <div className="w-full h-full flex flex-col">
+    <div className="product-detail w-full h-full flex flex-col">
       {/* Nội dung chính */}
       <div className="flex-1 overflow-y-auto">
         <div className="w-full px-4">

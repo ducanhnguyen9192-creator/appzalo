@@ -183,7 +183,7 @@ export default function FlightSearchPage() {
   const destinationSuggestions = getAirportSuggestions(form.destination);
 
   return (
-    <div className="p-4 pb-8 space-y-4">
+    <div className="flight-page p-4 pb-8 space-y-4">
       <div className="bg-white rounded-2xl p-4 shadow-sm">
         <div className="mb-5">
           <h1 className="text-xl font-semibold">Yêu cầu đặt vé máy bay</h1>
@@ -224,7 +224,7 @@ export default function FlightSearchPage() {
           </button>
         </div>
 
-        <div className="space-y-4">
+        <div className="flight-fields space-y-4">
           <div className="relative z-30">
             <label className="text-sm font-medium">Điểm đi</label>
 
@@ -419,10 +419,10 @@ export default function FlightSearchPage() {
             </select>
           </div>
 
-          <div className="border-t pt-4">
+          <div className="flight-contact border-t pt-4">
             <div className="font-semibold mb-3">Thông tin liên hệ</div>
 
-            <div className="space-y-3">
+            <div className="flight-contact-fields space-y-3">
               <div>
                 <label className="text-sm font-medium">Họ và tên</label>
 
@@ -469,7 +469,7 @@ export default function FlightSearchPage() {
             type="button"
             onClick={submitRequest}
             disabled={isSubmitting}
-            className={`w-full font-semibold rounded-xl py-3.5 active:scale-[0.99] ${
+            className={`flight-submit w-full font-semibold rounded-xl py-3.5 active:scale-[0.99] ${
               isSubmitting
                 ? "bg-gray-300 text-gray-500 cursor-not-allowed"
                 : "bg-primary text-white"
@@ -478,7 +478,7 @@ export default function FlightSearchPage() {
             {isSubmitting ? "Đang gửi..." : "Gửi yêu cầu đặt vé"}
           </button>
 
-          <p className="text-xs text-gray-500 text-center">
+          <p className="flight-note text-xs text-gray-500 text-center">
             Nhân viên Firstclass Travel sẽ kiểm tra giá và liên hệ lại với bạn.
           </p>
         </div>

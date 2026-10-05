@@ -15,7 +15,7 @@ export default function CategoryListPage() {
         <SearchBar onClick={() => navigate("/search")} />
       </div>
 
-      <div className="grid grid-cols-4 p-4 gap-x-4 gap-y-8">
+      <div className="service-grid grid grid-cols-4 p-4 gap-x-4 gap-y-8">
         {categories.map((category) => {
           const imageSrc = getCategoryImage(category.image);
 

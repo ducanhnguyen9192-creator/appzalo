@@ -35,7 +35,7 @@ export default function Footer() {
         className="w-full px-4 pt-2 grid"
         style={{
           gridTemplateColumns: `repeat(${NAV_ITEMS.length}, 1fr)`,
-          paddingBottom: `max(16px, env(safe-area-inset-bottom)`,
+          paddingBottom: `max(16px, env(safe-area-inset-bottom))`,
         }}
       >
         {NAV_ITEMS.map((item) => {

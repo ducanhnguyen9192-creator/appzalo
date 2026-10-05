@@ -52,7 +52,7 @@ export default function AccountPanel({ account, loading, error, onChange, onRetr
   }
 
   return (
-    <section className="mx-4 my-4 bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
+    <section className="account-panel mx-4 my-4 bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
       {loading ? <p role="status" className="text-sm text-gray-500">Đang kiểm tra đăng nhập…</p> : account ? (
         <div className="space-y-3">
           <h2 className="font-semibold text-lg">Tài khoản của bạn</h2>

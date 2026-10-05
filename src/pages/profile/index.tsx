@@ -86,8 +86,8 @@ export default function ProfilePage() {
   ];
 
   return (
-    <div className="min-h-full bg-gray-50 pb-8">
-      <div className="bg-white px-4 pt-5 pb-6">
+    <div className="profile-page min-h-full bg-gray-50 pb-8">
+      <div className="profile-identity bg-white px-4 pt-5 pb-6">
         <div className="flex items-center gap-4">
           <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-100 flex items-center justify-center border border-gray-200">
             {user.avatar ? (
@@ -224,7 +224,7 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      <div className="text-center text-xs text-gray-400 mt-6">
+      <div className="profile-signature text-center text-xs text-gray-400 mt-6">
         Firstclass Travel
       </div>
     </div>

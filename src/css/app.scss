@@ -17,3 +17,69 @@
     min-height: unset;
   }
 }
+
+.app-shell { width: 100%; height: 100vh; height: 100dvh; overflow: hidden; }
+.app-content { min-height: 0; }
+.app-route { min-height: 100%; }
+.desktop-header, .desktop-home-intro { display: none; }
+.mobile-header, .mobile-footer { flex-shrink: 0; }
+.home-banner img { width: 100%; height: clamp(180px, 52vw, 300px); object-fit: cover; }
+input, select, textarea { min-width: 0; }
+
+@media (min-width: 768px) {
+  .news-grid, .product-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .service-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .service-grid > a > div:first-child { width: 88px; margin-inline: auto; }
+}
+
+@media (min-width: 1024px) {
+  .app-shell { background: #f5f7fb; }
+  .mobile-header, .mobile-footer { display: none; }
+  .desktop-header { display: block; flex-shrink: 0; background: white; border-bottom: 1px solid #e7ebf2; }
+  .desktop-header-inner { max-width: 1248px; margin: auto; padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; gap: 32px; }
+  .desktop-brand { display: flex; align-items: center; gap: 10px; color: #162842; font-size: 18px; font-weight: 700; white-space: nowrap; }
+  .desktop-brand img { width: 80px; height: 44px; object-fit: contain; }
+  .desktop-nav { display: flex; align-items: center; gap: 8px; }
+  .desktop-nav a { padding: 12px 18px; color: #526079; border-radius: 12px; font-size: 15px; font-weight: 500; transition: background .15s; }
+  .desktop-nav a:hover { background: #f1f5fb; }
+  .desktop-nav a.is-active { color: #2563eb; background: #eff5ff; }
+  .app-route { width: 100%; max-width: 1248px; margin: auto; padding: 28px 24px 48px; }
+  .home-page { background: transparent; }
+  .home-tools { display: flex; align-items: center; justify-content: space-between; gap: 24px; background: transparent; padding: 0 0 20px; }
+  .desktop-home-intro { display: block; }
+  .desktop-home-intro h1 { font-size: 26px; line-height: 1.35; font-weight: 700; color: #162842; }
+  .desktop-home-intro p { color: #67758b; margin-top: 8px; }
+  .home-search { width: 340px; flex-shrink: 0; }
+  .home-banner { overflow: hidden; border-radius: 20px; border: 1px solid #e7ebf2; }
+  .home-banner img { height: 320px; width: 100%; object-fit: cover; border-radius: 12px; }
+  .home-services { margin-top: 24px; padding: 12px 8px 4px; border: 1px solid #e7ebf2; border-radius: 20px; }
+  .home-category-list { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 14px; overflow: visible; }
+  .home-category-list > * { margin-left: 0 !important; min-width: 0; }
+  .home-page > div:last-child { border-radius: 20px; border: 1px solid #e7ebf2; margin-top: 24px; padding-top: 12px; }
+  .home-page > .bg-section { display: none; }
+  .news-grid, .product-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px; padding-top: 12px; padding-bottom: 24px; }
+  .news-image { aspect-ratio: 4 / 3; }
+  .news-card { border-radius: 12px; transition: transform .15s; }
+  .news-card:hover { transform: translateY(-3px); }
+  .news-card > .text-sm { font-size: 16px; line-height: 1.5; }
+  .service-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 24px; padding-block: 28px; }
+  .service-grid > a { background: white; padding: 24px 16px; border: 1px solid #e7ebf2; border-radius: 16px; }
+  .flight-page { max-width: 1000px; margin: auto; padding: 0; }
+  .flight-page > div { padding: 32px; border: 1px solid #e7ebf2; }
+  .flight-page h1 { font-size: 26px; line-height: 1.4; }
+  .flight-page .flex.gap-2.mb-5 { max-width: 400px; }
+  .flight-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; align-items: start; }
+  .flight-fields > * { margin-top: 0 !important; min-width: 0; }
+  .flight-contact, .flight-submit, .flight-note { grid-column: 1 / -1; }
+  .flight-contact-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+  .flight-contact-fields > * { margin-top: 0 !important; }
+  .flight-contact-fields > :last-child { grid-column: 1 / -1; }
+  .flight-submit { max-width: 400px; justify-self: center; }
+  .profile-page { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; max-width: 1000px; margin: auto; background: transparent; }
+  .profile-page > div { margin: 0; padding: 0; min-width: 0; }
+  .profile-page > .profile-identity { grid-column: 1 / -1; padding: 24px; border: 1px solid #e7ebf2; border-radius: 20px; }
+  .profile-page .account-panel { margin: 0; padding: 24px; grid-row: span 2; align-self: start; }
+  .profile-signature { grid-column: 1 / -1; }
+  .product-detail { max-width: 860px; margin: auto; background: white; border: 1px solid #e7ebf2; border-radius: 20px; padding: 20px; }
+  .product-detail img { max-height: 420px; object-fit: contain; }
+}
