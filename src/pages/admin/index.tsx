@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useState } from "react";
-import { Account, authRequest } from "@/utils/auth";
+import { Account, adminAuthRequest as authRequest } from "@/utils/auth";
 
 type Customer = Account & { disabled: number; created_at: number };
 type Article = { id?: number; name: string; image: string; summary: string; content: string; publishedAt: string; categoryId: number; type: "news" | "offer"; published: boolean };

@@ -59,6 +59,12 @@ function openDatabase(databasePath) {
   const columns = db.prepare("PRAGMA table_info(users)").all().map((column) => column.name);
   if (!columns.includes("role")) db.exec("ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'customer'");
   if (!columns.includes("disabled")) db.exec("ALTER TABLE users ADD COLUMN disabled INTEGER NOT NULL DEFAULT 0");
+  const sessionColumns = db.prepare("PRAGMA table_info(sessions)").all().map((column) => column.name);
+  if (!sessionColumns.includes("audience")) {
+    db.exec("ALTER TABLE sessions ADD COLUMN audience TEXT NOT NULL DEFAULT 'legacy'");
+    // Shared sessions from the previous version cannot be reused in either portal.
+    db.exec("DELETE FROM sessions WHERE audience = 'legacy'");
+  }
   if (!db.prepare("SELECT 1 FROM settings WHERE key = 'content_seeded'").get()) {
     const products = JSON.parse(readFileSync(new URL("../src/mock/products.json", import.meta.url), "utf8"));
     db.exec("BEGIN");
@@ -111,9 +117,9 @@ export function createAuthServer(options = {}) {
     db.close();
     throw new Error("Production requires secure cookies and AUTH_ALLOWED_ORIGINS.");
   }
-  const cookieName = secure ? "__Host-firstclass_session" : "firstclass_session";
-  const cookie = (token, maxAge) => `${cookieName}=${token}; Path=/; HttpOnly; SameSite=${sameSite}; Max-Age=${maxAge}${secure ? "; Secure" : ""}`;
-  const getToken = (req) => (req.headers.cookie ?? "").split(";").map((x) => x.trim()).find((x) => x.startsWith(`${cookieName}=`))?.slice(cookieName.length + 1) ?? "";
+  const cookieName = (audience) => `${secure ? "__Host-" : ""}firstclass_${audience}_session`;
+  const cookie = (token, maxAge, audience) => `${cookieName(audience)}=${token}; Path=/; HttpOnly; SameSite=${sameSite}; Max-Age=${maxAge}${secure ? "; Secure" : ""}`;
+  const getToken = (req, audience) => (req.headers.cookie ?? "").split(";").map((x) => x.trim()).find((x) => x.startsWith(`${cookieName(audience)}=`))?.slice(cookieName(audience).length + 1) ?? "";
   const attempts = new Map();
   // Always do a password derivation, including for unknown accounts.
   const dummyHash = passwordHash(randomBytes(32).toString("hex"));
@@ -129,13 +135,13 @@ export function createAuthServer(options = {}) {
     entry.count += 1;
     attempts.set(key, entry);
   }
-  function createSession(userId, req, res) {
+  function createSession(userId, req, res, audience) {
     const token = randomBytes(32).toString("hex");
-    db.prepare("DELETE FROM sessions WHERE expires_at <= ? OR token_hash = ?").run(Date.now(), hashToken(getToken(req)));
-    db.prepare("INSERT INTO sessions VALUES (?, ?, ?)").run(hashToken(token), userId, Date.now() + SESSION_SECONDS * 1000);
-    res.setHeader("Set-Cookie", cookie(token, SESSION_SECONDS));
+    db.prepare("DELETE FROM sessions WHERE expires_at <= ? OR (token_hash = ? AND audience = ?)").run(Date.now(), hashToken(getToken(req, audience)), audience);
+    db.prepare("INSERT INTO sessions (token_hash, user_id, expires_at, audience) VALUES (?, ?, ?, ?)").run(hashToken(token), userId, Date.now() + SESSION_SECONDS * 1000, audience);
+    res.setHeader("Set-Cookie", cookie(token, SESSION_SECONDS, audience));
   }
-  const getSessionUser = (req) => db.prepare("SELECT users.* FROM sessions JOIN users ON users.id = sessions.user_id WHERE token_hash = ? AND expires_at > ? AND users.disabled = 0").get(hashToken(getToken(req)), Date.now());
+  const getSessionUser = (req, audience) => db.prepare("SELECT users.* FROM sessions JOIN users ON users.id = sessions.user_id WHERE token_hash = ? AND expires_at > ? AND users.disabled = 0 AND sessions.audience = ? AND users.role = ?").get(hashToken(getToken(req, audience)), Date.now(), audience, audience);
   const server = createServer(async (req, res) => {
     res.setHeader("Content-Type", "application/json; charset=utf-8");
     res.setHeader("Cache-Control", "no-store");
@@ -151,6 +157,9 @@ export function createAuthServer(options = {}) {
       }
       const requestUrl = new URL(req.url, "http://localhost");
       const path = requestUrl.pathname;
+      const isAdminAuth = path.startsWith("/api/admin/auth/");
+      const authPath = isAdminAuth ? path.replace("/api/admin/auth/", "/api/auth/") : path;
+      const audience = isAdminAuth ? "admin" : "customer";
       if (req.method === "POST" && req.headers["sec-fetch-site"] === "cross-site" && !origin) throw new HttpError(403, "Nguồn truy cập không được phép.");
       if (req.method === "OPTIONS") {
         res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
@@ -165,8 +174,8 @@ export function createAuthServer(options = {}) {
         }));
       }
       if (req.method === "GET" && path === "/api/content/banners") return send(200, db.prepare("SELECT image FROM banners WHERE active = 1 ORDER BY id").all().map((row) => row.image));
-      if (path.startsWith("/api/admin/")) {
-        const admin = getSessionUser(req);
+      if (path.startsWith("/api/admin/") && !isAdminAuth) {
+        const admin = getSessionUser(req, "admin");
         if (!admin) throw new HttpError(401, "Vui lòng đăng nhập quản trị.");
         if (admin.role !== "admin") throw new HttpError(403, "Bạn không có quyền quản trị.");
         if (req.method === "GET" && path === "/api/admin/overview") return send(200, {
@@ -228,32 +237,32 @@ export function createAuthServer(options = {}) {
             const encoded = await passwordHash(body.password);
             db.prepare("UPDATE users SET password_hash = ? WHERE id = ?").run(encoded, admin.id);
             db.prepare("DELETE FROM sessions WHERE user_id = ?").run(admin.id);
-            createSession(admin.id, req, res);
+            createSession(admin.id, req, res, "admin");
             return send(200, { message: "Đã đổi mật khẩu và thu hồi các phiên cũ." });
           }
         }
         throw new HttpError(404, "Không tìm thấy API quản trị.");
       }
-      if (req.method === "GET" && path === "/api/auth/me") {
-        const user = getSessionUser(req);
+      if (req.method === "GET" && authPath === "/api/auth/me") {
+        const user = getSessionUser(req, audience);
         if (!user) throw new HttpError(401, "Vui lòng đăng nhập.");
         return send(200, { user: publicUser(user) });
       }
-      if (req.method === "POST" && path.startsWith("/api/auth/")) {
+      if (req.method === "POST" && authPath.startsWith("/api/auth/")) {
         if (req.headers["sec-fetch-site"] === "cross-site" && !origin) throw new HttpError(403, "Nguồn truy cập không được phép.");
         const body = await readJson(req);
-        if (path === "/api/auth/logout") {
-          db.prepare("DELETE FROM sessions WHERE token_hash = ?").run(hashToken(getToken(req)));
-          res.setHeader("Set-Cookie", cookie("", 0));
+        if (authPath === "/api/auth/logout") {
+          db.prepare("DELETE FROM sessions WHERE token_hash = ? AND audience = ?").run(hashToken(getToken(req, audience)), audience);
+          res.setHeader("Set-Cookie", cookie("", 0, audience));
           return send(200, { message: "Đã đăng xuất." });
         }
-        if (!["/api/auth/register", "/api/auth/login"].includes(path)) throw new HttpError(404, "Không tìm thấy API.");
+        if (!["/api/auth/register", "/api/auth/login"].includes(authPath) || (isAdminAuth && authPath === "/api/auth/register")) throw new HttpError(404, "Không tìm thấy API.");
         rateLimit(req, res);
         const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
         const password = body.password;
         if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new HttpError(400, "Email không hợp lệ.");
         if (typeof password !== "string" || password.length < 8 || password.length > 128) throw new HttpError(400, "Mật khẩu phải có từ 8 đến 128 ký tự.");
-        if (path === "/api/auth/register") {
+        if (authPath === "/api/auth/register") {
           const name = typeof body.name === "string" ? body.name.trim() : "";
           if (name.length < 2 || name.length > 100) throw new HttpError(400, "Họ tên phải có từ 2 đến 100 ký tự.");
           const user = { id: randomUUID(), name, email, role: "customer" };
@@ -264,15 +273,15 @@ export function createAuthServer(options = {}) {
             if (error.errcode === 2067 || error.message.includes("UNIQUE constraint failed")) throw new HttpError(409, "Email này đã được đăng ký.");
             throw error;
           }
-          createSession(user.id, req, res);
+          createSession(user.id, req, res, "customer");
           return send(201, { user });
         }
         const user = db.prepare("SELECT * FROM users WHERE email = ?").get(email);
         const encoded = user?.password_hash ?? await dummyHash;
         const [salt, expected] = encoded.split(":");
         const actual = (await passwordHash(password, salt)).split(":")[1];
-        if (!timingSafeEqual(Buffer.from(expected, "hex"), Buffer.from(actual, "hex")) || !user || user.disabled) throw new HttpError(401, "Email hoặc mật khẩu không đúng.");
-        createSession(user.id, req, res);
+        if (!timingSafeEqual(Buffer.from(expected, "hex"), Buffer.from(actual, "hex")) || !user || user.disabled || user.role !== audience) throw new HttpError(401, "Email hoặc mật khẩu không đúng.");
+        createSession(user.id, req, res, audience);
         return send(200, { user: publicUser(user) });
       }
       throw new HttpError(404, "Không tìm thấy API.");

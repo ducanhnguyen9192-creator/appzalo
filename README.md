@@ -89,6 +89,8 @@ Mật khẩu ngẫu nhiên được ghi vào `backend/data/admin-access.txt`. Fi
 
 API `/api/admin/*` yêu cầu phiên có vai trò `admin`; đăng ký công khai luôn tạo vai trò `customer`, kể cả khi yêu cầu gửi thêm trường `role`. Mật khẩu hoặc bản băm không được trả về trong danh sách tài khoản. Không thể khóa tài khoản quản trị từ giao diện.
 
+Đăng nhập quản trị sử dụng `/api/admin/auth/login`, `/api/admin/auth/me` và `/api/admin/auth/logout` với cookie riêng `firstclass_admin_session`. Trang khách hàng sử dụng `/api/auth/*` và cookie `firstclass_customer_session`. Phiên được ràng buộc với từng khu vực trên máy chủ; đăng nhập/đăng xuất một bên không ảnh hưởng bên kia. Tài khoản quản trị chỉ đăng nhập tại `/admin`, tài khoản khách hàng tại `/profile`. Khi cập nhật từ phiên dùng chung cũ, các phiên cũ được thu hồi và cần đăng nhập lại; tài khoản và mật khẩu vẫn giữ nguyên.
+
 Tin tức và banner của app được lấy từ `/api/content/products` và `/api/content/banners`, chỉ trả về nội dung đã bật hiển thị. Nội dung mẫu được nạp vào SQLite một lần khi khởi tạo. Sau khi sửa trong admin, tải lại ứng dụng để cập nhật dữ liệu. Demo cần backend để tải tin tức và banner. Tài khoản, nội dung đã sửa và mật khẩu quản trị chỉ nằm trong cơ sở dữ liệu tại máy chủ, không được đồng bộ bằng Git; cần sao lưu SQLite riêng. Hiện chưa hỗ trợ tải file ảnh, quản lý yêu cầu vé hoặc tự lấy ưu đãi từ Checkfly.
 
 ## Cấu hình ứng dụng

@@ -2,10 +2,10 @@ export type Account = { id: string; name: string; email: string; role: "admin" |
 
 const API_URL = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "");
 
-export async function authRequest(path: string, body?: Record<string, string>): Promise<Account | null> {
+export async function authRequest(path: string, body?: Record<string, string>, audience: "customer" | "admin" = "customer"): Promise<Account | null> {
   let response: Response;
   try {
-    response = await fetch(`${API_URL}/api/auth/${path}`, {
+    response = await fetch(`${API_URL}/api/${audience === "admin" ? "admin/auth" : "auth"}/${path}`, {
       method: body ? "POST" : "GET",
       credentials: "include",
       headers: body ? { "Content-Type": "application/json" } : undefined,
@@ -18,4 +18,8 @@ export async function authRequest(path: string, body?: Record<string, string>): 
   const data = await response.json().catch(() => null);
   if (!response.ok) throw new Error(data?.message ?? "Máy chủ chưa sẵn sàng. Vui lòng thử lại.");
   return data?.user ?? null;
+}
+
+export function adminAuthRequest(path: string, body?: Record<string, string>) {
+  return authRequest(path, body, "admin");
 }

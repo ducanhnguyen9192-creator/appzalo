@@ -35,7 +35,7 @@ async function adminFixture(t) {
   await provisionAdmin({ ...admin, databasePath });
   const fixture = await start(t, { databasePath });
   t.after(() => rmSync(directory, { recursive: true, force: true }));
-  const login = await fixture.request("login", admin);
+  const login = await fixture.api("admin/auth/login", admin);
   assert.equal(login.status, 200);
   return { ...fixture, admin, cookie: login.headers.get("set-cookie"), databasePath };
 }
@@ -47,7 +47,7 @@ test("customers cannot self-promote or access admin reads or writes", async (t) 
   assert.equal((await registered.json()).user.role, "customer");
   const cookie = registered.headers.get("set-cookie");
   for (const [path, body] of [["admin/users"], ["admin/overview"], ["admin/articles"], ["admin/banners"], ["admin/users/status", { id: "x", disabled: true }], ["admin/articles/save", { name: "x" }], ["admin/banners/save", {}], ["admin/password", {}]]) {
-    assert.equal((await api(path, body, cookie)).status, 403);
+    assert.equal((await api(path, body, cookie)).status, 401);
   }
 });
 
@@ -64,9 +64,9 @@ test("admin can list customers, disable sessions and re-enable login", async (t)
   assert.equal((await request("login", account)).status, 401);
   assert.equal((await api("admin/users/status", { id: customer.id, disabled: false }, cookie)).status, 200);
   assert.equal((await request("login", account)).status, 200);
-  const me = await (await request("me", null, cookie)).json();
+  const me = await (await api("admin/auth/me", null, cookie)).json();
   assert.equal((await api("admin/users/status", { id: me.user.id, disabled: true }, cookie)).status, 403);
-  assert.equal((await request("login", admin)).status, 200);
+  assert.equal((await api("admin/auth/login", admin)).status, 200);
 });
 
 test("only published content reaches public API and edits persist", async (t) => {
@@ -93,15 +93,15 @@ test("only published content reaches public API and edits persist", async (t) =>
 
 test("admin password change revokes old sessions and old password", async (t) => {
   const { api, request, cookie, admin } = await adminFixture(t);
-  const other = await request("login", admin);
+  const other = await api("admin/auth/login", admin);
   const otherCookie = other.headers.get("set-cookie");
   assert.equal((await api("admin/password", { currentPassword: "wrong-password", password: "New-Admin-password-2026!" }, cookie)).status, 401);
   const changed = await api("admin/password", { currentPassword: admin.password, password: "New-Admin-password-2026!" }, cookie);
   assert.equal(changed.status, 200);
   assert.equal((await api("admin/users", null, cookie)).status, 401);
   assert.equal((await api("admin/users", null, otherCookie)).status, 401);
-  assert.equal((await request("login", admin)).status, 401);
-  assert.equal((await request("login", { ...admin, password: "New-Admin-password-2026!" })).status, 200);
+  assert.equal((await api("admin/auth/login", admin)).status, 401);
+  assert.equal((await api("admin/auth/login", { ...admin, password: "New-Admin-password-2026!" })).status, 200);
   assert.equal((await api("admin/users", null, changed.headers.get("set-cookie"))).status, 200);
 });
 
@@ -111,6 +111,46 @@ test("cannot turn an existing customer into admin through provisioning", async (
   await assert.rejects(provisionAdmin({ email: account.email, password: "Admin-Test-password-2026!", databasePath }), /Email đã tồn tại/);
   const login = await request("login", account);
   assert.equal((await login.json()).user.role, "customer");
+});
+
+test("customer and admin login, replacement and logout are independent", async (t) => {
+  const { api, request, cookie: adminCookie, admin } = await adminFixture(t);
+  // An admin session must never sign the user into the customer portal.
+  assert.equal((await request("me", null, adminCookie)).status, 401);
+  const registered = await request("register", account, adminCookie);
+  const customerCookie = registered.headers.get("set-cookie");
+  assert.match(customerCookie, /^firstclass_customer_session=/);
+  assert.match(adminCookie, /^firstclass_admin_session=/);
+  const both = `${adminCookie.split(";")[0]}; ${customerCookie.split(";")[0]}`;
+  assert.equal((await request("me", null, both)).status, 200);
+  assert.equal((await api("admin/auth/me", null, both)).status, 200);
+  assert.equal((await api("admin/users", null, both)).status, 200);
+  assert.equal((await request("login", admin, both)).status, 401);
+  assert.equal((await api("admin/auth/login", account, both)).status, 401);
+  assert.equal((await api("admin/auth/register", account, both)).status, 404);
+  // Logging in again as a customer only rotates the customer token.
+  const relogin = await request("login", account, both);
+  const newCustomerCookie = relogin.headers.get("set-cookie");
+  assert.equal((await request("me", null, customerCookie)).status, 401);
+  assert.equal((await api("admin/auth/me", null, both)).status, 200);
+  await request("logout", {}, `${adminCookie.split(";")[0]}; ${newCustomerCookie.split(";")[0]}`);
+  assert.equal((await request("me", null, newCustomerCookie)).status, 401);
+  assert.equal((await api("admin/users", null, adminCookie)).status, 200);
+  const customerAgain = await request("login", account);
+  const nextCookie = customerAgain.headers.get("set-cookie");
+  await api("admin/auth/logout", {}, `${adminCookie.split(";")[0]}; ${nextCookie.split(";")[0]}`);
+  assert.equal((await api("admin/users", null, adminCookie)).status, 401);
+  assert.equal((await request("me", null, nextCookie)).status, 200);
+});
+
+test("renaming a cookie cannot change its session audience", async (t) => {
+  const { api, request, cookie: adminCookie } = await adminFixture(t);
+  const registered = await request("register", account);
+  const customerCookie = registered.headers.get("set-cookie");
+  const forgedAdmin = customerCookie.replace("firstclass_customer_session", "firstclass_admin_session");
+  const forgedCustomer = adminCookie.replace("firstclass_admin_session", "firstclass_customer_session");
+  assert.equal((await api("admin/users", null, forgedAdmin)).status, 401);
+  assert.equal((await request("me", null, forgedCustomer)).status, 401);
 });
 
 test("register, restore session, logout and login with normalized email", async (t) => {
@@ -140,7 +180,7 @@ test("duplicate email, wrong credentials and forged sessions are rejected", asyn
   const unknown = await request("login", { ...account, email: "unknown@example.test" });
   assert.equal(wrong.status, 401); assert.equal(unknown.status, 401);
   assert.deepEqual(await wrong.json(), await unknown.json());
-  assert.equal((await request("me", null, "firstclass_session=fake")).status, 401);
+  assert.equal((await request("me", null, "firstclass_customer_session=fake")).status, 401);
 });
 
 test("reject invalid input and SQL injection-shaped credentials", async (t) => {
@@ -176,7 +216,7 @@ test("secure cookies use the __Host prefix", async (t) => {
   const { request } = await start(t, { secureCookies: true });
   const registered = await request("register", account);
   const cookie = registered.headers.get("set-cookie");
-  assert.match(cookie, /^__Host-firstclass_session=/); assert.match(cookie, /; Secure/);
+  assert.match(cookie, /^__Host-firstclass_customer_session=/); assert.match(cookie, /; Secure/);
 });
 
 test("reject form submissions and malformed JSON without crashing", async (t) => {
