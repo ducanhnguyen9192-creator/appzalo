@@ -144,6 +144,14 @@ Trong **Admin → Tour du lịch → Thêm tour**, chọn nhóm, nhập thông t
 
 Tour được lưu trong SQLite. API công khai `GET /api/content/tours` (lọc bằng `type`) và `GET /api/content/tours/:id` chỉ trả tour đã bật hiển thị. API quản trị `GET /api/admin/tours` và `POST /api/admin/tours/save` yêu cầu phiên quản trị. Dữ liệu tour chưa tự đồng bộ từ Checkfly.
 
+## Quản lý eSIM
+
+Mục **eSIM** trong tiện ích mở `/esims`, hiển thị các gói đã công khai và hỗ trợ tìm theo tên gói/quốc gia. Trang chủ có mục **eSIM du lịch**; mỗi gói mở `/esims/:id` với vùng phủ sóng, dung lượng, thời hạn, giá, nhà mạng, điều kiện kích hoạt, hướng dẫn và lưu ý.
+
+Vào **Admin → eSIM → Thêm gói eSIM**, nhập thông tin và chọn ảnh từ máy, bật **Hiển thị gói eSIM trong ứng dụng**, bấm **Lưu gói eSIM** rồi tải lại ứng dụng. Có thể sửa và ẩn gói bằng cách bỏ chọn hiển thị. Danh sách ban đầu trống; giá để trống hiển thị “Giá liên hệ”.
+
+Dữ liệu lưu trong SQLite. API công khai `GET /api/content/esims` và `GET /api/content/esims/:id` chỉ trả gói đã bật hiển thị. Quản trị sử dụng `GET /api/admin/esims`, `POST /api/admin/esims/save`. Đây là danh mục thông tin, chưa có thanh toán, cấp mã kích hoạt hoặc đồng bộ nhà cung cấp eSIM. Không nhập mã kích hoạt riêng của khách hàng vào nội dung công khai.
+
 ## Nguồn gốc
 
 Dự án được phát triển từ template ZaUI Fashion của Zalo và đã tùy chỉnh cho FirstClass Travel. Thông tin bản quyền của template được giữ trong file `LICENSE`.

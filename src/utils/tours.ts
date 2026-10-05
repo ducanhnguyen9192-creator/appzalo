@@ -6,6 +6,7 @@ export const TOUR_KINDS: Record<TourKind, string> = { domestic: "Tour trong nư�
 export const API_BASE = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "");
 
 export function categoryPath(id: number) {
+  if (id === 7) return "/esims";
   const kind = ({ 2: "domestic", 3: "international", 4: "combo" } as Record<number, string>)[id];
   return kind ? `/tours?type=${kind}` : `/category/${id}`;
 }
@@ -22,10 +23,11 @@ export function useTourData<T>(path: string) {
     setLoading(true); setError(""); setData(null);
     fetch(`${API_BASE}/api/content/${path}`, { signal: controller.signal }).then(async (response) => {
       const result = await response.json();
-      if (!response.ok) throw new Error(result.message ?? "Không tải được thông tin tour.");
+      if (!response.ok) throw new Error(result.message ?? "Không tải được thông tin.");
       return result as T;
     }).then(setData).catch((e) => { if (!controller.signal.aborted) setError(e.message ?? "Không kết nối được máy chủ."); }).finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
   }, [path, retry]);
   return { data, loading, error, retry: () => setRetry((value) => value + 1) };
 }
+export const useContentData = useTourData;

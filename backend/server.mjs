@@ -84,6 +84,7 @@ function openDatabase(databasePath) {
     CREATE TABLE IF NOT EXISTS articles (id INTEGER PRIMARY KEY AUTOINCREMENT, data TEXT NOT NULL, published INTEGER NOT NULL DEFAULT 0);
     CREATE TABLE IF NOT EXISTS banners (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, image TEXT NOT NULL, active INTEGER NOT NULL DEFAULT 1);
     CREATE TABLE IF NOT EXISTS tours (id INTEGER PRIMARY KEY AUTOINCREMENT, data TEXT NOT NULL, published INTEGER NOT NULL DEFAULT 0);
+    CREATE TABLE IF NOT EXISTS esims (id INTEGER PRIMARY KEY AUTOINCREMENT, data TEXT NOT NULL, published INTEGER NOT NULL DEFAULT 0);
     CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
   `);
   const columns = db.prepare("PRAGMA table_info(users)").all().map((column) => column.name);
@@ -225,6 +226,13 @@ export function createAuthServer(options = {}) {
         const tours = db.prepare("SELECT * FROM tours WHERE published = 1 ORDER BY id DESC").all().map(tourRow);
         return send(200, kind ? tours.filter((tour) => tour.kind === kind) : tours);
       }
+      if (req.method === "GET" && path === "/api/content/esims") return send(200, db.prepare("SELECT * FROM esims WHERE published = 1 ORDER BY id DESC").all().map(articleRow));
+      const esimDetail = path.match(/^\/api\/content\/esims\/(\d+)$/);
+      if (req.method === "GET" && esimDetail) {
+        const esim = db.prepare("SELECT * FROM esims WHERE id = ? AND published = 1").get(Number(esimDetail[1]));
+        if (!esim) throw new HttpError(404, "Gói eSIM không tồn tại hoặc chưa được hiển thị.");
+        return send(200, articleRow(esim));
+      }
       const tourDetail = path.match(/^\/api\/content\/tours\/(\d+)$/);
       if (req.method === "GET" && tourDetail) {
         const tour = db.prepare("SELECT * FROM tours WHERE id = ? AND published = 1").get(Number(tourDetail[1]));
@@ -261,8 +269,20 @@ export function createAuthServer(options = {}) {
         if (req.method === "GET" && path === "/api/admin/articles") return send(200, { articles: db.prepare("SELECT * FROM articles ORDER BY id DESC").all().map(articleRow) });
         if (req.method === "GET" && path === "/api/admin/banners") return send(200, { banners: db.prepare("SELECT * FROM banners ORDER BY id").all().map((row) => ({ ...row, active: Boolean(row.active) })) });
         if (req.method === "GET" && path === "/api/admin/tours") return send(200, { tours: db.prepare("SELECT * FROM tours ORDER BY id DESC").all().map(tourRow) });
+        if (req.method === "GET" && path === "/api/admin/esims") return send(200, { esims: db.prepare("SELECT * FROM esims ORDER BY id DESC").all().map(articleRow) });
         if (req.method === "POST") {
           const body = await readJson(req, 131072);
+          if (path === "/api/admin/esims/save") {
+            const fields = { name: 200, coverage: 1000, allowance: 200, validity: 100, network: 300, activation: 1000, summary: 1000, instructions: 20000, notes: 5000 };
+            for (const [key, max] of Object.entries(fields)) if (typeof body[key] !== "string" || body[key].length > max) throw new HttpError(400, "Thông tin eSIM không hợp lệ hoặc quá dài.");
+            if (body.name.trim().length < 3 || !body.coverage.trim() || !body.allowance.trim() || !body.validity.trim() || typeof body.published !== "boolean" || !(body.price === null || (typeof body.price === "number" && Number.isFinite(body.price) && body.price >= 0 && body.price <= 1000000000))) throw new HttpError(400, "Vui lòng kiểm tra tên, vùng phủ sóng, dung lượng, thời hạn và giá.");
+            const data = JSON.stringify({ ...Object.fromEntries(Object.keys(fields).map((key) => [key, body[key].trim()])), image: imageUrl(body.image), price: body.price });
+            if (body.id !== undefined) {
+              if (!Number.isInteger(body.id) || !db.prepare("UPDATE esims SET data = ?, published = ? WHERE id = ?").run(data, Number(body.published), body.id).changes) throw new HttpError(404, "Không tìm thấy gói eSIM.");
+              return send(200, { id: body.id });
+            }
+            return send(201, { id: Number(db.prepare("INSERT INTO esims (data, published) VALUES (?, ?)").run(data, Number(body.published)).lastInsertRowid) });
+          }
           if (path === "/api/admin/tours/save") {
             const fields = { name: 200, destination: 200, duration: 100, departure: 300, summary: 1000, itinerary: 20000, included: 5000, excluded: 5000 };
             for (const [key, max] of Object.entries(fields)) if (typeof body[key] !== "string" || body[key].length > max) throw new HttpError(400, "Thông tin tour không hợp lệ hoặc quá dài.");

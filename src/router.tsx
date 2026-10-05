@@ -1,6 +1,8 @@
 import FlightSearchPage from "@/pages/flights";
 import ToursPage, { CategoryDestination } from "@/pages/tours";
 import TourDetail from "@/pages/tours/detail";
+import EsimsPage from "@/pages/esims";
+import EsimDetail from "@/pages/esims/detail";
 import AdminPage from "@/pages/admin";
 import Layout from "@/components/layout";
 import CartPage from "@/pages/cart";
@@ -20,6 +22,8 @@ const router = createBrowserRouter(
       path: "/",
       element: <Layout />,
       children: [
+        { path: "/esims", element: <EsimsPage />, handle: { title: "eSIM du lịch" } },
+        { path: "/esims/:id", element: <EsimDetail />, handle: { title: "Chi tiết eSIM", scrollRestoration: 0 } },
         { path: "/tours", element: <ToursPage />, handle: { title: "Tour du lịch" } },
         { path: "/tours/:id", element: <TourDetail />, handle: { title: "Chi tiết tour", scrollRestoration: 0 } },
         {

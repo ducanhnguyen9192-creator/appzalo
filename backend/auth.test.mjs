@@ -124,6 +124,36 @@ test("tour management validates data and only publishes the selected tour groups
   db.close();
 });
 
+test("eSIM catalog protects drafts, validates packages and persists admin edits", async (t) => {
+  const { api, request, cookie, databasePath } = await adminFixture(t);
+  const registered = await request("register", account);
+  const customerCookie = registered.headers.get("set-cookie");
+  const esim = { name: "Gói eSIM kiểm thử", coverage: "Nhật Bản", allowance: "5 GB", validity: "7 ngày", network: "4G", activation: "Khi kết nối mạng tại điểm đến", image: "/images/news/news-4.jpg", price: 250000, summary: "Gói thử nghiệm", instructions: "Bước 1\nBước 2", notes: "Thiết bị hỗ trợ eSIM", published: false };
+  assert.equal((await api("admin/esims")).status, 401);
+  assert.equal((await api("admin/esims", null, customerCookie)).status, 401);
+  assert.equal((await api("admin/esims/save", esim, customerCookie)).status, 401);
+  const created = await api("admin/esims/save", esim, cookie);
+  assert.equal(created.status, 201);
+  const { id } = await created.json();
+  assert.deepEqual(await (await api("content/esims")).json(), []);
+  assert.equal((await api(`content/esims/${id}`)).status, 404);
+  for (const invalid of [{ coverage: "" }, { allowance: "" }, { validity: "" }, { price: -1 }, { image: "javascript:alert(1)" }, { published: "true" }, { notes: "x".repeat(5001) }]) {
+    assert.equal((await api("admin/esims/save", { ...esim, ...invalid }, cookie)).status, 400);
+  }
+  assert.equal((await api("admin/esims/save", { ...esim, id, published: true }, cookie)).status, 200);
+  assert.equal((await (await api("content/esims")).json()).length, 1);
+  assert.equal((await (await api(`content/esims/${id}`)).json()).instructions, esim.instructions);
+  assert.equal((await api("admin/esims/save", { ...esim, id, price: null }, cookie)).status, 200);
+  assert.equal((await api(`content/esims/${id}`)).status, 404);
+  const list = await (await api("admin/esims", null, cookie)).json();
+  assert.equal(list.esims[0].price, null);
+  assert.equal(list.esims[0].published, false);
+  assert.equal((await api("admin/esims/save", { ...esim, id: 999999 }, cookie)).status, 404);
+  const db = new DatabaseSync(databasePath);
+  assert.equal(JSON.parse(db.prepare("SELECT data FROM esims WHERE id = ?").get(id).data).price, null);
+  db.close();
+});
+
 test("admin password change revokes old sessions and old password", async (t) => {
   const { api, request, cookie, admin } = await adminFixture(t);
   const other = await api("admin/auth/login", admin);
