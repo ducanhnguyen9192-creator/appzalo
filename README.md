@@ -9,6 +9,7 @@ Zalo Mini App của FirstClass Travel, hỗ trợ khách hàng gửi yêu cầu 
 - Chọn ngày đi, ngày về, số người lớn, trẻ em, em bé và hạng ghế.
 - Nhập họ tên, số điện thoại và ghi chú để nhân viên liên hệ tư vấn.
 - Xem tin tức, danh mục dịch vụ và trang tài khoản khách hàng.
+- Đăng ký, đăng nhập bằng email và mật khẩu; duy trì phiên đăng nhập và đăng xuất.
 
 Form đặt vé gửi yêu cầu đến Google Apps Script được cấu hình trong `src/pages/flights/index.tsx`. Nhân viên FirstClass Travel kiểm tra hành trình, giá vé và liên hệ lại với khách hàng; ứng dụng hiện chưa tra giá hoặc xuất vé tự động.
 
@@ -32,7 +33,43 @@ Nếu đã cài Zalo Mini App CLI, có thể chạy:
 npm start
 ```
 
-## Cấu hình
+## Backend tài khoản
+
+Sử dụng Node.js 24 trở lên. Backend dùng SQLite tích hợp trong Node.js, không cần cài máy chủ cơ sở dữ liệu riêng.
+
+Mở hai terminal từ thư mục dự án:
+
+```bash
+# Terminal 1: backend tại http://127.0.0.1:3001
+npm run dev:backend
+
+# Terminal 2: demo web tại http://127.0.0.1:5173
+npm run dev:web
+```
+
+Trong demo, mở **Tài khoản** để đăng ký hoặc đăng nhập. Vite chuyển các yêu cầu `/api` sang backend. Dữ liệu được lưu ở `backend/data/firstclass.sqlite`, tồn tại sau khi khởi động lại và không được đưa lên GitHub.
+
+| API | Chức năng |
+| --- | --- |
+| `POST /api/auth/register` | Đăng ký với `name`, `email`, `password`; tự đăng nhập sau đăng ký |
+| `POST /api/auth/login` | Đăng nhập với `email`, `password` |
+| `GET /api/auth/me` | Lấy tài khoản từ phiên đăng nhập |
+| `POST /api/auth/logout` | Thu hồi phiên đăng nhập; gửi JSON `{}` |
+| `GET /api/health` | Kiểm tra backend |
+
+Mật khẩu được băm bằng scrypt với salt riêng. Cookie phiên có `HttpOnly`, thời hạn 7 ngày; máy chủ lưu bản băm token, kiểm tra nguồn truy cập và giới hạn lượt đăng ký/đăng nhập theo IP. Tài khoản này độc lập với tài khoản Zalo.
+
+Kiểm tra backend:
+
+```bash
+npm run test:backend
+```
+
+Để tùy chỉnh, sao chép `backend/.env.example` thành `backend/.env`. Khi triển khai thực tế, dùng HTTPS, `NODE_ENV=production`, `COOKIE_SECURE=true`, danh sách `AUTH_ALLOWED_ORIGINS` cụ thể và ổ đĩa bền vững cho SQLite. Với frontend khác nguồn, đặt `VITE_API_URL` thành URL HTTPS của backend rồi build lại; nếu cần cookie khác site, dùng `COOKIE_SAME_SITE=None` cùng `Secure` và kiểm tra hỗ trợ cookie trong môi trường Zalo. Không đặt khóa bí mật trong biến `VITE_*`.
+
+Backend hiện phục vụ đăng ký/đăng nhập cơ bản; chưa có xác minh email, quên mật khẩu hoặc liên kết đăng nhập Zalo. API Checkfly và việc gắn yêu cầu vé vào tài khoản chưa được tích hợp. Trước khi đưa lên môi trường thật cần kiểm tra phiên đăng nhập trong Zalo, cấu hình tên miền API, sao lưu dữ liệu và giới hạn truy cập tại reverse proxy (giới hạn trong backend hiện dựa trên IP kết nối trực tiếp).
+
+## Cấu hình ứng dụng
 
 - `app-config.json`: tên ứng dụng FirstClass Travel, giao diện, địa chỉ API và OA hỗ trợ.
 - `src/pages/flights/index.tsx`: form yêu cầu vé máy bay và địa chỉ Google Apps Script nhận dữ liệu.

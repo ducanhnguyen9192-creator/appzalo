@@ -15,9 +15,15 @@
     "Samsung >= 5"
   ],
   "scripts": {
+    "dev:web": "vite . --host 127.0.0.1 --port 5173",
+    "dev:backend": "node --env-file-if-exists=backend/.env backend/server.mjs",
+    "test:backend": "node --test backend/auth.test.mjs",
     "start": "zmp start",
     "deploy": "zmp deploy",
     "build:css": "postcss src/css/tailwind.css -o src/css/styles.css"
+  },
+  "engines": {
+    "node": ">=24.0.0"
   },
   "dependencies": {
     "@react-spring/web": "^9.7.4",

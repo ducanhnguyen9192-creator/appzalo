@@ -8,6 +8,14 @@ export default () => {
   return defineConfig({
     root: "./src",
     base: "",
+    server: {
+      fs: {
+        deny: ["**/.env", "**/.env.*", "**/*.{crt,pem}", "**/.git/**", "**/backend/**"],
+      },
+      proxy: {
+        "/api": "http://127.0.0.1:3001",
+      },
+    },
     plugins: [zaloMiniApp(), react()],
     resolve: {
       alias: {

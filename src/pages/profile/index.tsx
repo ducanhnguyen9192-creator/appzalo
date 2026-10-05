@@ -1,41 +1,25 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
-import { getUserInfo } from "zmp-sdk";
-
-type UserInfo = {
-  name?: string;
-  avatar?: string;
-};
+import AccountPanel from "@/components/account-panel";
+import { Account, authRequest } from "@/utils/auth";
 
 export default function ProfilePage() {
   const navigate = useNavigate();
 
-  const [user, setUser] = useState<UserInfo>({
-    name: "Khách hàng Firstclass",
-    avatar: "",
-  });
+  const [account, setAccount] = useState<Account | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [authError, setAuthError] = useState("");
+  const user = { name: account?.name || "Khách hàng FirstClass", avatar: "" };
 
-  useEffect(() => {
-    const loadUser = async () => {
-      try {
-        const result = await getUserInfo({
-          avatarType: "normal",
-        });
-
-        const info = result?.userInfo;
-
-        setUser({
-          name: info?.name || "Khách hàng Firstclass",
-          avatar: info?.avatar || "",
-        });
-      } catch (error) {
-        console.error("Không lấy được thông tin Zalo:", error);
-      }
-    };
-
-    loadUser();
-  }, []);
+  const loadAccount = async () => {
+    setLoading(true);
+    setAuthError("");
+    try { setAccount(await authRequest("me")); }
+    catch (error) { setAuthError(error instanceof Error ? error.message : "Không tải được tài khoản."); }
+    finally { setLoading(false); }
+  };
+  useEffect(() => { loadAccount(); }, []);
 
   const comingSoon = (feature: string) => {
     toast(`${feature} đang được cập nhật`);
@@ -123,11 +107,14 @@ export default function ProfilePage() {
             </div>
 
             <div className="text-sm text-gray-500 mt-1">
-              Tài khoản Firstclass Travel
+              {account ? "Đã đăng nhập FirstClass Travel" : "Chưa đăng nhập"}
             </div>
           </div>
         </div>
       </div>
+
+      <AccountPanel account={account} loading={loading} error={authError}
+        onRetry={loadAccount} onChange={(value) => { setAccount(value); setAuthError(""); }} />
 
       <div className="px-4 -mt-1">
         <div className="bg-gradient-to-r from-blue-600 to-blue-500 rounded-2xl p-4 text-white shadow-sm">
