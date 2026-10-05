@@ -1,4 +1,6 @@
 import FlightSearchPage from "@/pages/flights";
+import ToursPage, { CategoryDestination } from "@/pages/tours";
+import TourDetail from "@/pages/tours/detail";
 import AdminPage from "@/pages/admin";
 import Layout from "@/components/layout";
 import CartPage from "@/pages/cart";
@@ -18,6 +20,8 @@ const router = createBrowserRouter(
       path: "/",
       element: <Layout />,
       children: [
+        { path: "/tours", element: <ToursPage />, handle: { title: "Tour du lịch" } },
+        { path: "/tours/:id", element: <TourDetail />, handle: { title: "Chi tiết tour", scrollRestoration: 0 } },
         {
           path: "/",
           element: <HomePage />,
@@ -63,7 +67,7 @@ const router = createBrowserRouter(
         },
         {
           path: "/category/:id",
-          element: <ProductListPage />,
+          element: <CategoryDestination />,
           handle: {
             title: ({ categories, params }) =>
               categories.find(

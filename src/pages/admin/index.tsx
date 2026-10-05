@@ -1,6 +1,8 @@
 import { FormEvent, useEffect, useState } from "react";
 import { Account, adminAuthRequest as authRequest } from "@/utils/auth";
 import ImagePicker from "./image-picker";
+import TourManager from "./tour-manager";
+import { adminApi } from "@/utils/admin-api";
 
 type Customer = Account & { disabled: number; created_at: number };
 type Article = { id?: number; name: string; image: string; summary: string; content: string; publishedAt: string; categoryId: number; type: "news" | "offer"; published: boolean };
@@ -12,13 +14,6 @@ const input = "w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 tex
 const primary = "rounded-xl bg-blue-600 text-white px-4 py-2.5 font-medium disabled:opacity-50";
 const secondary = "rounded-xl border border-gray-200 bg-white px-4 py-2.5 font-medium disabled:opacity-50";
 const apiBase = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "");
-
-async function adminApi<T>(path: string, body?: unknown): Promise<T> {
-  const response = await fetch(`${apiBase}/api/admin/${path}`, { credentials: "include", method: body ? "POST" : "GET", headers: body ? { "Content-Type": "application/json" } : undefined, body: body ? JSON.stringify(body) : undefined });
-  const data = await response.json().catch(() => null);
-  if (!response.ok) throw new Error(data?.message ?? "Không thể kết nối máy chủ quản trị.");
-  return data;
-}
 
 export default function AdminPage() {
   const [account, setAccount] = useState<Account | null>(null);
@@ -112,7 +107,7 @@ export default function AdminPage() {
     </main>
   );
 
-  const tabs = [{ id: "overview", label: "Tổng quan" }, { id: "users", label: "Tài khoản" }, { id: "articles", label: "Tin tức & ưu đãi" }, { id: "banners", label: "Banner" }, { id: "security", label: "Bảo mật" }];
+  const tabs = [{ id: "overview", label: "Tổng quan" }, { id: "users", label: "Tài khoản" }, { id: "articles", label: "Tin tức & ưu đãi" }, { id: "tours", label: "Tour du lịch" }, { id: "banners", label: "Banner" }, { id: "security", label: "Bảo mật" }];
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900">
       <header className="bg-white border-b border-gray-200 px-5 py-4 flex flex-wrap items-center justify-between gap-3">
@@ -127,6 +122,7 @@ export default function AdminPage() {
           <div className="flex justify-between gap-3 items-center"><h2 className="text-xl font-bold">{tabs.find((item) => item.id === tab)?.label}</h2><button className={secondary} disabled={busy} onClick={() => act(refresh)}>Làm mới</button></div>
           {error && <div role="alert" className="rounded-xl bg-red-50 text-red-700 p-4">{error}</div>}
           {notice && <div role="status" className="rounded-xl bg-green-50 text-green-700 p-4">{notice}</div>}
+          {tab === "tours" && <TourManager />}
           {tab === "overview" && <>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               {[ ["Khách hàng", overview?.customers], ["Tài khoản bị khóa", overview?.disabled], ["Bài đang hiển thị", overview?.articles], ["Banner đang bật", overview?.banners] ].map(([label, value]) => <div key={String(label)} className="bg-white border border-gray-100 rounded-2xl p-5"><p className="text-sm text-gray-500">{label}</p><p className="text-3xl font-bold mt-3">{value ?? "—"}</p></div>)}

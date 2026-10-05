@@ -1,4 +1,5 @@
 import Section from "../../components/section";
+import { categoryPath } from "@/utils/tours";
 import TransitionLink from "../../components/transition-link";
 import { useAtomValue } from "jotai";
 import { categoriesState } from "../../state";
@@ -14,7 +15,7 @@ export default function Category() {
           <TransitionLink
             key={category.id}
             className="flex flex-col items-center space-y-2 flex-none basis-[70px] overflow-hidden cursor-pointer"
-            to={`/category/${category.id}`}
+            to={categoryPath(category.id)}
           >
             <img
               src={getCategoryImage(category.image)}

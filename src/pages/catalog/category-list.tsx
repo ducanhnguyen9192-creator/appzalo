@@ -1,4 +1,5 @@
 import SearchBar from "../../components/search-bar";
+import { categoryPath } from "@/utils/tours";
 import TransitionLink from "../../components/transition-link";
 import { useAtomValue } from "jotai";
 import { useNavigate } from "react-router-dom";
@@ -23,7 +24,7 @@ export default function CategoryListPage() {
             <TransitionLink
               key={category.id}
               className="flex flex-col items-center space-y-2 overflow-hidden cursor-pointer"
-              to={`/category/${category.id}`}
+              to={categoryPath(category.id)}
             >
               <div className="w-full aspect-square rounded-full border border-black/10 bg-white flex items-center justify-center overflow-hidden">
                 {imageSrc ? (

@@ -91,6 +91,39 @@ test("only published content reaches public API and edits persist", async (t) =>
   assert.equal((await api("admin/articles/save", article, cookie, { Origin: "https://untrusted.example" })).status, 403);
 });
 
+test("tour management validates data and only publishes the selected tour groups", async (t) => {
+  const { api, request, cookie, databasePath } = await adminFixture(t);
+  const customer = await request("register", account);
+  const customerCookie = customer.headers.get("set-cookie");
+  const tour = { name: "Tour kiểm thử", destination: "Đà Nẵng", duration: "3 ngày 2 đêm", departure: "Hàng tuần", price: 4500000, image: "/images/news/news-3.jpg", summary: "Giới thiệu", itinerary: "Ngày 1\nNgày 2", included: "Khách sạn", excluded: "Chi phí cá nhân", kind: "domestic", published: false };
+  assert.equal((await api("admin/tours", null, customerCookie)).status, 401);
+  assert.equal((await api("admin/tours/save", tour, customerCookie)).status, 401);
+  const created = await api("admin/tours/save", tour, cookie);
+  assert.equal(created.status, 201);
+  const { id } = await created.json();
+  assert.deepEqual(await (await api("content/tours")).json(), []);
+  assert.equal((await api(`content/tours/${id}`)).status, 404);
+  for (const invalid of [{ price: -1 }, { kind: "unknown" }, { image: "javascript:alert(1)" }, { duration: "" }, { published: "true" }]) {
+    assert.equal((await api("admin/tours/save", { ...tour, ...invalid }, cookie)).status, 400);
+  }
+  await api("admin/tours/save", { ...tour, id, published: true }, cookie);
+  for (const kind of ["international", "combo"]) await api("admin/tours/save", { ...tour, kind, price: null, published: true }, cookie);
+  assert.equal((await (await api("content/tours")).json()).length, 3);
+  for (const kind of ["domestic", "international", "combo"]) {
+    const list = await (await api(`content/tours?type=${kind}`)).json();
+    assert.equal(list.length, 1); assert.equal(list[0].kind, kind);
+  }
+  assert.equal((await api("content/tours?type=unknown")).status, 400);
+  assert.equal((await (await api(`content/tours/${id}`)).json()).itinerary, tour.itinerary);
+  await api("admin/tours/save", { ...tour, id, published: false }, cookie);
+  assert.equal((await api(`content/tours/${id}`)).status, 404);
+  assert.equal((await (await api("admin/tours", null, cookie)).json()).tours.length, 3);
+  assert.equal((await api("admin/tours/save", { ...tour, id: 999999 }, cookie)).status, 404);
+  const db = new DatabaseSync(databasePath);
+  assert.equal(JSON.parse(db.prepare("SELECT data FROM tours WHERE id = ?").get(id).data).price, tour.price);
+  db.close();
+});
+
 test("admin password change revokes old sessions and old password", async (t) => {
   const { api, request, cookie, admin } = await adminFixture(t);
   const other = await api("admin/auth/login", admin);

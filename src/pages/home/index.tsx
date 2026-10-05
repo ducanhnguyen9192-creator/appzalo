@@ -3,6 +3,7 @@ import Banners from "./banners";
 import SearchBar from "../../components/search-bar";
 import Category from "./category";
 import Tintuc from "./tin-tuc";
+import HomeTours from "./tours";
 import HorizontalDivider from "@/components/horizontal-divider";
 
 
@@ -19,6 +20,7 @@ const HomePage: React.FunctionComponent = () => {
         <Category />
       </div>
       <HorizontalDivider />
+      <HomeTours />
       <Tintuc />
     </div>
   );

@@ -25,9 +25,12 @@
 .mobile-header, .mobile-footer { flex-shrink: 0; }
 .home-banner img { width: 100%; height: clamp(180px, 52vw, 300px); object-fit: cover; }
 input, select, textarea { min-width: 0; }
+.tour-card { transition: transform .15s; }
+.tour-card:hover { transform: translateY(-3px); }
+.tour-grid > a { min-width: 0; }
 
 @media (min-width: 768px) {
-  .news-grid, .product-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .news-grid, .product-grid, .tour-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .service-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
   .service-grid > a > div:first-child { width: 88px; margin-inline: auto; }
 }
@@ -57,7 +60,9 @@ input, select, textarea { min-width: 0; }
   .home-category-list > * { margin-left: 0 !important; min-width: 0; }
   .home-page > div:last-child { border-radius: 20px; border: 1px solid #e7ebf2; margin-top: 24px; padding-top: 12px; }
   .home-page > .bg-section { display: none; }
-  .news-grid, .product-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px; padding-top: 12px; padding-bottom: 24px; }
+  .news-grid, .product-grid, .tour-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px; padding-top: 12px; padding-bottom: 24px; }
+  .home-tours { background: white; border: 1px solid #e7ebf2; border-radius: 20px; overflow: hidden; margin-top: 24px; padding-top: 12px; }
+  .tours-page, .tour-detail { border: 1px solid #e7ebf2; }
   .news-image { aspect-ratio: 4 / 3; }
   .news-card { border-radius: 12px; transition: transform .15s; }
   .news-card:hover { transform: translateY(-3px); }

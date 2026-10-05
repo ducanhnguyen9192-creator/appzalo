@@ -136,6 +136,14 @@ src/
   state.ts        Trạng thái ứng dụng
 ```
 
+## Quản lý tour du lịch
+
+Trang chủ có mục **Tour có sẵn**. Các tiện ích **Tour trong nước**, **Tour quốc tế**, **Combo du lịch** mở `/tours?type=domestic`, `/tours?type=international`, `/tours?type=combo`. Danh sách hỗ trợ tìm tên tour/điểm đến; mỗi tour mở trang chi tiết `/tours/:id` với giá, thời lượng, lịch khởi hành, lịch trình và dịch vụ bao gồm/chưa bao gồm.
+
+Trong **Admin → Tour du lịch → Thêm tour**, chọn nhóm, nhập thông tin, chọn ảnh từ máy, bật **Hiển thị tour trong ứng dụng** rồi bấm **Lưu tour**. Bỏ chọn hiển thị để giữ bản nháp hoặc ẩn tour. Giá để trống sẽ hiện “Giá liên hệ”. Tải lại ứng dụng sau khi lưu. Danh sách ban đầu trống, cần nhập tour thực tế trước khi hiển thị.
+
+Tour được lưu trong SQLite. API công khai `GET /api/content/tours` (lọc bằng `type`) và `GET /api/content/tours/:id` chỉ trả tour đã bật hiển thị. API quản trị `GET /api/admin/tours` và `POST /api/admin/tours/save` yêu cầu phiên quản trị. Dữ liệu tour chưa tự đồng bộ từ Checkfly.
+
 ## Nguồn gốc
 
 Dự án được phát triển từ template ZaUI Fashion của Zalo và đã tùy chỉnh cho FirstClass Travel. Thông tin bản quyền của template được giữ trong file `LICENSE`.

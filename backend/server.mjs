@@ -83,6 +83,7 @@ function openDatabase(databasePath) {
     CREATE INDEX IF NOT EXISTS sessions_expiry ON sessions(expires_at);
     CREATE TABLE IF NOT EXISTS articles (id INTEGER PRIMARY KEY AUTOINCREMENT, data TEXT NOT NULL, published INTEGER NOT NULL DEFAULT 0);
     CREATE TABLE IF NOT EXISTS banners (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, image TEXT NOT NULL, active INTEGER NOT NULL DEFAULT 1);
+    CREATE TABLE IF NOT EXISTS tours (id INTEGER PRIMARY KEY AUTOINCREMENT, data TEXT NOT NULL, published INTEGER NOT NULL DEFAULT 0);
     CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
   `);
   const columns = db.prepare("PRAGMA table_info(users)").all().map((column) => column.name);
@@ -125,6 +126,7 @@ export async function provisionAdmin({ email, password, name = "Quản trị Fir
 }
 
 const articleRow = (row) => ({ ...JSON.parse(row.data), id: row.id, published: Boolean(row.published) });
+const tourRow = articleRow;
 function imageUrl(value) {
   if (typeof value !== "string" || value.length > 2000 || !(value.startsWith("/images/") || value.startsWith("https://") || MEDIA_PATH.test(value))) throw new HttpError(400, "Hãy chọn ảnh từ máy hoặc nhập URL ảnh HTTPS.");
   if (value.startsWith("https://")) {
@@ -217,6 +219,18 @@ export function createAuthServer(options = {}) {
         }));
       }
       if (req.method === "GET" && path === "/api/content/banners") return send(200, db.prepare("SELECT image FROM banners WHERE active = 1 ORDER BY id").all().map((row) => row.image));
+      if (req.method === "GET" && path === "/api/content/tours") {
+        const kind = requestUrl.searchParams.get("type");
+        if (kind && !["domestic", "international", "combo"].includes(kind)) throw new HttpError(400, "Nhóm tour không hợp lệ.");
+        const tours = db.prepare("SELECT * FROM tours WHERE published = 1 ORDER BY id DESC").all().map(tourRow);
+        return send(200, kind ? tours.filter((tour) => tour.kind === kind) : tours);
+      }
+      const tourDetail = path.match(/^\/api\/content\/tours\/(\d+)$/);
+      if (req.method === "GET" && tourDetail) {
+        const tour = db.prepare("SELECT * FROM tours WHERE id = ? AND published = 1").get(Number(tourDetail[1]));
+        if (!tour) throw new HttpError(404, "Tour không tồn tại hoặc chưa được hiển thị.");
+        return send(200, tourRow(tour));
+      }
       if (path.startsWith("/api/admin/") && !isAdminAuth) {
         const admin = getSessionUser(req, "admin");
         if (!admin) throw new HttpError(401, "Vui lòng đăng nhập quản trị.");
@@ -246,8 +260,20 @@ export function createAuthServer(options = {}) {
         }
         if (req.method === "GET" && path === "/api/admin/articles") return send(200, { articles: db.prepare("SELECT * FROM articles ORDER BY id DESC").all().map(articleRow) });
         if (req.method === "GET" && path === "/api/admin/banners") return send(200, { banners: db.prepare("SELECT * FROM banners ORDER BY id").all().map((row) => ({ ...row, active: Boolean(row.active) })) });
+        if (req.method === "GET" && path === "/api/admin/tours") return send(200, { tours: db.prepare("SELECT * FROM tours ORDER BY id DESC").all().map(tourRow) });
         if (req.method === "POST") {
           const body = await readJson(req, 131072);
+          if (path === "/api/admin/tours/save") {
+            const fields = { name: 200, destination: 200, duration: 100, departure: 300, summary: 1000, itinerary: 20000, included: 5000, excluded: 5000 };
+            for (const [key, max] of Object.entries(fields)) if (typeof body[key] !== "string" || body[key].length > max) throw new HttpError(400, "Thông tin tour không hợp lệ hoặc quá dài.");
+            if (body.name.trim().length < 3 || !body.destination.trim() || !body.duration.trim() || !["domestic", "international", "combo"].includes(body.kind) || typeof body.published !== "boolean" || !(body.price === null || (typeof body.price === "number" && Number.isFinite(body.price) && body.price >= 0 && body.price <= 1000000000))) throw new HttpError(400, "Vui lòng kiểm tra tên, nhóm tour, điểm đến, thời lượng và giá.");
+            const data = JSON.stringify({ ...Object.fromEntries(Object.keys(fields).map((key) => [key, body[key].trim()])), image: imageUrl(body.image), kind: body.kind, price: body.price });
+            if (body.id !== undefined) {
+              if (!Number.isInteger(body.id) || !db.prepare("UPDATE tours SET data = ?, published = ? WHERE id = ?").run(data, Number(body.published), body.id).changes) throw new HttpError(404, "Không tìm thấy tour.");
+              return send(200, { id: body.id });
+            }
+            return send(201, { id: Number(db.prepare("INSERT INTO tours (data, published) VALUES (?, ?)").run(data, Number(body.published)).lastInsertRowid) });
+          }
           if (path === "/api/admin/users/status") {
             const target = db.prepare("SELECT role FROM users WHERE id = ?").get(typeof body.id === "string" ? body.id : "");
             if (!target) throw new HttpError(404, "Không tìm thấy tài khoản.");
