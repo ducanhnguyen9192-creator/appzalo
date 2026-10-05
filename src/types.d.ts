@@ -1,4 +1,5 @@
 export interface Product {
+  contentType?: "news" | "offer";
   id: number;
   name: string;
   price: number;

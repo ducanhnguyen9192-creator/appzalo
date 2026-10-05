@@ -3,6 +3,7 @@ import { atomFamily, unwrap } from "jotai/utils";
 import { Cart, Category, Color, Product } from "@/types";
 import { requestWithFallback } from "@/utils/request";
 import { getUserInfo } from "zmp-sdk";
+import { contentImage } from "@/utils/content-image";
 
 export const userState = atom(() =>
   getUserInfo({
@@ -10,9 +11,7 @@ export const userState = atom(() =>
   })
 );
 
-export const bannersState = atom(() =>
-  requestWithFallback<string[]>("/banners", [])
-);
+export const bannersState = atom(async () => (await requestWithFallback<string[]>("/banners", [])).map(contentImage));
 
 export const tabsState = atom(["Tất cả", "Nam", "Nữ", "Trẻ em"]);
 
@@ -34,6 +33,7 @@ export const productsState = atom(async (get) => {
   >("/products", []);
   return products.map((product) => ({
     ...product,
+    image: contentImage(product.image),
     category: categories.find(
       (category) => category.id === product.categoryId
     )!,

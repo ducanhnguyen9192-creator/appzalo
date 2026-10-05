@@ -1,6 +1,6 @@
 import { createServer } from "node:http";
 import { DatabaseSync } from "node:sqlite";
-import { mkdirSync } from "node:fs";
+import { mkdirSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { randomBytes, randomUUID, scrypt, timingSafeEqual, createHash } from "node:crypto";
@@ -9,7 +9,7 @@ import { promisify } from "node:util";
 const deriveKey = promisify(scrypt);
 const SESSION_SECONDS = 7 * 24 * 60 * 60;
 const hashToken = (value) => createHash("sha256").update(value).digest("hex");
-const publicUser = (row) => ({ id: row.id, name: row.name, email: row.email });
+const publicUser = (row) => ({ id: row.id, name: row.name, email: row.email, role: row.role ?? "customer" });
 class HttpError extends Error {
   constructor(status, message) { super(message); this.status = status; }
 }
@@ -19,7 +19,7 @@ async function passwordHash(password, salt = randomBytes(16).toString("hex")) {
   return `${salt}:${key.toString("hex")}`;
 }
 
-async function readJson(req) {
+async function readJson(req, limit = 8192) {
   if (!req.headers["content-type"]?.startsWith("application/json")) {
     throw new HttpError(415, "Yêu cầu phải sử dụng JSON.");
   }
@@ -27,7 +27,7 @@ async function readJson(req) {
   let size = 0;
   for await (const chunk of req) {
     size += chunk.length;
-    if (size > 8192) throw new HttpError(413, "Dữ liệu quá dài.");
+    if (size > limit) throw new HttpError(413, "Dữ liệu quá dài.");
     chunks.push(chunk);
   }
   try {
@@ -37,8 +37,7 @@ async function readJson(req) {
   } catch { throw new HttpError(400, "Dữ liệu không hợp lệ."); }
 }
 
-export function createAuthServer(options = {}) {
-  const databasePath = options.databasePath ?? process.env.DB_PATH ?? fileURLToPath(new URL("./data/firstclass.sqlite", import.meta.url));
+function openDatabase(databasePath) {
   if (databasePath !== ":memory:") mkdirSync(dirname(resolve(databasePath)), { recursive: true });
   const db = new DatabaseSync(databasePath);
   db.exec(`
@@ -53,7 +52,54 @@ export function createAuthServer(options = {}) {
       expires_at INTEGER NOT NULL
     );
     CREATE INDEX IF NOT EXISTS sessions_expiry ON sessions(expires_at);
+    CREATE TABLE IF NOT EXISTS articles (id INTEGER PRIMARY KEY AUTOINCREMENT, data TEXT NOT NULL, published INTEGER NOT NULL DEFAULT 0);
+    CREATE TABLE IF NOT EXISTS banners (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, image TEXT NOT NULL, active INTEGER NOT NULL DEFAULT 1);
+    CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
   `);
+  const columns = db.prepare("PRAGMA table_info(users)").all().map((column) => column.name);
+  if (!columns.includes("role")) db.exec("ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'customer'");
+  if (!columns.includes("disabled")) db.exec("ALTER TABLE users ADD COLUMN disabled INTEGER NOT NULL DEFAULT 0");
+  if (!db.prepare("SELECT 1 FROM settings WHERE key = 'content_seeded'").get()) {
+    const products = JSON.parse(readFileSync(new URL("../src/mock/products.json", import.meta.url), "utf8"));
+    db.exec("BEGIN");
+    try {
+      for (const item of products) {
+        const data = { name: item.name, image: item.image, summary: item.summary ?? "", content: item.details?.map((detail) => detail.content).join("\n\n") ?? "", publishedAt: item.publishedAt ?? "", categoryId: item.categoryId, type: "news" };
+        db.prepare("INSERT INTO articles (id, data, published) VALUES (?, ?, 1)").run(item.id, JSON.stringify(data));
+      }
+      for (let i = 1; i <= 2; i++) db.prepare("INSERT INTO banners (title, image) VALUES (?, ?)").run(`FirstClass Travel ${i}`, `/images/banners/banner-${i}.jpg`);
+      db.prepare("INSERT INTO settings VALUES ('content_seeded', '1')").run();
+      db.exec("COMMIT");
+    } catch (error) { db.exec("ROLLBACK"); db.close(); throw error; }
+  }
+  return db;
+}
+
+const defaultDatabasePath = () => process.env.DB_PATH ?? fileURLToPath(new URL("./data/firstclass.sqlite", import.meta.url));
+
+export async function provisionAdmin({ email, password, name = "Quản trị FirstClass", databasePath = defaultDatabasePath() }) {
+  email = email.trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254 || password.length < 12 || password.length > 128) throw new Error("Admin requires a valid email and a 12–128 character password.");
+  const db = openDatabase(databasePath);
+  try {
+    if (db.prepare("SELECT 1 FROM users WHERE email = ?").get(email)) throw new Error("Email đã tồn tại. Chọn email riêng cho tài khoản quản trị.");
+    const id = randomUUID();
+    db.prepare("INSERT INTO users (id, name, email, password_hash, created_at, role) VALUES (?, ?, ?, ?, ?, 'admin')").run(id, name, email, await passwordHash(password), Date.now());
+    return { id, email, name, role: "admin" };
+  } finally { db.close(); }
+}
+
+const articleRow = (row) => ({ ...JSON.parse(row.data), id: row.id, published: Boolean(row.published) });
+function imageUrl(value) {
+  if (typeof value !== "string" || value.length > 2000 || !(value.startsWith("/images/") || value.startsWith("https://"))) throw new HttpError(400, "Ảnh phải là URL HTTPS hoặc đường dẫn /images/.");
+  if (value.startsWith("https://")) {
+    try { const url = new URL(value); if (url.username || url.password) throw new Error(); } catch { throw new HttpError(400, "URL ảnh không hợp lệ."); }
+  }
+  return value;
+}
+
+export function createAuthServer(options = {}) {
+  const db = openDatabase(options.databasePath ?? defaultDatabasePath());
   const origins = new Set(options.allowedOrigins ?? (process.env.AUTH_ALLOWED_ORIGINS ?? "http://127.0.0.1:5173,http://localhost:5173").split(",").map((x) => x.trim()).filter(Boolean));
   const secure = options.secureCookies ?? (process.env.COOKIE_SECURE === "true" || process.env.NODE_ENV === "production");
   const sameSite = process.env.COOKIE_SAME_SITE ?? "Lax";
@@ -89,6 +135,7 @@ export function createAuthServer(options = {}) {
     db.prepare("INSERT INTO sessions VALUES (?, ?, ?)").run(hashToken(token), userId, Date.now() + SESSION_SECONDS * 1000);
     res.setHeader("Set-Cookie", cookie(token, SESSION_SECONDS));
   }
+  const getSessionUser = (req) => db.prepare("SELECT users.* FROM sessions JOIN users ON users.id = sessions.user_id WHERE token_hash = ? AND expires_at > ? AND users.disabled = 0").get(hashToken(getToken(req)), Date.now());
   const server = createServer(async (req, res) => {
     res.setHeader("Content-Type", "application/json; charset=utf-8");
     res.setHeader("Cache-Control", "no-store");
@@ -102,15 +149,93 @@ export function createAuthServer(options = {}) {
         res.setHeader("Access-Control-Allow-Origin", origin);
         res.setHeader("Access-Control-Allow-Credentials", "true");
       }
-      const path = new URL(req.url, "http://localhost").pathname;
+      const requestUrl = new URL(req.url, "http://localhost");
+      const path = requestUrl.pathname;
+      if (req.method === "POST" && req.headers["sec-fetch-site"] === "cross-site" && !origin) throw new HttpError(403, "Nguồn truy cập không được phép.");
       if (req.method === "OPTIONS") {
         res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
         res.setHeader("Access-Control-Allow-Headers", "Content-Type");
         res.writeHead(204); res.end(); return;
       }
       if (req.method === "GET" && path === "/api/health") return send(200, { ok: true });
+      if (req.method === "GET" && path === "/api/content/products") {
+        return send(200, db.prepare("SELECT * FROM articles WHERE published = 1 ORDER BY id DESC").all().map((row) => {
+          const item = articleRow(row);
+          return { ...item, contentType: item.type, details: [{ title: "Nội dung", content: item.content }] };
+        }));
+      }
+      if (req.method === "GET" && path === "/api/content/banners") return send(200, db.prepare("SELECT image FROM banners WHERE active = 1 ORDER BY id").all().map((row) => row.image));
+      if (path.startsWith("/api/admin/")) {
+        const admin = getSessionUser(req);
+        if (!admin) throw new HttpError(401, "Vui lòng đăng nhập quản trị.");
+        if (admin.role !== "admin") throw new HttpError(403, "Bạn không có quyền quản trị.");
+        if (req.method === "GET" && path === "/api/admin/overview") return send(200, {
+          customers: db.prepare("SELECT COUNT(*) AS count FROM users WHERE role = 'customer'").get().count,
+          disabled: db.prepare("SELECT COUNT(*) AS count FROM users WHERE disabled = 1").get().count,
+          articles: db.prepare("SELECT COUNT(*) AS count FROM articles WHERE published = 1").get().count,
+          banners: db.prepare("SELECT COUNT(*) AS count FROM banners WHERE active = 1").get().count,
+        });
+        if (req.method === "GET" && path === "/api/admin/users") {
+          const query = (requestUrl.searchParams.get("q") ?? "").slice(0, 100);
+          const page = Math.max(1, Math.min(100000, Number(requestUrl.searchParams.get("page")) || 1));
+          const search = `%${query}%`;
+          return send(200, {
+            users: db.prepare("SELECT id, name, email, role, disabled, created_at FROM users WHERE name LIKE ? OR email LIKE ? ORDER BY created_at DESC LIMIT 50 OFFSET ?").all(search, search, (Math.floor(page) - 1) * 50),
+            total: db.prepare("SELECT COUNT(*) AS count FROM users WHERE name LIKE ? OR email LIKE ?").get(search, search).count,
+          });
+        }
+        if (req.method === "GET" && path === "/api/admin/articles") return send(200, { articles: db.prepare("SELECT * FROM articles ORDER BY id DESC").all().map(articleRow) });
+        if (req.method === "GET" && path === "/api/admin/banners") return send(200, { banners: db.prepare("SELECT * FROM banners ORDER BY id").all().map((row) => ({ ...row, active: Boolean(row.active) })) });
+        if (req.method === "POST") {
+          const body = await readJson(req, 131072);
+          if (path === "/api/admin/users/status") {
+            const target = db.prepare("SELECT role FROM users WHERE id = ?").get(typeof body.id === "string" ? body.id : "");
+            if (!target) throw new HttpError(404, "Không tìm thấy tài khoản.");
+            if (target.role !== "customer") throw new HttpError(403, "Không thể khóa tài khoản quản trị.");
+            if (typeof body.disabled !== "boolean") throw new HttpError(400, "Trạng thái không hợp lệ.");
+            db.exec("BEGIN");
+            try {
+              db.prepare("UPDATE users SET disabled = ? WHERE id = ?").run(Number(body.disabled), body.id);
+              db.prepare("DELETE FROM sessions WHERE user_id = ?").run(body.id);
+              db.exec("COMMIT");
+            } catch (error) { db.exec("ROLLBACK"); throw error; }
+            return send(200, { message: body.disabled ? "Đã khóa tài khoản và thu hồi phiên." : "Đã mở khóa tài khoản." });
+          }
+          if (path === "/api/admin/articles/save") {
+            if (typeof body.name !== "string" || body.name.trim().length < 3 || body.name.length > 200 || typeof body.summary !== "string" || body.summary.length > 1000 || typeof body.content !== "string" || body.content.length > 20000 || !["news", "offer"].includes(body.type) || typeof body.published !== "boolean" || !Number.isInteger(body.categoryId) || body.categoryId < 1 || body.categoryId > 10 || typeof body.publishedAt !== "string" || body.publishedAt.length > 30) throw new HttpError(400, "Nội dung bài viết không hợp lệ.");
+            const data = JSON.stringify({ name: body.name.trim(), summary: body.summary, content: body.content, image: imageUrl(body.image), categoryId: body.categoryId, publishedAt: body.publishedAt, type: body.type });
+            if (body.id !== undefined) {
+              if (!Number.isInteger(body.id) || !db.prepare("UPDATE articles SET data = ?, published = ? WHERE id = ?").run(data, Number(body.published), body.id).changes) throw new HttpError(404, "Không tìm thấy bài viết.");
+              return send(200, { id: body.id });
+            }
+            return send(201, { id: Number(db.prepare("INSERT INTO articles (data, published) VALUES (?, ?)").run(data, Number(body.published)).lastInsertRowid) });
+          }
+          if (path === "/api/admin/banners/save") {
+            if (typeof body.title !== "string" || body.title.trim().length < 2 || body.title.length > 200 || typeof body.active !== "boolean") throw new HttpError(400, "Banner không hợp lệ.");
+            const image = imageUrl(body.image);
+            if (body.id !== undefined) {
+              if (!Number.isInteger(body.id) || !db.prepare("UPDATE banners SET title = ?, image = ?, active = ? WHERE id = ?").run(body.title.trim(), image, Number(body.active), body.id).changes) throw new HttpError(404, "Không tìm thấy banner.");
+              return send(200, { id: body.id });
+            }
+            return send(201, { id: Number(db.prepare("INSERT INTO banners (title, image, active) VALUES (?, ?, ?)").run(body.title.trim(), image, Number(body.active)).lastInsertRowid) });
+          }
+          if (path === "/api/admin/password") {
+            rateLimit(req, res);
+            if (typeof body.currentPassword !== "string" || body.currentPassword.length > 128 || typeof body.password !== "string" || body.password.length < 12 || body.password.length > 128) throw new HttpError(400, "Mật khẩu mới phải từ 12 đến 128 ký tự.");
+            const [salt, expected] = admin.password_hash.split(":");
+            const actual = (await passwordHash(body.currentPassword, salt)).split(":")[1];
+            if (!timingSafeEqual(Buffer.from(expected, "hex"), Buffer.from(actual, "hex"))) throw new HttpError(401, "Mật khẩu hiện tại không đúng.");
+            const encoded = await passwordHash(body.password);
+            db.prepare("UPDATE users SET password_hash = ? WHERE id = ?").run(encoded, admin.id);
+            db.prepare("DELETE FROM sessions WHERE user_id = ?").run(admin.id);
+            createSession(admin.id, req, res);
+            return send(200, { message: "Đã đổi mật khẩu và thu hồi các phiên cũ." });
+          }
+        }
+        throw new HttpError(404, "Không tìm thấy API quản trị.");
+      }
       if (req.method === "GET" && path === "/api/auth/me") {
-        const user = db.prepare("SELECT users.* FROM sessions JOIN users ON users.id = sessions.user_id WHERE token_hash = ? AND expires_at > ?").get(hashToken(getToken(req)), Date.now());
+        const user = getSessionUser(req);
         if (!user) throw new HttpError(401, "Vui lòng đăng nhập.");
         return send(200, { user: publicUser(user) });
       }
@@ -131,10 +256,10 @@ export function createAuthServer(options = {}) {
         if (path === "/api/auth/register") {
           const name = typeof body.name === "string" ? body.name.trim() : "";
           if (name.length < 2 || name.length > 100) throw new HttpError(400, "Họ tên phải có từ 2 đến 100 ký tự.");
-          const user = { id: randomUUID(), name, email };
+          const user = { id: randomUUID(), name, email, role: "customer" };
           const encoded = await passwordHash(password);
           try {
-            db.prepare("INSERT INTO users VALUES (?, ?, ?, ?, ?)").run(user.id, name, email, encoded, Date.now());
+            db.prepare("INSERT INTO users (id, name, email, password_hash, created_at) VALUES (?, ?, ?, ?, ?)").run(user.id, name, email, encoded, Date.now());
           } catch (error) {
             if (error.errcode === 2067 || error.message.includes("UNIQUE constraint failed")) throw new HttpError(409, "Email này đã được đăng ký.");
             throw error;
@@ -146,7 +271,7 @@ export function createAuthServer(options = {}) {
         const encoded = user?.password_hash ?? await dummyHash;
         const [salt, expected] = encoded.split(":");
         const actual = (await passwordHash(password, salt)).split(":")[1];
-        if (!timingSafeEqual(Buffer.from(expected, "hex"), Buffer.from(actual, "hex")) || !user) throw new HttpError(401, "Email hoặc mật khẩu không đúng.");
+        if (!timingSafeEqual(Buffer.from(expected, "hex"), Buffer.from(actual, "hex")) || !user || user.disabled) throw new HttpError(401, "Email hoặc mật khẩu không đúng.");
         createSession(user.id, req, res);
         return send(200, { user: publicUser(user) });
       }

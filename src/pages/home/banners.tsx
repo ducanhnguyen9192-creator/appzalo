@@ -1,13 +1,10 @@
 import Carousel from "../../components/carousel";
-import banner1 from "../../assets/banners/banner-1.jpg";
-import banner2 from "../../assets/banners/banner-2.jpg";
-
-const banners = [
-  banner1,
-  banner2,
-];
+import { useAtomValue } from "jotai";
+import { bannersState } from "@/state";
 
 export default function Banners() {
+  const banners = useAtomValue(bannersState);
+  if (!banners.length) return null;
   return (
     <Carousel
       slides={banners.map((banner, index) => (

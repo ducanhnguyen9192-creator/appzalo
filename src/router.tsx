@@ -1,4 +1,5 @@
 import FlightSearchPage from "@/pages/flights";
+import AdminPage from "@/pages/admin";
 import Layout from "@/components/layout";
 import CartPage from "@/pages/cart";
 import ProductListPage from "@/pages/catalog/product-list";
@@ -12,6 +13,7 @@ import { getBasePath } from "@/utils/zma";
 
 const router = createBrowserRouter(
   [
+    { path: "/admin", element: <AdminPage /> },
     {
       path: "/",
       element: <Layout />,

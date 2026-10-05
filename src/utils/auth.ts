@@ -1,4 +1,4 @@
-export type Account = { id: string; name: string; email: string };
+export type Account = { id: string; name: string; email: string; role: "admin" | "customer" };
 
 const API_URL = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "");
 

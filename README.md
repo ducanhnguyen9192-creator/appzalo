@@ -67,7 +67,29 @@ npm run test:backend
 
 Để tùy chỉnh, sao chép `backend/.env.example` thành `backend/.env`. Khi triển khai thực tế, dùng HTTPS, `NODE_ENV=production`, `COOKIE_SECURE=true`, danh sách `AUTH_ALLOWED_ORIGINS` cụ thể và ổ đĩa bền vững cho SQLite. Với frontend khác nguồn, đặt `VITE_API_URL` thành URL HTTPS của backend rồi build lại; nếu cần cookie khác site, dùng `COOKIE_SAME_SITE=None` cùng `Secure` và kiểm tra hỗ trợ cookie trong môi trường Zalo. Không đặt khóa bí mật trong biến `VITE_*`.
 
-Backend hiện phục vụ đăng ký/đăng nhập cơ bản; chưa có xác minh email, quên mật khẩu hoặc liên kết đăng nhập Zalo. API Checkfly và việc gắn yêu cầu vé vào tài khoản chưa được tích hợp. Trước khi đưa lên môi trường thật cần kiểm tra phiên đăng nhập trong Zalo, cấu hình tên miền API, sao lưu dữ liệu và giới hạn truy cập tại reverse proxy (giới hạn trong backend hiện dựa trên IP kết nối trực tiếp).
+Backend chưa có xác minh email, quên mật khẩu hoặc liên kết đăng nhập Zalo. API Checkfly và việc gắn yêu cầu vé vào tài khoản chưa được tích hợp. Trước khi đưa lên môi trường thật cần kiểm tra phiên đăng nhập trong Zalo, cấu hình tên miền API, sao lưu dữ liệu và giới hạn truy cập tại reverse proxy (giới hạn trong backend hiện dựa trên IP kết nối trực tiếp).
+
+## Trang quản trị
+
+Mở `http://127.0.0.1:5173/admin` khi backend và demo web đang chạy. Trang quản trị có:
+
+- Tổng quan số khách hàng, tài khoản bị khóa, bài viết và banner đang hiển thị.
+- Tìm tài khoản theo tên/email, xem ngày tạo và khóa/mở khóa khách hàng. Khóa sẽ thu hồi các phiên đăng nhập hiện có.
+- Thêm/sửa tin tức và ưu đãi, lưu bản nháp hoặc bật hiển thị.
+- Thêm/sửa banner và bật/tắt hiển thị, sử dụng URL ảnh HTTPS hoặc đường dẫn ảnh có sẵn `/images/`.
+- Đổi mật khẩu quản trị; các phiên cũ bị thu hồi.
+
+Tạo tài khoản quản trị riêng trên máy chủ bằng lệnh:
+
+```bash
+npm run admin:create -- admin@firstclass.local
+```
+
+Mật khẩu ngẫu nhiên được ghi vào `backend/data/admin-access.txt`. File này và cơ sở dữ liệu bị loại khỏi GitHub và bị chặn truy cập qua Vite. Mở file tại máy để lấy mật khẩu ban đầu rồi đổi trong mục **Bảo mật**. Script không ghi đè tài khoản hoặc tự nâng quyền tài khoản khách hàng đã tồn tại. Tài khoản quản trị không được tạo tự động khi khởi động; trên máy triển khai mới cần chạy lệnh tạo riêng.
+
+API `/api/admin/*` yêu cầu phiên có vai trò `admin`; đăng ký công khai luôn tạo vai trò `customer`, kể cả khi yêu cầu gửi thêm trường `role`. Mật khẩu hoặc bản băm không được trả về trong danh sách tài khoản. Không thể khóa tài khoản quản trị từ giao diện.
+
+Tin tức và banner của app được lấy từ `/api/content/products` và `/api/content/banners`, chỉ trả về nội dung đã bật hiển thị. Nội dung mẫu được nạp vào SQLite một lần khi khởi tạo. Sau khi sửa trong admin, tải lại ứng dụng để cập nhật dữ liệu. Demo cần backend để tải tin tức và banner. Tài khoản, nội dung đã sửa và mật khẩu quản trị chỉ nằm trong cơ sở dữ liệu tại máy chủ, không được đồng bộ bằng Git; cần sao lưu SQLite riêng. Hiện chưa hỗ trợ tải file ảnh, quản lý yêu cầu vé hoặc tự lấy ưu đãi từ Checkfly.
 
 ## Cấu hình ứng dụng
 
