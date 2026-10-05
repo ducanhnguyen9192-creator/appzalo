@@ -11,7 +11,7 @@ Zalo Mini App của FirstClass Travel, hỗ trợ khách hàng gửi yêu cầu 
 - Xem tin tức, danh mục dịch vụ và trang tài khoản khách hàng.
 - Đăng ký, đăng nhập bằng email và mật khẩu; duy trì phiên đăng nhập và đăng xuất.
 
-Form đặt vé gửi yêu cầu đến Google Apps Script được cấu hình trong `src/pages/flights/index.tsx`. Nhân viên FirstClass Travel kiểm tra hành trình, giá vé và liên hệ lại với khách hàng; ứng dụng hiện chưa tra giá hoặc xuất vé tự động.
+Form đặt vé yêu cầu đăng nhập và lưu yêu cầu vào backend theo tài khoản khách hàng. Nhân viên FirstClass Travel xem và xử lý trong admin, kiểm tra hành trình, giá vé và liên hệ lại; ứng dụng hiện chưa tra giá hoặc xuất vé tự động. Form không còn gửi tới Google Apps Script.
 
 ## Công nghệ
 
@@ -67,7 +67,7 @@ npm run test:backend
 
 Để tùy chỉnh, sao chép `backend/.env.example` thành `backend/.env`. Khi triển khai thực tế, dùng HTTPS, `NODE_ENV=production`, `COOKIE_SECURE=true`, danh sách `AUTH_ALLOWED_ORIGINS` cụ thể và ổ đĩa bền vững cho SQLite. Với frontend khác nguồn, đặt `VITE_API_URL` thành URL HTTPS của backend rồi build lại; nếu cần cookie khác site, dùng `COOKIE_SAME_SITE=None` cùng `Secure` và kiểm tra hỗ trợ cookie trong môi trường Zalo. Không đặt khóa bí mật trong biến `VITE_*`.
 
-Backend chưa có xác minh email, quên mật khẩu hoặc liên kết đăng nhập Zalo. API Checkfly và việc gắn yêu cầu vé vào tài khoản chưa được tích hợp. Trước khi đưa lên môi trường thật cần kiểm tra phiên đăng nhập trong Zalo, cấu hình tên miền API, sao lưu dữ liệu và giới hạn truy cập tại reverse proxy (giới hạn trong backend hiện dựa trên IP kết nối trực tiếp).
+Backend chưa có xác minh email, quên mật khẩu hoặc liên kết đăng nhập Zalo. API Checkfly chưa được tích hợp. Trước khi đưa lên môi trường thật cần kiểm tra phiên đăng nhập trong Zalo, cấu hình tên miền API, sao lưu dữ liệu và giới hạn truy cập tại reverse proxy (giới hạn trong backend hiện dựa trên IP kết nối trực tiếp).
 
 ## Trang quản trị
 
@@ -91,7 +91,7 @@ API `/api/admin/*` yêu cầu phiên có vai trò `admin`; đăng ký công khai
 
 Đăng nhập quản trị sử dụng `/api/admin/auth/login`, `/api/admin/auth/me` và `/api/admin/auth/logout` với cookie riêng `firstclass_admin_session`. Trang khách hàng sử dụng `/api/auth/*` và cookie `firstclass_customer_session`. Phiên được ràng buộc với từng khu vực trên máy chủ; đăng nhập/đăng xuất một bên không ảnh hưởng bên kia. Tài khoản quản trị chỉ đăng nhập tại `/admin`, tài khoản khách hàng tại `/profile`. Khi cập nhật từ phiên dùng chung cũ, các phiên cũ được thu hồi và cần đăng nhập lại; tài khoản và mật khẩu vẫn giữ nguyên.
 
-Tin tức và banner của app được lấy từ `/api/content/products` và `/api/content/banners`, chỉ trả về nội dung đã bật hiển thị. Nội dung mẫu được nạp vào SQLite một lần khi khởi tạo. Sau khi sửa trong admin, tải lại ứng dụng để cập nhật dữ liệu. Demo cần backend để tải tin tức và banner. Tài khoản, nội dung đã sửa và mật khẩu quản trị chỉ nằm trong cơ sở dữ liệu tại máy chủ, không được đồng bộ bằng Git; cần sao lưu SQLite riêng. Hiện chưa hỗ trợ quản lý yêu cầu vé hoặc tự lấy ưu đãi từ Checkfly.
+Tin tức và banner của app được lấy từ `/api/content/products` và `/api/content/banners`, chỉ trả về nội dung đã bật hiển thị. Nội dung mẫu được nạp vào SQLite một lần khi khởi tạo. Sau khi sửa trong admin, tải lại ứng dụng để cập nhật dữ liệu. Demo cần backend để tải tin tức và banner. Tài khoản, nội dung đã sửa và mật khẩu quản trị chỉ nằm trong cơ sở dữ liệu tại máy chủ, không được đồng bộ bằng Git; cần sao lưu SQLite riêng. Chưa tự lấy ưu đãi từ Checkfly.
 
 ### Tải ảnh từ máy
 
@@ -102,7 +102,7 @@ Trong **Banner → Sửa / Thêm banner**, bấm **Chọn tệp** tại mục **
 ## Cấu hình ứng dụng
 
 - `app-config.json`: tên ứng dụng FirstClass Travel, giao diện, địa chỉ API và OA hỗ trợ.
-- `src/pages/flights/index.tsx`: form yêu cầu vé máy bay và địa chỉ Google Apps Script nhận dữ liệu.
+- `src/pages/flights/index.tsx`: form gửi yêu cầu vé máy bay vào backend theo tài khoản khách hàng.
 - `src/mock/airports.json`: dữ liệu sân bay phục vụ tìm kiếm.
 - `src/mock/`: dữ liệu tin tức, banner và danh mục mẫu; khi chưa cấu hình `template.apiUrl`, ứng dụng sử dụng dữ liệu này.
 - `src/assets/` và `src/static/`: hình ảnh, biểu tượng và tài nguyên giao diện.
@@ -151,6 +151,16 @@ Mục **eSIM** trong tiện ích mở `/esims`, hiển thị các gói đã côn
 Vào **Admin → eSIM → Thêm gói eSIM**, nhập thông tin và chọn ảnh từ máy, bật **Hiển thị gói eSIM trong ứng dụng**, bấm **Lưu gói eSIM** rồi tải lại ứng dụng. Có thể sửa và ẩn gói bằng cách bỏ chọn hiển thị. Danh sách ban đầu trống; giá để trống hiển thị “Giá liên hệ”.
 
 Dữ liệu lưu trong SQLite. API công khai `GET /api/content/esims` và `GET /api/content/esims/:id` chỉ trả gói đã bật hiển thị. Quản trị sử dụng `GET /api/admin/esims`, `POST /api/admin/esims/save`. Đây là danh mục thông tin, chưa có thanh toán, cấp mã kích hoạt hoặc đồng bộ nhà cung cấp eSIM. Không nhập mã kích hoạt riêng của khách hàng vào nội dung công khai.
+
+## Lịch sử giao dịch và yêu cầu đặt vé
+
+Mở **Tài khoản → Lịch sử giao dịch** hoặc `/history`. Trang có hai mục: yêu cầu đặt vé (mở từng yêu cầu để xem thông tin và phản hồi), giao dịch đã ghi nhận. Khách hàng chỉ xem dữ liệu của phiên tài khoản mình; không dựa trên email/số điện thoại gửi từ trình duyệt. Danh sách phân trang 20 mục và có nút làm mới.
+
+Form `/flights` hỗ trợ đăng nhập tại chỗ, lưu yêu cầu vào `POST /api/bookings` và trả mã yêu cầu sau khi backend xác nhận. Gửi lại cùng mã/nội dung không tạo bản sao. `GET /api/bookings` và `GET /api/transactions` yêu cầu cookie khách hàng. Dữ liệu nằm trong SQLite và cần sao lưu; các yêu cầu từng gửi sang Google Script chưa được nhập vào lịch sử.
+
+Trong **Admin → Yêu cầu & giao dịch**, nhân viên xem yêu cầu, cập nhật trạng thái (đã tiếp nhận/đang xử lý/đã báo giá/đã xuất vé/đã hủy), nhập phản hồi cho khách hàng và ghi nhận khoản thanh toán đã xác nhận nhận được. Mã chứng từ trùng trong cùng yêu cầu không tạo thêm giao dịch. Ghi chú giao dịch được hiển thị cho khách hàng. Chức năng ghi nhận không thực hiện thanh toán, tự xuất vé hoặc tự đối soát ngân hàng; trạng thái “Đã xuất vé” do quản trị xác nhận. Hiện chưa có hoàn tiền/sửa chứng từ; không ghi giao dịch thử nghiệm vào tài khoản khách hàng thực tế.
+
+API quản trị: `GET /api/admin/bookings?page=1`, `POST /api/admin/bookings/status` (`id`, `status`, `response`), `POST /api/admin/bookings/payment` (`bookingId`, `amount` VNĐ, `reference`, `paidAt` ISO UTC, `note`). Chỉ phiên quản trị được cập nhật yêu cầu và ghi nhận giao dịch.
 
 ## Nguồn gốc
 

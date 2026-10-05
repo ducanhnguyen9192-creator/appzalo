@@ -27,7 +27,7 @@ export default function ProfileActions() {
     {
       label: "Lịch sử giao dịch",
       icon: OrderHistoryIcon,
-      onClick: comingSoon,
+      onClick: () => navigate("/history"),
     },
     {
       label: "Hỗ trợ",

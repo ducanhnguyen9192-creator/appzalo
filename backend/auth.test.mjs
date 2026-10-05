@@ -154,6 +154,69 @@ test("eSIM catalog protects drafts, validates packages and persists admin edits"
   db.close();
 });
 
+test("booking history is account-scoped, retry-safe and records admin-confirmed transactions", async (t) => {
+  const { api, request, cookie, databasePath } = await adminFixture(t);
+  const registered = await request("register", account);
+  const customerCookie = registered.headers.get("set-cookie");
+  const user = (await registered.json()).user;
+  const other = await request("register", { ...account, email: "other@example.test" });
+  const otherCookie = other.headers.get("set-cookie");
+  const data = { requestKey: "11111111-1111-1111-1111-111111111111", tripType: "roundtrip", origin: "Hà Nội (HAN)", destination: "Đà Nẵng (DAD)", departureDate: "2027-01-10", returnDate: "2027-01-13", adults: 1, children: 0, infants: 0, cabin: "Phổ thông", fullName: "Khách thử nghiệm", phone: "0901234567", note: "Cần hành lý", user_id: "forged", status: "ticketed" };
+  assert.equal((await api("bookings", data)).status, 401);
+  assert.equal((await api("bookings", data, cookie)).status, 401);
+  for (const invalid of [{ departureDate: "2027-02-30" }, { returnDate: "2026-12-01" }, { destination: data.origin }, { adults: 0 }, { children: -1 }, { infants: 2 }, { cabin: "invalid" }, { phone: "bad" }, { requestKey: "bad" }]) assert.equal((await api("bookings", { ...data, ...invalid }, customerCookie)).status, 400);
+  const created = await api("bookings", data, customerCookie);
+  assert.equal(created.status, 201);
+  const { booking } = await created.json();
+  assert.equal(booking.status, "received");
+  assert.equal((await api("bookings", data, customerCookie)).status, 200);
+  assert.equal((await api("bookings", { ...data, note: "changed" }, customerCookie)).status, 409);
+  assert.equal((await (await api("bookings", null, customerCookie)).json()).total, 1);
+  assert.equal((await (await api(`bookings?user_id=${user.id}`, null, otherCookie)).json()).total, 0);
+  assert.equal((await api("admin/bookings", null, customerCookie)).status, 401);
+  assert.equal((await api("admin/bookings/status", { id: booking.id, status: "quoted", response: "Báo giá thử nghiệm" }, customerCookie)).status, 401);
+  assert.equal((await api("admin/bookings/status", { id: booking.id, status: "unknown", response: "" }, cookie)).status, 400);
+  assert.equal((await api("admin/bookings/status", { id: booking.id, status: "quoted", response: "Báo giá thử nghiệm" }, cookie)).status, 200);
+  const updated = (await (await api("bookings", null, customerCookie)).json()).bookings[0];
+  assert.equal(updated.status, "quoted"); assert.equal(updated.response, "Báo giá thử nghiệm");
+  assert.equal((await (await api("transactions", null, customerCookie)).json()).total, 0);
+  const payment = { bookingId: booking.id, amount: 2500000, reference: "TEST-RECEIPT-01", paidAt: "2026-01-01T00:00:00.000Z", note: "Đã nhận chuyển khoản" };
+  assert.equal((await api("admin/bookings/payment", payment, customerCookie)).status, 401);
+  assert.equal((await api("admin/bookings/payment", { ...payment, amount: -1 }, cookie)).status, 400);
+  assert.equal((await api("admin/bookings/payment", { ...payment, paidAt: "2099-01-01T00:00:00Z" }, cookie)).status, 400);
+  assert.equal((await api("admin/bookings/payment", payment, cookie)).status, 201);
+  assert.equal((await api("admin/bookings/payment", payment, cookie)).status, 200);
+  assert.equal((await api("admin/bookings/payment", { ...payment, amount: 1 }, cookie)).status, 409);
+  const transactions = await (await api("transactions", null, customerCookie)).json();
+  assert.equal(transactions.total, 1); assert.equal(transactions.transactions[0].amount, payment.amount);
+  assert.equal(transactions.transactions[0].origin, data.origin);
+  assert.equal((await (await api("transactions", null, otherCookie)).json()).total, 0);
+  const adminRows = await (await api("admin/bookings", null, cookie)).json();
+  assert.equal(adminRows.bookings[0].customerEmail, account.email);
+  assert.equal(adminRows.bookings[0].transactions.length, 1);
+  const db = new DatabaseSync(databasePath);
+  assert.equal(db.prepare("SELECT user_id FROM bookings WHERE id = ?").get(booking.id).user_id, user.id);
+  assert.equal(db.prepare("SELECT recorded_by FROM transactions").get().recorded_by, (await (await api("admin/auth/me", null, cookie)).json()).user.id);
+  db.close();
+  assert.equal((await api("admin/users/status", { id: user.id, disabled: true }, cookie)).status, 200);
+  assert.equal((await api("bookings", null, customerCookie)).status, 401);
+  assert.equal((await api("transactions", null, customerCookie)).status, 401);
+});
+
+test("booking pagination separates pages and one-way requests omit return dates", async (t) => {
+  const { api, request } = await start(t, { rateLimit: 100 });
+  const customer = await request("register", account);
+  const cookie = customer.headers.get("set-cookie");
+  for (let index = 0; index < 21; index++) {
+    const body = { requestKey: `${String(index).padStart(8,"0")}-1111-1111-1111-111111111111`, tripType: "oneway", origin: "HAN", destination: "SGN", departureDate: "2027-01-10", returnDate: "ignored", adults: 1, children: 0, infants: 0, cabin: "Phổ thông", fullName: "Khách thử nghiệm", phone: "0901234567", note: "" };
+    assert.equal((await api("bookings", body, cookie)).status, 201);
+  }
+  const first = await (await api("bookings?page=1", null, cookie)).json();
+  const second = await (await api("bookings?page=2", null, cookie)).json();
+  assert.equal(first.total, 21); assert.equal(first.bookings.length, 20); assert.equal(second.bookings.length, 1);
+  assert.ok(first.bookings.every((booking) => booking.returnDate === "" && booking.id !== second.bookings[0].id));
+});
+
 test("admin password change revokes old sessions and old password", async (t) => {
   const { api, request, cookie, admin } = await adminFixture(t);
   const other = await api("admin/auth/login", admin);

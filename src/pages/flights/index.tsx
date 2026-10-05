@@ -1,11 +1,24 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
+import AccountPanel from "@/components/account-panel";
+import { Account, authRequest } from "@/utils/auth";
+import { Booking, BookingApiError, bookingApi } from "@/utils/bookings";
 import toast from "react-hot-toast";
 import AIRPORTS from "@/mock/airports.json";
 
-const GOOGLE_SCRIPT_URL =
-  "https://script.google.com/macros/s/AKfycbwmdvpiuvBZDJSp99Uyn4A6lm4CA8w36LFBpdZOAkMVSQfvikNujO8Dbb2E0jT9wJc/exec";
-
 export default function FlightSearchPage() {
+  const [account, setAccount] = useState<Account | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [authError, setAuthError] = useState("");
+  const [lastBooking, setLastBooking] = useState<Booking | null>(null);
+  const sending = useRef(false);
+  const requestIdentity = useRef<{ payload: string; key: string } | null>(null);
+  async function loadAccount() {
+    setAuthLoading(true); setAuthError("");
+    try { setAccount(await authRequest("me")); } catch (e) { setAuthError(e instanceof Error ? e.message : "Không kiểm tra được tài khoản."); } finally { setAuthLoading(false); }
+  }
+  useEffect(() => { loadAccount(); }, []);
+  useEffect(() => { setLastBooking(null); }, [account?.id]);
   const [tripType, setTripType] = useState<"roundtrip" | "oneway">("roundtrip");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeAirportField, setActiveAirportField] = useState<
@@ -90,7 +103,8 @@ export default function FlightSearchPage() {
   };
 
   const submitRequest = async () => {
-    if (isSubmitting) return;
+    if (sending.current || authLoading) return;
+    if (!account) { toast.error("Vui lòng đăng nhập ở phía trên để lưu và theo dõi yêu cầu."); return; }
 
     if (!form.origin.trim()) {
       toast.error("Vui lòng nhập điểm đi");
@@ -136,46 +150,27 @@ export default function FlightSearchPage() {
       return;
     }
 
-    const params = new URLSearchParams();
-
-    params.append("tripType", tripType);
-    params.append("origin", form.origin.trim());
-    params.append("destination", form.destination.trim());
-    params.append("departureDate", form.departureDate);
-    params.append(
-      "returnDate",
-      tripType === "oneway" ? "" : form.returnDate
-    );
-    params.append("adults", String(form.adults));
-    params.append("children", String(form.children));
-    params.append("infants", String(form.infants));
-    params.append("cabin", form.cabin);
-    params.append("fullName", form.fullName.trim());
-    params.append("phone", form.phone.trim());
-    params.append("note", form.note.trim());
+    const payload = { ...form, tripType, returnDate: tripType === "oneway" ? "" : form.returnDate };
+    const serialized = JSON.stringify({ ...payload, accountId: account.id });
+    if (requestIdentity.current?.payload !== serialized) {
+      const bytes = Array.from({ length: 32 }, () => Math.floor(Math.random() * 16).toString(16)).join("");
+      requestIdentity.current = { payload: serialized, key: `${bytes.slice(0,8)}-${bytes.slice(8,12)}-${bytes.slice(12,16)}-${bytes.slice(16,20)}-${bytes.slice(20)}` };
+    }
 
     try {
       setIsSubmitting(true);
-
-      await fetch(GOOGLE_SCRIPT_URL, {
-        method: "POST",
-        mode: "no-cors",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
-        },
-        body: params.toString(),
-      });
-
+      sending.current = true;
+      const result = await bookingApi<{ booking: Booking }>("bookings", { ...payload, requestKey: requestIdentity.current.key });
+      setLastBooking(result.booking);
+      requestIdentity.current = null;
       toast.success("Đã gửi yêu cầu đặt vé thành công");
       resetForm();
     } catch (error) {
-      console.error("Lỗi gửi yêu cầu đặt vé:", error);
-
-      toast.error(
-        "Không thể gửi yêu cầu. Vui lòng kiểm tra kết nối và thử lại."
-      );
+      if (error instanceof BookingApiError && error.status === 401) setAccount(null);
+      toast.error(error instanceof Error ? error.message : "Không thể gửi yêu cầu. Vui lòng thử lại.");
     } finally {
       setIsSubmitting(false);
+      sending.current = false;
     }
   };
 
@@ -184,6 +179,9 @@ export default function FlightSearchPage() {
 
   return (
     <div className="flight-page p-4 pb-8 space-y-4">
+      <AccountPanel account={account} loading={authLoading} error={authError} onRetry={loadAccount} onChange={setAccount} />
+      <Link to="/history" className="inline-block text-sm text-blue-600">Xem lịch sử giao dịch & yêu cầu đặt vé →</Link>
+      {lastBooking && <div role="status" className="rounded-xl border border-green-200 bg-green-50 p-4 break-words"><p className="font-medium text-green-800">Đã tiếp nhận yêu cầu đặt vé</p><p className="text-sm mt-1">Mã yêu cầu: {lastBooking.id}</p><Link to="/history" className="inline-block mt-2 text-sm text-blue-600">Theo dõi yêu cầu trong lịch sử →</Link></div>}
       <div className="bg-white rounded-2xl p-4 shadow-sm">
         <div className="mb-5">
           <h1 className="text-xl font-semibold">Yêu cầu đặt vé máy bay</h1>

@@ -86,6 +86,17 @@ function openDatabase(databasePath) {
     CREATE TABLE IF NOT EXISTS tours (id INTEGER PRIMARY KEY AUTOINCREMENT, data TEXT NOT NULL, published INTEGER NOT NULL DEFAULT 0);
     CREATE TABLE IF NOT EXISTS esims (id INTEGER PRIMARY KEY AUTOINCREMENT, data TEXT NOT NULL, published INTEGER NOT NULL DEFAULT 0);
     CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+    CREATE TABLE IF NOT EXISTS bookings (
+      id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id), request_key TEXT NOT NULL,
+      data TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'received', response TEXT NOT NULL DEFAULT '',
+      created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, UNIQUE(user_id, request_key)
+    );
+    CREATE INDEX IF NOT EXISTS bookings_customer ON bookings(user_id, created_at DESC);
+    CREATE TABLE IF NOT EXISTS transactions (
+      id TEXT PRIMARY KEY, booking_id TEXT NOT NULL REFERENCES bookings(id), amount INTEGER NOT NULL,
+      reference TEXT NOT NULL, note TEXT NOT NULL, paid_at TEXT NOT NULL, created_at INTEGER NOT NULL,
+      recorded_by TEXT NOT NULL REFERENCES users(id), UNIQUE(booking_id, reference)
+    );
   `);
   const columns = db.prepare("PRAGMA table_info(users)").all().map((column) => column.name);
   if (!columns.includes("role")) db.exec("ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'customer'");
@@ -128,6 +139,16 @@ export async function provisionAdmin({ email, password, name = "Quản trị Fir
 
 const articleRow = (row) => ({ ...JSON.parse(row.data), id: row.id, published: Boolean(row.published) });
 const tourRow = articleRow;
+const bookingRow = (row) => ({ ...JSON.parse(row.data), id: row.id, status: row.status, response: row.response, createdAt: row.created_at, updatedAt: row.updated_at });
+const validDate = (value) => typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(Date.parse(`${value}T00:00:00Z`)) && new Date(`${value}T00:00:00Z`).toISOString().slice(0, 10) === value;
+function bookingData(body) {
+  const limits = { origin: 200, destination: 200, fullName: 100, phone: 30, note: 2000 };
+  for (const [field, max] of Object.entries(limits)) if (typeof body[field] !== "string" || body[field].length > max || (field !== "note" && !body[field].trim())) throw new HttpError(400, "Vui lòng kiểm tra hành trình và thông tin liên hệ.");
+  if (!["oneway", "roundtrip"].includes(body.tripType) || body.origin.trim().toLowerCase() === body.destination.trim().toLowerCase() || !validDate(body.departureDate) || (body.tripType === "roundtrip" && (!validDate(body.returnDate) || body.returnDate < body.departureDate))) throw new HttpError(400, "Hành trình hoặc ngày đi / ngày về không hợp lệ.");
+  if (!["Phổ thông", "Phổ thông đặc biệt", "Thương gia", "Hạng nhất"].includes(body.cabin) || ![body.adults, body.children, body.infants].every((count) => Number.isInteger(count) && count >= 0 && count <= 20) || body.adults < 1 || body.infants > body.adults || body.adults + body.children + body.infants > 20) throw new HttpError(400, "Số hành khách hoặc hạng ghế không hợp lệ (tối đa 20 người, mỗi em bé cần một người lớn).");
+  if (body.fullName.trim().length < 2 || !/^\+?[\d\s().-]{7,30}$/.test(body.phone.trim())) throw new HttpError(400, "Họ tên hoặc số điện thoại không hợp lệ.");
+  return { ...Object.fromEntries(Object.keys(limits).map((key) => [key, body[key].trim()])), tripType: body.tripType, departureDate: body.departureDate, returnDate: body.tripType === "roundtrip" ? body.returnDate : "", adults: body.adults, children: body.children, infants: body.infants, cabin: body.cabin };
+}
 function imageUrl(value) {
   if (typeof value !== "string" || value.length > 2000 || !(value.startsWith("/images/") || value.startsWith("https://") || MEDIA_PATH.test(value))) throw new HttpError(400, "Hãy chọn ảnh từ máy hoặc nhập URL ảnh HTTPS.");
   if (value.startsWith("https://")) {
@@ -201,6 +222,33 @@ export function createAuthServer(options = {}) {
         res.writeHead(204); res.end(); return;
       }
       if (req.method === "GET" && path === "/api/health") return send(200, { ok: true });
+      if (path === "/api/bookings" || path === "/api/transactions") {
+        const customer = getSessionUser(req, "customer");
+        if (!customer) throw new HttpError(401, "Vui lòng đăng nhập tài khoản khách hàng để xem lịch sử và gửi yêu cầu.");
+        const page = Math.max(1, Math.min(100000, Math.floor(Number(requestUrl.searchParams.get("page")) || 1)));
+        if (req.method === "GET" && path === "/api/bookings") return send(200, {
+          bookings: db.prepare("SELECT * FROM bookings WHERE user_id = ? ORDER BY created_at DESC, id DESC LIMIT 20 OFFSET ?").all(customer.id, (page - 1) * 20).map(bookingRow),
+          total: db.prepare("SELECT COUNT(*) AS count FROM bookings WHERE user_id = ?").get(customer.id).count,
+        });
+        if (req.method === "GET" && path === "/api/transactions") return send(200, {
+          transactions: db.prepare("SELECT transactions.id, booking_id AS bookingId, amount, reference, note, paid_at AS paidAt, transactions.created_at AS createdAt, bookings.data AS booking_data FROM transactions JOIN bookings ON bookings.id = transactions.booking_id WHERE bookings.user_id = ? ORDER BY transactions.created_at DESC, transactions.id DESC LIMIT 20 OFFSET ?").all(customer.id, (page - 1) * 20).map(({ booking_data, ...row }) => { const booking = JSON.parse(booking_data); return { ...row, origin: booking.origin, destination: booking.destination }; }),
+          total: db.prepare("SELECT COUNT(*) AS count FROM transactions JOIN bookings ON bookings.id = transactions.booking_id WHERE bookings.user_id = ?").get(customer.id).count,
+        });
+        if (req.method === "POST" && path === "/api/bookings") {
+          const body = await readJson(req, 16384);
+          if (typeof body.requestKey !== "string" || !/^[a-f0-9-]{36}$/.test(body.requestKey)) throw new HttpError(400, "Mã gửi yêu cầu không hợp lệ.");
+          const data = JSON.stringify(bookingData(body));
+          const previous = db.prepare("SELECT * FROM bookings WHERE user_id = ? AND request_key = ?").get(customer.id, body.requestKey);
+          if (previous) {
+            if (previous.data !== data) throw new HttpError(409, "Mã gửi đã được sử dụng cho một yêu cầu khác.");
+            return send(200, { booking: bookingRow(previous) });
+          }
+          rateLimit(req, res);
+          const id = randomUUID(), now = Date.now();
+          db.prepare("INSERT INTO bookings (id, user_id, request_key, data, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)").run(id, customer.id, body.requestKey, data, now, now);
+          return send(201, { booking: bookingRow(db.prepare("SELECT * FROM bookings WHERE id = ?").get(id)) });
+        }
+      }
       const media = path.match(MEDIA_PATH);
       if (req.method === "GET" && media) {
         const file = resolve(uploadsDirectory, media[1]);
@@ -243,6 +291,11 @@ export function createAuthServer(options = {}) {
         const admin = getSessionUser(req, "admin");
         if (!admin) throw new HttpError(401, "Vui lòng đăng nhập quản trị.");
         if (admin.role !== "admin") throw new HttpError(403, "Bạn không có quyền quản trị.");
+        if (req.method === "GET" && path === "/api/admin/bookings") {
+          const page = Math.max(1, Math.min(100000, Math.floor(Number(requestUrl.searchParams.get("page")) || 1)));
+          const rows = db.prepare("SELECT bookings.*, users.email AS customer_email FROM bookings JOIN users ON users.id = bookings.user_id ORDER BY created_at DESC, id DESC LIMIT 20 OFFSET ?").all((page - 1) * 20);
+          return send(200, { bookings: rows.map((row) => ({ ...bookingRow(row), customerEmail: row.customer_email, transactions: db.prepare("SELECT id, amount, reference, note, paid_at AS paidAt FROM transactions WHERE booking_id = ? ORDER BY created_at DESC").all(row.id) })), total: db.prepare("SELECT COUNT(*) AS count FROM bookings").get().count });
+        }
         if (req.method === "POST" && path === "/api/admin/uploads") {
           rateLimit(req, res);
           const { data, extension } = await readImage(req);
@@ -272,6 +325,24 @@ export function createAuthServer(options = {}) {
         if (req.method === "GET" && path === "/api/admin/esims") return send(200, { esims: db.prepare("SELECT * FROM esims ORDER BY id DESC").all().map(articleRow) });
         if (req.method === "POST") {
           const body = await readJson(req, 131072);
+          if (path === "/api/admin/bookings/status") {
+            if (!["received", "reviewing", "quoted", "ticketed", "cancelled"].includes(body.status) || typeof body.response !== "string" || body.response.length > 5000) throw new HttpError(400, "Trạng thái hoặc phản hồi không hợp lệ.");
+            if (typeof body.id !== "string" || !db.prepare("UPDATE bookings SET status = ?, response = ?, updated_at = ? WHERE id = ?").run(body.status, body.response.trim(), Date.now(), body.id).changes) throw new HttpError(404, "Không tìm thấy yêu cầu.");
+            return send(200, { message: "Đã cập nhật yêu cầu." });
+          }
+          if (path === "/api/admin/bookings/payment") {
+            if (typeof body.bookingId !== "string" || !db.prepare("SELECT id FROM bookings WHERE id = ?").get(body.bookingId)) throw new HttpError(404, "Không tìm thấy yêu cầu.");
+            if (!Number.isSafeInteger(body.amount) || body.amount <= 0 || body.amount > 1000000000 || typeof body.reference !== "string" || !body.reference.trim() || body.reference.length > 200 || typeof body.note !== "string" || body.note.length > 2000 || typeof body.paidAt !== "string" || body.paidAt.length > 40 || !/^\d{4}-\d{2}-\d{2}T.*Z$/.test(body.paidAt) || !Number.isFinite(Date.parse(body.paidAt)) || Date.parse(body.paidAt) > Date.now()) throw new HttpError(400, "Kiểm tra số tiền, mã giao dịch và thời điểm thanh toán (không được ở tương lai).");
+            const reference = body.reference.trim();
+            const previous = db.prepare("SELECT * FROM transactions WHERE booking_id = ? AND reference = ?").get(body.bookingId, reference);
+            if (previous) {
+              if (previous.amount !== body.amount || previous.paid_at !== body.paidAt || previous.note !== body.note.trim()) throw new HttpError(409, "Mã giao dịch đã được ghi nhận với thông tin khác.");
+              return send(200, { id: previous.id });
+            }
+            const id = randomUUID();
+            db.prepare("INSERT INTO transactions (id, booking_id, amount, reference, note, paid_at, created_at, recorded_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)").run(id, body.bookingId, body.amount, reference, body.note.trim(), body.paidAt, Date.now(), admin.id);
+            return send(201, { id });
+          }
           if (path === "/api/admin/esims/save") {
             const fields = { name: 200, coverage: 1000, allowance: 200, validity: 100, network: 300, activation: 1000, summary: 1000, instructions: 20000, notes: 5000 };
             for (const [key, max] of Object.entries(fields)) if (typeof body[key] !== "string" || body[key].length > max) throw new HttpError(400, "Thông tin eSIM không hợp lệ hoặc quá dài.");

@@ -34,9 +34,9 @@ export default function ProfilePage() {
     },
     {
       title: "Lịch sử giao dịch",
-      description: "Vé, tour và dịch vụ",
+      description: "Giao dịch & yêu cầu đặt vé",
       icon: "🧾",
-      action: () => comingSoon("Lịch sử giao dịch"),
+      action: () => navigate("/history"),
     },
     {
       title: "Tour đã đăng ký",
