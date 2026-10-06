@@ -1,11 +1,10 @@
 import Section from "../../components/section";
 import { useAtomValue } from "jotai";
 import { flashSaleProductsState } from "../../state";
-import { useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 
 export default function Tintuc() {
   const products = useAtomValue(flashSaleProductsState);
-  const navigate = useNavigate();
 
   return (
     <Section title="Tin tức" viewMoreTo="/tin-tuc">
@@ -14,12 +13,9 @@ export default function Tintuc() {
           const image = product.image;
 
           return (
-            <button
+            <Link
               key={product.id}
-              type="button"
-              onClick={() =>
-                navigate(`/product/${product.id}`)
-              }
+              to={`/product/${product.id}`}
               className="news-card text-left w-full"
             >
               {/* Ảnh */}
@@ -37,18 +33,15 @@ export default function Tintuc() {
               </div>
 
               {/* Tiêu đề */}
-              <div className="text-sm font-medium text-gray-900 mt-1 leading-5 line-clamp-2">
+              <div className="news-title text-sm font-medium text-gray-900 mt-1 leading-5 line-clamp-2">
                 {product.name}
               </div>
 
               {/* Ngày đăng nếu có */}
-              {"publishedAt" in product &&
-                product.publishedAt && (
-                  <div className="text-xs text-gray-400 mt-1">
-                    {String(product.publishedAt)}
-                  </div>
-                )}
-            </button>
+              <div className="news-date text-xs text-gray-400 mt-1">
+                {"publishedAt" in product && product.publishedAt ? String(product.publishedAt) : ""}
+              </div>
+            </Link>
           );
         })}
       </div>
