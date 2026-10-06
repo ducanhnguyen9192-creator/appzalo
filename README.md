@@ -188,7 +188,7 @@ Trang quản trị và form vé được tải khi mở trang tương ứng; tra
 
 Ứng dụng và Admin dùng chung popup cho đăng nhập, đăng ký, đăng xuất, gửi yêu cầu vé, lưu dữ liệu quản trị, cập nhật yêu cầu, ghi nhận giao dịch và tải ảnh. Thành công chỉ hiện sau phản hồi API; lỗi kết nối, API hoặc thông tin nhập chưa hợp lệ có popup lỗi, đồng thời giữ thông báo tại form. Việc tải danh sách và kiểm tra phiên nền không bật popup.
 
-Popup không tự đóng; bấm **Đã hiểu**, nút đóng hoặc Escape để tiếp tục. Khi mở, popup giữ focus bàn phím và chặn tương tác với trang phía sau. Các kết quả đến đồng thời được xếp hàng, không ghi đè nhau. Thông báo yêu cầu vé nêu rõ chưa phải xác nhận mua/thanh toán; giao dịch quản trị chỉ xác nhận ghi nhận lịch sử.
+Thông báo nằm ở góc phải phía trên, tự ẩn sau 4 giây và có nút đóng sớm. Thông báo không phủ nền, không chuyển focus hoặc chặn thao tác trên trang. Các kết quả đến đồng thời được xếp hàng, không ghi đè nhau. Thông báo yêu cầu vé nêu rõ chưa phải xác nhận mua/thanh toán; giao dịch quản trị chỉ xác nhận ghi nhận lịch sử.
 
 ## Nguồn gốc
 

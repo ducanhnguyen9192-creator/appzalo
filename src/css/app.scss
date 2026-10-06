@@ -12,10 +12,10 @@
   }
 }
 
-.operation-popup-backdrop { position: fixed; inset: 0; z-index: 10000; background: #0f172a80; display: flex; align-items: center; justify-content: center; padding: 20px; overscroll-behavior: contain; }
-.operation-popup-panel { position: relative; width: 100%; max-width: 420px; max-height: calc(100vh - 40px); max-height: calc(100dvh - 40px); overflow-y: auto; background: white; border-radius: 24px; padding: 28px 24px; box-shadow: 0 24px 80px #0f172a33; text-align: center; }
-.operation-popup-close { position: absolute; top: 8px; right: 8px; width: 44px; height: 44px; font-size: 26px; color: #64748b; border-radius: 12px; }
-.operation-popup-icon { width: 64px; height: 64px; display: flex; align-items: center; justify-content: center; border-radius: 50%; margin: 0 auto 20px; font-size: 32px; font-weight: 700; }
+.operation-popup-position { position: fixed; top: calc(env(safe-area-inset-top, 0px) + 16px); right: calc(env(safe-area-inset-right, 0px) + 16px); z-index: 10000; width: min(380px, calc(100vw - 32px)); pointer-events: none; }
+.operation-popup-panel { display: grid; grid-template-columns: 32px minmax(0, 1fr) 32px; align-items: start; gap: 10px; width: 100%; max-height: calc(100vh - 32px); max-height: calc(100dvh - 32px); overflow-y: auto; background: white; border: 1px solid #e2e8f0; border-radius: 16px; padding: 16px 12px 16px 16px; box-shadow: 0 8px 30px #0f172a26; text-align: left; pointer-events: auto; }
+.operation-popup-close { width: 32px; height: 32px; font-size: 24px; line-height: 1; color: #64748b; border-radius: 8px; }
+.operation-popup-icon { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-size: 20px; font-weight: 700; }
 .operation-popup-icon.is-success { color: #15803d; background: #dcfce7; }
 .operation-popup-icon.is-error { color: #b91c1c; background: #fee2e2; }
 .operation-popup-panel button:focus-visible { outline: 3px solid #93c5fd; outline-offset: 3px; }
