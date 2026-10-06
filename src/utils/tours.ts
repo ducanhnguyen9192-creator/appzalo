@@ -4,12 +4,13 @@ export type TourKind = "domestic" | "international" | "combo";
 export type Tour = { id?: number; name: string; kind: TourKind; destination: string; duration: string; departure: string; price: number | null; image: string; summary: string; itinerary: string; included: string; excluded: string; published: boolean };
 export const TOUR_KINDS: Record<TourKind, string> = { domestic: "Tour trong nước", international: "Tour quốc tế", combo: "Combo du lịch" };
 export const API_BASE = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "");
+export function tourPath(kind: TourKind) { return `/tours/${kind}`; }
 
 export function categoryPath(id: number) {
   if (id === 1) return "/flights";
   if (id === 7) return "/esims";
-  const kind = ({ 2: "domestic", 3: "international", 4: "combo" } as Record<number, string>)[id];
-  return kind ? `/tours?type=${kind}` : `/category/${id}`;
+  const kind = ({ 2: "domestic", 3: "international", 4: "combo" } as Record<number, TourKind>)[id];
+  return kind ? tourPath(kind) : `/category/${id}`;
 }
 export function tourPrice(price: number | null) {
   return price === null ? "Giá liên hệ" : `${new Intl.NumberFormat("vi-VN").format(price)} đ`;

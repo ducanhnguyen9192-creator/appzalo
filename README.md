@@ -138,7 +138,7 @@ src/
 
 ## Quản lý tour du lịch
 
-Trang chủ có mục **Tour có sẵn**. Các tiện ích **Tour trong nước**, **Tour quốc tế**, **Combo du lịch** mở `/tours?type=domestic`, `/tours?type=international`, `/tours?type=combo`. Danh sách hỗ trợ tìm tên tour/điểm đến; mỗi tour mở trang chi tiết `/tours/:id` với giá, thời lượng, lịch khởi hành, lịch trình và dịch vụ bao gồm/chưa bao gồm.
+Trang chủ có mục **Tour có sẵn**. Các tiện ích **Tour trong nước**, **Tour quốc tế**, **Combo du lịch** mở `/tours/domestic`, `/tours/international`, `/tours/combo`. Mỗi trang chỉ hiển thị đúng nhóm đã chọn; trang `/tours` chia kết quả thành từng nhóm. Các link cũ `/tours?type=...` vẫn chuyển về trang mới, giữ bộ lọc. Danh sách hỗ trợ tìm không dấu theo tên tour/điểm đến, lọc thời lượng và khoảng giá, sắp xếp mới nhất/giá/thời lượng; mỗi tour mở trang chi tiết `/tours/:id` với giá, thời lượng, lịch khởi hành, lịch trình và dịch vụ bao gồm/chưa bao gồm.
 
 Trong **Admin → Tour du lịch → Thêm tour**, chọn nhóm, nhập thông tin, chọn ảnh từ máy, bật **Hiển thị tour trong ứng dụng** rồi bấm **Lưu tour**. Bỏ chọn hiển thị để giữ bản nháp hoặc ẩn tour. Giá để trống sẽ hiện “Giá liên hệ”. Tải lại ứng dụng sau khi lưu. Danh sách ban đầu trống, cần nhập tour thực tế trước khi hiển thị.
 
@@ -149,6 +149,8 @@ Tour được lưu trong SQLite. API công khai `GET /api/content/tours` (lọc 
 Mục **eSIM** trong tiện ích mở `/esims`, hiển thị các gói đã công khai và hỗ trợ tìm theo tên gói/quốc gia. Trang chủ có mục **eSIM du lịch**; mỗi gói mở `/esims/:id` với vùng phủ sóng, dung lượng, thời hạn, giá, nhà mạng, điều kiện kích hoạt, hướng dẫn và lưu ý.
 
 Vào **Admin → eSIM → Thêm gói eSIM**, nhập thông tin và chọn ảnh từ máy, bật **Hiển thị gói eSIM trong ứng dụng**, bấm **Lưu gói eSIM** rồi tải lại ứng dụng. Có thể sửa và ẩn gói bằng cách bỏ chọn hiển thị. Danh sách ban đầu trống; giá để trống hiển thị “Giá liên hệ”.
+
+Danh sách eSIM có lọc dung lượng, thời hạn và khoảng giá, sắp xếp mới nhất/giá/thời hạn. Các lựa chọn dung lượng và thời hạn lấy từ dữ liệu quản trị, giữ nguyên mô tả gói (không đánh đồng dung lượng mỗi ngày và tổng dung lượng). Giá liên hệ không được tính như giá 0 và luôn xếp cuối khi sắp xếp theo giá. Thời lượng/thời hạn chỉ được so sánh khi nhận diện rõ đơn vị ngày; mô tả chưa xác định xếp cuối. Bộ lọc lưu trong URL, giữ lại khi tải lại/quay lại; có số kết quả và nút xóa bộ lọc.
 
 Dữ liệu lưu trong SQLite. API công khai `GET /api/content/esims` và `GET /api/content/esims/:id` chỉ trả gói đã bật hiển thị. Quản trị sử dụng `GET /api/admin/esims`, `POST /api/admin/esims/save`. Đây là danh mục thông tin, chưa có thanh toán, cấp mã kích hoạt hoặc đồng bộ nhà cung cấp eSIM. Không nhập mã kích hoạt riêng của khách hàng vào nội dung công khai.
 

@@ -32,6 +32,9 @@ const router = createBrowserRouter(
         { path: "/esims", element: <EsimsPage />, handle: { title: "eSIM du lịch" } },
         { path: "/esims/:id", element: <EsimDetail />, handle: { title: "Chi tiết eSIM", scrollRestoration: 0 } },
         { path: "/tours", element: <ToursPage />, handle: { title: "Tour du lịch" } },
+        { path: "/tours/domestic", element: <ToursPage kind="domestic" />, handle: { title: "Tour trong nước" } },
+        { path: "/tours/international", element: <ToursPage kind="international" />, handle: { title: "Tour quốc tế" } },
+        { path: "/tours/combo", element: <ToursPage kind="combo" />, handle: { title: "Combo du lịch" } },
         { path: "/tours/:id", element: <TourDetail />, handle: { title: "Chi tiết tour", scrollRestoration: 0 } },
         {
           path: "/",
