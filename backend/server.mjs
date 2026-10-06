@@ -7,6 +7,8 @@ import { randomBytes, randomUUID, scrypt, timingSafeEqual, createHash } from "no
 import { promisify } from "node:util";
 import { createRateLimiter } from "./rate-limit.mjs";
 import { auditedMutation } from "./audit.mjs";
+import { createAccountMailer } from "./mail.mjs";
+import { customerAccountRoutes } from "./customer-account.mjs";
 
 const deriveKey = promisify(scrypt);
 const SESSION_SECONDS = 7 * 24 * 60 * 60;
@@ -14,7 +16,7 @@ const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const MEDIA_PATH = /^\/api\/media\/([a-f0-9-]{36}\.(png|jpg|webp|gif))$/;
 const IMAGE_TYPES = { png: "image/png", jpg: "image/jpeg", webp: "image/webp", gif: "image/gif" };
 const hashToken = (value) => createHash("sha256").update(value).digest("hex");
-const publicUser = (row) => ({ id: row.id, name: row.name, email: row.email, role: row.role ?? "customer" });
+const publicUser = (row) => ({ id: row.id, name: row.name, email: row.email, role: row.role ?? "customer", phone: row.phone ?? "", emailVerified: Boolean(row.email_verified) });
 class HttpError extends Error {
   constructor(status, message) { super(message); this.status = status; }
 }
@@ -107,6 +109,9 @@ function openDatabase(databasePath) {
   const columns = db.prepare("PRAGMA table_info(users)").all().map((column) => column.name);
   if (!columns.includes("role")) db.exec("ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'customer'");
   if (!columns.includes("disabled")) db.exec("ALTER TABLE users ADD COLUMN disabled INTEGER NOT NULL DEFAULT 0");
+  if (!columns.includes("phone")) db.exec("ALTER TABLE users ADD COLUMN phone TEXT NOT NULL DEFAULT ''");
+  if (!columns.includes("email_verified")) db.exec("ALTER TABLE users ADD COLUMN email_verified INTEGER NOT NULL DEFAULT 0");
+  db.exec("CREATE TABLE IF NOT EXISTS account_tokens (token_hash TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, purpose TEXT NOT NULL, password_version TEXT NOT NULL, expires_at INTEGER NOT NULL); CREATE INDEX IF NOT EXISTS account_tokens_expiry ON account_tokens(expires_at)");
   const sessionColumns = db.prepare("PRAGMA table_info(sessions)").all().map((column) => column.name);
   if (!sessionColumns.includes("audience")) {
     db.exec("ALTER TABLE sessions ADD COLUMN audience TEXT NOT NULL DEFAULT 'legacy'");
@@ -171,6 +176,7 @@ function imageUrl(value) {
 }
 
 export function createAuthServer(options = {}) {
+  const mailer = options.mailer === undefined ? createAccountMailer() : options.mailer;
   const rateLimit = createRateLimiter({ trustedProxies: options.trustedProxies ?? process.env.TRUSTED_PROXY_IPS ?? "", limit: options.rateLimit });
   const databasePath = options.databasePath ?? defaultDatabasePath();
   const db = openDatabase(databasePath);
@@ -208,6 +214,7 @@ export function createAuthServer(options = {}) {
     res.setHeader("Set-Cookie", cookie(token, SESSION_SECONDS, audience));
   }
   const getSessionUser = (req, audience) => db.prepare("SELECT users.* FROM sessions JOIN users ON users.id = sessions.user_id WHERE token_hash = ? AND expires_at > ? AND users.disabled = 0 AND sessions.audience = ? AND users.role = ?").get(hashToken(getToken(req, audience)), Date.now(), audience, audience);
+  const accountRoutes = customerAccountRoutes({ db, getSessionUser, createSession, passwordHash, rateLimit, mailer, HttpError });
   const server = createServer(async (req, res) => {
     res.setHeader("Content-Type", "application/json; charset=utf-8");
     res.setHeader("Cache-Control", "no-store");
@@ -364,7 +371,7 @@ export function createAuthServer(options = {}) {
           const page = Math.max(1, Math.min(100000, Number(requestUrl.searchParams.get("page")) || 1));
           const search = `%${query}%`;
           return send(200, {
-            users: db.prepare("SELECT id, name, email, role, disabled, created_at FROM users WHERE name LIKE ? OR email LIKE ? ORDER BY created_at DESC LIMIT 50 OFFSET ?").all(search, search, (Math.floor(page) - 1) * 50),
+            users: db.prepare("SELECT id, name, email, role, disabled, created_at, phone, email_verified AS emailVerified FROM users WHERE name LIKE ? OR email LIKE ? ORDER BY created_at DESC LIMIT 50 OFFSET ?").all(search, search, (Math.floor(page) - 1) * 50),
             total: db.prepare("SELECT COUNT(*) AS count FROM users WHERE name LIKE ? OR email LIKE ?").get(search, search).count,
           });
         }
@@ -426,6 +433,7 @@ export function createAuthServer(options = {}) {
             auditedMutation(db, admin, "users.status", body.id, { beforeDisabled: Boolean(target.disabled), disabled: body.disabled }, () => {
               db.prepare("UPDATE users SET disabled = ? WHERE id = ?").run(Number(body.disabled), body.id);
               db.prepare("DELETE FROM sessions WHERE user_id = ?").run(body.id);
+              db.prepare("DELETE FROM account_tokens WHERE user_id = ?").run(body.id);
             });
             return send(200, { message: body.disabled ? "Đã khóa tài khoản và thu hồi phiên." : "Đã mở khóa tài khoản." });
           }
@@ -463,6 +471,7 @@ export function createAuthServer(options = {}) {
         }
         throw new HttpError(404, "Không tìm thấy API quản trị.");
       }
+      if (req.method === "GET" && path === "/api/auth/capabilities") return send(200, { emailEnabled: Boolean(mailer) });
       if (req.method === "GET" && authPath === "/api/auth/me") {
         const user = getSessionUser(req, audience);
         if (!user) throw new HttpError(401, "Vui lòng đăng nhập.");
@@ -475,6 +484,10 @@ export function createAuthServer(options = {}) {
           db.prepare("DELETE FROM sessions WHERE token_hash = ? AND audience = ?").run(hashToken(getToken(req, audience)), audience);
           res.setHeader("Set-Cookie", cookie("", 0, audience));
           return send(200, { message: "Đã đăng xuất." });
+        }
+        if (!isAdminAuth) {
+          const result = await accountRoutes(authPath.slice("/api/auth/".length), body, req, res);
+          if (result) return send(200, result.user ? { ...result, user: publicUser(result.user) } : result);
         }
         if (!["/api/auth/register", "/api/auth/login"].includes(authPath) || (isAdminAuth && authPath === "/api/auth/register")) throw new HttpError(404, "Không tìm thấy API.");
         rateLimit(req, res, `auth:${audience}`);
@@ -494,15 +507,18 @@ export function createAuthServer(options = {}) {
             throw error;
           }
           createSession(user.id, req, res, "customer");
-          return send(201, { user });
+          return send(201, { user: publicUser(db.prepare("SELECT * FROM users WHERE id=?").get(user.id)) });
         }
         const user = db.prepare("SELECT * FROM users WHERE email = ?").get(email);
         const encoded = user?.password_hash ?? await dummyHash;
         const [salt, expected] = encoded.split(":");
         const actual = (await passwordHash(password, salt)).split(":")[1];
         if (!timingSafeEqual(Buffer.from(expected, "hex"), Buffer.from(actual, "hex")) || !user || user.disabled || user.role !== audience) throw new HttpError(401, "Email hoặc mật khẩu không đúng.");
+        // A password reset or account lock may complete while scrypt is running.
+        const refreshed = db.prepare("SELECT * FROM users WHERE id=?").get(user.id);
+        if (!refreshed || refreshed.disabled || refreshed.role !== audience || refreshed.password_hash !== encoded) throw new HttpError(401, "Email hoặc mật khẩu không đúng.");
         createSession(user.id, req, res, audience);
-        return send(200, { user: publicUser(user) });
+        return send(200, { user: publicUser(refreshed) });
       }
       throw new HttpError(404, "Không tìm thấy API.");
     } catch (error) {

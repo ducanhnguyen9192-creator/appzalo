@@ -6,8 +6,103 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { createAuthServer, provisionAdmin } from "./server.mjs";
+import { createAccountMailer } from "./mail.mjs";
 
 const account = { name: "Khách hàng thử nghiệm", email: "demo@example.test", password: "Test-password-2026!" };
+
+test("SMTP configuration stays disabled without required fields and rejects unsafe public URLs", () => {
+  assert.equal(createAccountMailer({}), null);
+  assert.equal(createAccountMailer({ SMTP_HOST: "smtp.example.test", SMTP_FROM: "sender@example.test" }), null);
+  const config = { SMTP_HOST: "smtp.example.test", SMTP_FROM: "sender@example.test", APP_PUBLIC_URL: "https://app.example.test", NODE_ENV: "production" };
+  assert.throws(() => createAccountMailer({ ...config, APP_PUBLIC_URL: "http://app.example.test" }), /HTTPS/);
+  assert.throws(() => createAccountMailer({ ...config, APP_PUBLIC_URL: "https://secret@app.example.test" }), /HTTPS/);
+  assert.throws(() => createAccountMailer({ ...config, SMTP_USER: "user" }), /configuration/);
+  assert.throws(() => createAccountMailer({ ...config, SMTP_PORT: "invalid" }), /configuration/);
+  assert.equal(typeof createAccountMailer(config), "function");
+});
+
+test("customer profile and password changes cannot alter role/email and revoke old sessions independently", async t => {
+  const f = await adminFixture(t);
+  const registered = await f.request("register", account);
+  const cookie = registered.headers.get("set-cookie");
+  const second = (await f.request("login", account)).headers.get("set-cookie");
+  assert.equal((await f.request("profile", { name: "Khách mới", phone: "0901234567" }, f.cookie)).status, 401);
+  const saved = await f.request("profile", { name: "Khách mới", phone: "0901234567", role: "admin", email: "forged@example.test", emailVerified: true }, cookie);
+  const user = (await saved.json()).user;
+  assert.equal(user.name, "Khách mới"); assert.equal(user.phone, "0901234567"); assert.equal(user.email, account.email); assert.equal(user.role, "customer"); assert.equal(user.emailVerified, false);
+  assert.ok(!user.password_hash);
+  assert.equal((await f.request("profile", { name: "a", phone: "invalid" }, cookie)).status, 400);
+  assert.equal((await f.request("password", { currentPassword: "wrong-password", password: "New-password-2026!" }, cookie)).status, 400);
+  const [changed, competingLogin] = await Promise.all([
+    f.request("password", { currentPassword: account.password, password: "New-password-2026!" }, cookie),
+    f.request("login", account),
+  ]);
+  if (competingLogin.status === 200) assert.equal((await f.request("me", null, competingLogin.headers.get("set-cookie"))).status, 401);
+  else assert.equal(competingLogin.status, 401);
+  assert.equal(changed.status, 200);
+  assert.equal((await f.request("me", null, cookie)).status, 401);
+  assert.equal((await f.request("me", null, second)).status, 401);
+  assert.equal((await f.request("me", null, changed.headers.get("set-cookie"))).status, 200);
+  assert.equal((await f.api("admin/auth/me", null, f.cookie)).status, 200);
+  assert.equal((await f.request("login", account)).status, 401);
+  assert.equal((await f.request("login", { email: account.email, password: "New-password-2026!" })).status, 200);
+});
+
+test("email flows require configuration and do not claim to send when unavailable", async t => {
+  const f = await start(t, { mailer: null });
+  assert.equal((await (await f.request("capabilities")).json()).emailEnabled, false);
+  const registration = await f.request("register", account);
+  assert.equal((await f.request("send-verification", {}, registration.headers.get("set-cookie"))).status, 503);
+  assert.equal((await f.request("forgot-password", { email: account.email })).status, 503);
+});
+
+test("verification and reset tokens are hashed, purpose-bound, expiring and consumed once", async t => {
+  const sent = [];
+  const directory = mkdtempSync(join(tmpdir(), "firstclass-email-"));
+  const databasePath = join(directory, "test.sqlite");
+  const f = await start(t, { databasePath, mailer: async mail => { sent.push(mail); }, rateLimit: 100 });
+  const db = new DatabaseSync(databasePath); t.after(() => { db.close(); rmSync(directory, { recursive: true, force: true }); });
+  const registration = await f.request("register", account); const cookie = registration.headers.get("set-cookie");
+  assert.equal((await f.request("send-verification", {}, cookie)).status, 200);
+  const verification = sent.at(-1).token;
+  const stored = db.prepare("SELECT token_hash FROM account_tokens").get(); assert.notEqual(stored.token_hash, verification);
+  assert.equal((await f.request("reset-password", { token: verification, password: "Reset-password-2026!" })).status, 400);
+  assert.equal((await f.request("verify-email", { token: verification })).status, 200);
+  assert.equal((await f.request("verify-email", { token: verification })).status, 400);
+  assert.equal((await (await f.request("me", null, cookie)).json()).user.emailVerified, true);
+  const known = await (await f.request("forgot-password", { email: account.email })).json();
+  const unknown = await (await f.request("forgot-password", { email: "missing@example.test" })).json();
+  assert.deepEqual(known, unknown); assert.equal(sent.length, 2);
+  const expired = sent.at(-1).token;
+  db.prepare("UPDATE account_tokens SET expires_at=0").run();
+  assert.equal((await f.request("reset-password", { token: expired, password: "Reset-password-2026!" })).status, 400);
+  await f.request("forgot-password", { email: account.email }); const token = sent.at(-1).token;
+  assert.equal((await f.request("verify-email", { token })).status, 400);
+  const responses = await Promise.all([f.request("reset-password", { token, password: "Reset-password-2026!" }), f.request("reset-password", { token, password: "Competing-password-2026!" })]);
+  assert.deepEqual(responses.map(r => r.status).sort(), [200, 400]);
+  assert.equal((await f.request("me", null, cookie)).status, 401);
+  assert.equal((await f.request("reset-password", { token, password: "Another-password-2026!" })).status, 400);
+});
+
+test("disabled/admin accounts receive no recovery mail and failed delivery removes its token", async t => {
+  const sent = [];
+  const directory = mkdtempSync(join(tmpdir(), "firstclass-email-disabled-"));
+  const databasePath = join(directory, "test.sqlite");
+  await provisionAdmin({ databasePath, email: "admin@example.test", password: "Admin-Test-password-2026!" });
+  const f = await start(t, { databasePath, rateLimit: 100, mailer: async mail => { sent.push(mail); throw new Error("private provider details"); } });
+  const db = new DatabaseSync(databasePath); t.after(() => { db.close(); rmSync(directory, { recursive: true, force: true }); });
+  const registration = await f.request("register", account); const cookie = registration.headers.get("set-cookie");
+  assert.equal((await f.request("send-verification", {}, cookie)).status, 503);
+  assert.equal(db.prepare("SELECT COUNT(*) AS n FROM account_tokens").get().n, 0);
+  await f.request("forgot-password", { email: account.email });
+  await new Promise(done => setTimeout(done, 20));
+  assert.equal(db.prepare("SELECT COUNT(*) AS n FROM account_tokens").get().n, 0);
+  const attempts = sent.length;
+  db.prepare("UPDATE users SET disabled=1 WHERE email=?").run(account.email);
+  const disabled = await (await f.request("forgot-password", { email: account.email })).json();
+  const admin = await (await f.request("forgot-password", { email: "admin@example.test" })).json();
+  assert.deepEqual(disabled, admin); assert.equal(sent.length, attempts);
+});
 
 async function start(t, options = {}) {
   const server = createAuthServer({ databasePath: ":memory:", ...options });
@@ -318,7 +413,7 @@ test("register, restore session, logout and login with normalized email", async 
   assert.equal(registered.status, 201);
   const result = await registered.json();
   assert.equal(result.user.name, account.name);
-  assert.deepEqual(Object.keys(result.user).sort(), ["email", "id", "name", "role"]);
+  assert.deepEqual(Object.keys(result.user).sort(), ["email", "emailVerified", "id", "name", "phone", "role"]);
   const cookie = registered.headers.get("set-cookie");
   assert.match(cookie, /HttpOnly/); assert.match(cookie, /SameSite=Lax/);
   assert.equal((await request("me", null, cookie)).status, 200);

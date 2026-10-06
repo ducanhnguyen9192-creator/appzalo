@@ -80,7 +80,10 @@ export async function restoreBackup(directory, targetDirectory) {
     mkdirSync(join(target, "uploads"));
     for (const file of manifest.files) copyFileSync(join(resolve(directory), file.path), join(target, file.path));
     const db = new DatabaseSync(join(target, "firstclass.sqlite"));
-    try { db.exec("PRAGMA journal_mode=DELETE; DELETE FROM sessions;"); } finally { db.close(); }
+    try {
+      db.exec("PRAGMA journal_mode=DELETE; DELETE FROM sessions;");
+      if (db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='account_tokens'").get()) db.exec("DELETE FROM account_tokens");
+    } finally { db.close(); }
     checkDatabase(join(target, "firstclass.sqlite"));
     return join(target, "firstclass.sqlite");
   } catch (error) { rmSync(target, { recursive: true, force: true }); throw error; }

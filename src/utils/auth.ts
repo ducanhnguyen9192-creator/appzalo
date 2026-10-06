@@ -1,4 +1,4 @@
-export type Account = { id: string; name: string; email: string; role: "admin" | "customer" };
+export type Account = { id: string; name: string; email: string; role: "admin" | "customer"; phone?: string; emailVerified?: boolean };
 import { notified } from "./notifications";
 
 const API_URL = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "");
@@ -33,4 +33,17 @@ export function authRequest(path: string, body?: Record<string, string>, audienc
 
 export function adminAuthRequest(path: string, body?: Record<string, string>) {
   return authRequest(path, body, "admin");
+}
+
+export async function accountAction(path: string, body?: Record<string, string>): Promise<{ user?: Account; message?: string; emailEnabled?: boolean }> {
+  const work = async () => {
+    let response: Response;
+    try {
+      response = await fetch(`${API_URL}/api/auth/${path}`, { method: body ? "POST" : "GET", credentials: "include", headers: body ? { "Content-Type": "application/json" } : undefined, body: body ? JSON.stringify(body) : undefined });
+    } catch { throw new Error("Không kết nối được máy chủ. Vui lòng thử lại."); }
+    const data = await response.json().catch(() => null);
+    if (!response.ok) throw new Error(data?.message ?? "Không xử lý được yêu cầu.");
+    return data;
+  };
+  return body ? notified(work, result => ({ title: "Đã xử lý yêu cầu", message: result.message }), "Yêu cầu chưa thành công") : work();
 }

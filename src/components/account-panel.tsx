@@ -87,7 +87,7 @@ export default function AccountPanel({ account, loading, error, onChange, onRetr
                 <input className={inputClass} type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} autoComplete={mode === "register" ? "new-password" : "current-password"} required minLength={8} maxLength={128} />
               </label>
               <button type="button" aria-pressed={showPassword} className="text-sm text-blue-600" onClick={() => setShowPassword((value) => !value)}>{showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}</button>
-              {mode === "login" && <Link to="/support" className="block text-sm text-blue-600">Quên mật khẩu? Liên hệ hỗ trợ</Link>}
+              {mode === "login" && <Link to="/forgot-password" className="block text-sm text-blue-600">Quên mật khẩu?</Link>}
               {mode === "register" && <>
                 <p className="text-xs text-gray-500">Mật khẩu từ 8 đến 128 ký tự.</p>
                 <label className="block text-sm font-medium">Xác nhận mật khẩu

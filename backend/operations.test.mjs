@@ -70,10 +70,13 @@ test("backups preserve database and media, verify corruption and restore to a ne
   const f = await fixture(t);
   const image = `${randomUUID()}.png`; mkdirSync(join(f.directory, "uploads")); writeFileSync(join(f.directory, "uploads", image), "image fixture");
   await f.api("admin/tours/save", { ...tour, image: `/api/media/${image}` }, f.adminCookie);
+  const source = new DatabaseSync(f.databasePath);
+  source.prepare("INSERT INTO account_tokens VALUES (?,?,?,?,?)").run("fixture-hash", f.customer.id, "reset", "fixture-version", Date.now() + 60000);
+  source.close();
   const directory = await createBackup(f.databasePath);
   assert.equal((await verifyBackup(directory)).files.length, 2);
   const restored = await restoreBackup(directory, join(f.directory, "restored"));
-  const db = new DatabaseSync(restored); assert.equal(db.prepare("SELECT COUNT(*) AS count FROM users").get().count, 2); assert.equal(db.prepare("SELECT COUNT(*) AS count FROM sessions").get().count, 0); assert.equal(db.prepare("SELECT COUNT(*) AS count FROM tours").get().count, 1); db.close();
+  const db = new DatabaseSync(restored); assert.equal(db.prepare("SELECT COUNT(*) AS count FROM users").get().count, 2); assert.equal(db.prepare("SELECT COUNT(*) AS count FROM sessions").get().count, 0); assert.equal(db.prepare("SELECT COUNT(*) AS count FROM account_tokens").get().count, 0); assert.equal(db.prepare("SELECT COUNT(*) AS count FROM tours").get().count, 1); db.close();
   assert.equal(readFileSync(join(f.directory, "restored", "uploads", image), "utf8"), "image fixture");
   await assert.rejects(restoreBackup(directory, f.directory), /thư mục mới/);
   writeFileSync(join(directory, "uploads", image), "corrupted"); await assert.rejects(verifyBackup(directory), /thay đổi/);

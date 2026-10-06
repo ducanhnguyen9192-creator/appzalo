@@ -12,6 +12,7 @@ import CategoryListPage from "@/pages/catalog/category-list";
 import ProductDetailPage from "@/pages/catalog/product-detail";
 import HomePage from "@/pages/home";
 import ProfilePage from "@/pages/profile";
+import AccountRecovery from "@/pages/profile/recovery";
 import SearchPage from "@/pages/search";
 import { createBrowserRouter, Navigate } from "react-router-dom";
 import { getBasePath } from "@/utils/zma";
@@ -27,6 +28,9 @@ const router = createBrowserRouter(
       element: <Layout />,
       errorElement: <RouteErrorPage />,
       children: [
+        { path: "/forgot-password", element: <AccountRecovery key="forgot" />, handle: { title: "Quên mật khẩu" } },
+        { path: "/reset-password", element: <AccountRecovery key="reset" />, handle: { title: "Đặt lại mật khẩu" } },
+        { path: "/verify-email", element: <AccountRecovery key="verify" />, handle: { title: "Xác minh email" } },
         { path: "/support", element: <SupportPage />, handle: { title: "Hỗ trợ & tư vấn" } },
         { path: "/history", element: <HistoryPage />, handle: { title: "Lịch sử của bạn" } },
         { path: "/esims", element: <EsimsPage />, handle: { title: "eSIM du lịch" } },

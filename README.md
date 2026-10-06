@@ -244,6 +244,30 @@ Trang chi tiết tour/eSIM có form gửi họ tên, điện thoại, số ngư�
 
 **Lịch sử → Yêu cầu tour/eSIM** (`/history?tab=services`) xem dữ liệu của riêng tài khoản, 20 mục/trang, gồm phản hồi nhân viên. **Admin → Yêu cầu tour/eSIM** tiếp nhận, xử lý, báo giá, hoàn tất hoặc hủy; cập nhật có nhật ký. API đọc là `GET /api/service-requests`, `GET /api/admin/service-requests`; cập nhật là `POST /api/admin/service-requests/status`. Đây là yêu cầu tư vấn, chưa xác nhận mua, thanh toán, đặt chỗ hay cấp mã eSIM. Liên kết OA vẫn có để khách trao đổi trực tiếp.
 
-## Nguồn gốc
+## Hồ sơ khách hàng và email tài khoản
+
+**Tài khoản → Cài đặt tài khoản** cho phép sửa họ tên, số điện thoại và đổi mật khẩu bằng mật khẩu hiện tại. Email/vai trò không sửa qua form hồ sơ. Đổi mật khẩu thu hồi các phiên cũ và cấp phiên mới ở trình duyệt hiện tại; không ảnh hưởng phiên Admin. Admin xem được điện thoại và trạng thái xác minh email trong danh sách tài khoản.
+
+Luồng `/forgot-password`, `/reset-password` và `/verify-email` đã có. Khi chưa cấu hình SMTP, giao diện thông báo dịch vụ email chưa thiết lập và có liên kết hỗ trợ, không báo đã gửi mail. Việc xác minh email hiện chưa bắt buộc để gửi yêu cầu. Khách yêu cầu email xác minh từ trang cá nhân; đăng ký không tự gửi email.
+
+Điền các biến phía backend trong `backend/.env` theo mẫu `backend/.env.example`, sau đó khởi động lại backend:
+
+```dotenv
+SMTP_HOST=smtp.example.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=your-smtp-user
+SMTP_PASSWORD=your-smtp-password
+SMTP_FROM=FirstClass Travel <your-verified-sender@example.com>
+APP_PUBLIC_URL=https://your-app.example.com
+```
+
+Đây là giá trị mẫu; dùng hostname, tài khoản và địa chỉ gửi được nhà cung cấp email chấp nhận. Không đưa thông tin SMTP vào Git hoặc biến `VITE_*`. Với cổng 465 dùng `SMTP_SECURE=true`; cổng 587 yêu cầu STARTTLS và kiểm tra chứng chỉ. `APP_PUBLIC_URL` là URL web công khai của app (bao gồm đường dẫn con nếu triển khai dưới thư mục); sản xuất yêu cầu HTTPS. Local chỉ cho phép HTTP trên localhost/127.0.0.1. Cấu hình transport theo [tài liệu SMTP của Nodemailer](https://nodemailer.com/smtp).
+
+Token ngẫu nhiên chỉ lưu dạng băm, gắn với tài khoản/mục đích/phiên bản mật khẩu; xác minh hết hạn sau 60 phút, khôi phục sau 15 phút. Token trong fragment URL được xóa khỏi thanh địa chỉ khi mở trang, cần bấm xác nhận và chỉ dùng một lần. Tải lại trang cần mở lại liên kết email. Đổi/đặt lại mật khẩu hoặc khôi phục backup thu hồi các token cũ. Khôi phục không tự đăng nhập.
+
+Yêu cầu quên mật khẩu trả cùng thông báo cho email tồn tại/không tồn tại, Admin và tài khoản khóa; chỉ khách hàng đang hoạt động được gửi. Gửi khôi phục chạy trong tiến trình backend, chưa có hàng đợi email bền vững; máy chủ/SMTP lỗi có thể cần yêu cầu lại. Lỗi gửi được ghi thông báo chung, không ghi token hoặc nội dung SMTP. Các API tài khoản nhạy cảm giới hạn 5 lần trong 15 phút theo nhóm/IP, thao tác có phiên còn giới hạn theo tài khoản. Giao diện chỉ biết cấu hình có đủ hay chưa; việc nhà cung cấp chuyển mail tới hộp thư cần kiểm tra sau khi bạn có SMTP.
+
+## Nguồn gốc template
 
 Dự án được phát triển từ template ZaUI Fashion của Zalo và đã tùy chỉnh cho FirstClass Travel. Thông tin bản quyền của template được giữ trong file `LICENSE`.

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import AccountPanel from "@/components/account-panel";
+import AccountSettings from "@/components/account-settings";
 import { Account, authRequest } from "@/utils/auth";
 
 export default function ProfilePage() {
@@ -49,7 +50,7 @@ export default function ProfilePage() {
   ];
 
   return (
-    <div className="profile-page min-h-full bg-gray-50 pb-8">
+    <div className={`profile-page ${account ? "profile-authenticated" : ""} min-h-full bg-gray-50 pb-8`}>
       <div className="profile-identity bg-white px-4 pt-5 pb-6">
         <div className="flex items-center gap-4">
           <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-100 flex items-center justify-center border border-gray-200">
@@ -78,6 +79,7 @@ export default function ProfilePage() {
 
       <AccountPanel account={account} loading={loading} error={authError}
         onRetry={loadAccount} onChange={(value) => { setAccount(value); setAuthError(""); }} />
+      {account && <AccountSettings key={account.id} account={account} onChange={setAccount} />}
 
       <div className="px-4 -mt-1">
         <div className="bg-gradient-to-r from-blue-600 to-blue-500 rounded-2xl p-4 text-white shadow-sm">

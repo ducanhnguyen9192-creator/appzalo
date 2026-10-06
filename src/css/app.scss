@@ -117,6 +117,16 @@ input, select, textarea { min-width: 0; }
   .profile-page > div { margin: 0; padding: 0; min-width: 0; }
   .profile-page > .profile-identity { grid-column: 1 / -1; padding: 24px; border: 1px solid #e7ebf2; border-radius: 20px; }
   .profile-page .account-panel { margin: 0; padding: 24px; grid-row: span 2; align-self: start; }
+  .profile-authenticated .account-panel { grid-column: 1 / -1; grid-row: auto; }
+  .profile-authenticated .account-panel button { max-width: 280px; }
+  .account-settings { grid-column: 1 / -1; margin: 0; padding: 24px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+  .account-settings > * { margin-top: 0 !important; min-width: 0; }
+  .account-settings > h2, .account-settings > [role="alert"], .account-password { grid-column: 1 / -1; }
+  .account-settings > div { border-top: 0; padding-top: 0; }
+  .account-password fieldset { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+  .account-password fieldset > * { margin-top: 0 !important; min-width: 0; }
+  .account-password fieldset > p { grid-column: 1 / -1; }
+  .account-password fieldset > button { justify-self: start; }
   .profile-signature { grid-column: 1 / -1; }
   .product-detail { max-width: 860px; margin: auto; background: white; border: 1px solid #e7ebf2; border-radius: 20px; padding: 20px; }
   .product-detail img { max-height: 420px; object-fit: contain; }
