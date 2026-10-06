@@ -18,8 +18,8 @@ export function bookingApi<T>(path: string, body?: unknown): Promise<T> {
   const work = () => requestBooking<T>(path, body);
   if (!body) return work();
   return notified(work, (data) => {
-    const id = (data as { booking?: Booking })?.booking?.id;
-    return { title: "Đã tiếp nhận yêu cầu", message: `${id ? `Mã yêu cầu: ${id}\n` : ""}Bạn có thể theo dõi trong mục Lịch sử. FirstClass sẽ kiểm tra thông tin và liên hệ tư vấn. Đây chưa phải xác nhận mua vé hay thanh toán.` };
+    const id = (data as { booking?: Booking; request?: { id: string } })?.booking?.id ?? (data as { request?: { id: string } })?.request?.id;
+    return { title: "Đã tiếp nhận yêu cầu", message: `${id ? `Mã yêu cầu: ${id}\n` : ""}Bạn có thể theo dõi trong mục Lịch sử. FirstClass sẽ kiểm tra thông tin và liên hệ tư vấn. Đây chưa phải xác nhận mua dịch vụ hay thanh toán.` };
   }, "Chưa gửi được yêu cầu");
 }
 export const formatMoney = (amount: number) => `${new Intl.NumberFormat("vi-VN").format(amount)} đ`;

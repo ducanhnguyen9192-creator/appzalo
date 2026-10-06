@@ -4,6 +4,8 @@ import ImagePicker from "./image-picker";
 import TourManager from "./tour-manager";
 import EsimManager from "./esim-manager";
 import BookingManager from "./booking-manager";
+import ServiceManager from "./service-manager";
+import AuditPage from "./audit";
 import { adminApi, uploadAdminImage } from "@/utils/admin-api";
 import { showNotice } from "@/utils/notifications";
 
@@ -105,7 +107,7 @@ export default function AdminPage() {
     </main>
   );
 
-  const tabs = [{ id: "overview", label: "Tổng quan" }, { id: "users", label: "Tài khoản" }, { id: "bookings", label: "Yêu cầu & giao dịch" }, { id: "articles", label: "Tin tức & ưu đãi" }, { id: "tours", label: "Tour du lịch" }, { id: "esims", label: "eSIM" }, { id: "banners", label: "Banner" }, { id: "security", label: "Bảo mật" }];
+  const tabs = [{ id: "overview", label: "Tổng quan" }, { id: "users", label: "Tài khoản" }, { id: "bookings", label: "Yêu cầu & giao dịch" }, { id: "services", label: "Yêu cầu tour/eSIM" }, { id: "audit", label: "Nhật ký thao tác" }, { id: "articles", label: "Tin tức & ưu đãi" }, { id: "tours", label: "Tour du lịch" }, { id: "esims", label: "eSIM" }, { id: "banners", label: "Banner" }, { id: "security", label: "Bảo mật" }];
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900">
       <header className="bg-white border-b border-gray-200 px-5 py-4 flex flex-wrap items-center justify-between gap-3">
@@ -123,6 +125,8 @@ export default function AdminPage() {
           {tab === "tours" && <TourManager />}
           {tab === "esims" && <EsimManager />}
           {tab === "bookings" && <BookingManager />}
+          {tab === "services" && <ServiceManager />}
+          {tab === "audit" && <AuditPage />}
           {tab === "overview" && <>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               {[ ["Khách hàng", overview?.customers], ["Tài khoản bị khóa", overview?.disabled], ["Bài đang hiển thị", overview?.articles], ["Banner đang bật", overview?.banners] ].map(([label, value]) => <div key={String(label)} className="bg-white border border-gray-100 rounded-2xl p-5"><p className="text-sm text-gray-500">{label}</p><p className="text-3xl font-bold mt-3">{value ?? "—"}</p></div>)}

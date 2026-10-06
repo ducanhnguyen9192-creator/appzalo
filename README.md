@@ -67,7 +67,7 @@ npm run test:backend
 
 Để tùy chỉnh, sao chép `backend/.env.example` thành `backend/.env`. Khi triển khai thực tế, dùng HTTPS, `NODE_ENV=production`, `COOKIE_SECURE=true`, danh sách `AUTH_ALLOWED_ORIGINS` cụ thể và ổ đĩa bền vững cho SQLite. Với frontend khác nguồn, đặt `VITE_API_URL` thành URL HTTPS của backend rồi build lại; nếu cần cookie khác site, dùng `COOKIE_SAME_SITE=None` cùng `Secure` và kiểm tra hỗ trợ cookie trong môi trường Zalo. Không đặt khóa bí mật trong biến `VITE_*`.
 
-Backend chưa có xác minh email, quên mật khẩu hoặc liên kết đăng nhập Zalo. API Checkfly chưa được tích hợp. Trước khi đưa lên môi trường thật cần kiểm tra phiên đăng nhập trong Zalo, cấu hình tên miền API, sao lưu dữ liệu và giới hạn truy cập tại reverse proxy (giới hạn trong backend hiện dựa trên IP kết nối trực tiếp).
+Backend chưa có xác minh email, quên mật khẩu hoặc liên kết đăng nhập Zalo. API Checkfly chưa được tích hợp. Trước khi đưa lên môi trường thật cần kiểm tra phiên đăng nhập trong Zalo, cấu hình tên miền API, sao lưu dữ liệu và giới hạn truy cập tại reverse proxy (cấu hình proxy tin cậy và giới hạn truy cập theo hướng dẫn bên dưới).
 
 ## Trang quản trị
 
@@ -188,7 +188,7 @@ Khách có thể nhập hành trình trước khi đăng nhập. Form có gợi 
 
 Trang `/search` tìm chung tour, eSIM và bài viết, hỗ trợ từ khóa không dấu và lọc theo loại kết quả. Tour/eSIM chỉ lấy từ API nội dung đã công khai; có trạng thái tải, lỗi và thử lại riêng cho từng nhóm. Có thể chia sẻ đường dẫn chứa từ khóa bằng tham số `q`.
 
-Trang chi tiết tour/eSIM có nút **Nhận tư vấn** mở `/support?service=tour&item=ID` hoặc `/support?service=esim&item=ID`. Trang hỗ trợ tải lại dữ liệu công khai theo mã để tạo nội dung gợi ý; khách sao chép, mở OA và tự gửi. Tour/gói đã ẩn hoặc không tồn tại không hiển thị nội dung gợi ý. Danh sách trống cũng có đường dẫn tư vấn chung. Luồng này chưa tạo đơn tour/eSIM, chưa thanh toán hay cấp eSIM; lịch sử hiện vẫn ghi nhận yêu cầu vé máy bay và giao dịch do quản trị nhập.
+Trang chi tiết tour/eSIM có nút **Nhận tư vấn** mở `/support?service=tour&item=ID` hoặc `/support?service=esim&item=ID`. Trang hỗ trợ tải lại dữ liệu công khai theo mã để tạo nội dung gợi ý; khách sao chép, mở OA và tự gửi. Tour/gói đã ẩn hoặc không tồn tại không hiển thị nội dung gợi ý. Danh sách trống cũng có đường dẫn tư vấn chung. Khách có thể dùng form tư vấn trong trang chi tiết để lưu yêu cầu tour/eSIM vào lịch sử, hoặc tự gửi nội dung qua OA. Chưa thanh toán, đặt chỗ hay cấp mã eSIM.
 
 ## Bài viết và khôi phục khi gặp lỗi
 
@@ -200,7 +200,7 @@ Trang quản trị và form vé được tải khi mở trang tương ứng; tra
 
 ## Popup kết quả thao tác
 
-Ứng dụng và Admin dùng chung popup cho đăng nhập, đăng ký, đăng xuất, gửi yêu cầu vé, lưu dữ liệu quản trị, cập nhật yêu cầu, ghi nhận giao dịch và tải ảnh. Thành công chỉ hiện sau phản hồi API; lỗi kết nối, API hoặc thông tin nhập chưa hợp lệ có popup lỗi, đồng thời giữ thông báo tại form. Việc tải danh sách và kiểm tra phiên nền không bật popup.
+Ứng dụng và Admin dùng chung popup cho đăng nhập, đăng ký, đăng xuất, gửi yêu cầu vé/tour/eSIM, lưu dữ liệu quản trị, cập nhật yêu cầu, ghi nhận giao dịch và tải ảnh. Thành công chỉ hiện sau phản hồi API; lỗi kết nối, API hoặc thông tin nhập chưa hợp lệ có popup lỗi, đồng thời giữ thông báo tại form. Việc tải danh sách và kiểm tra phiên nền không bật popup.
 
 Thông báo nằm ở góc phải phía trên, tự ẩn sau 4 giây và có nút đóng sớm. Thông báo không phủ nền, không chuyển focus hoặc chặn thao tác trên trang. Các kết quả đến đồng thời được xếp hàng, không ghi đè nhau. Thông báo yêu cầu vé nêu rõ chưa phải xác nhận mua/thanh toán; giao dịch quản trị chỉ xác nhận ghi nhận lịch sử.
 
@@ -209,6 +209,40 @@ Thông báo nằm ở góc phải phía trên, tự ẩn sau 4 giây và có nú
 Ảnh nội dung tour, eSIM, tin tức và banner có ảnh thay thế FirstClass Travel khi đường dẫn trống hoặc tải lỗi. Ảnh danh mục được tải khi gần vùng xem; banner đầu tiên và ảnh chính trang chi tiết được ưu tiên tải ngay. Khung ảnh giữ kích thước để hạn chế xê dịch bố cục. Danh sách và chi tiết tour/eSIM có khung chờ với trạng thái dành cho trình đọc màn hình.
 
 Nút chuyển banner có vùng bấm 44 × 44 px, nhãn theo số thứ tự, trạng thái banner hiện tại và nút tạm dừng/tiếp tục. Thiết bị bật giảm chuyển động sẽ bắt đầu với banner tạm dừng và không dùng hiệu ứng nhấp nháy khung chờ. Liên kết và ô nhập có viền focus khi dùng bàn phím; web cho phép phóng to màn hình. Tiêu đề tab theo từng trang, trang chi tiết dùng tên nội dung và thương hiệu FirstClass Travel.
+
+## Sao lưu và khôi phục backend
+
+```bash
+npm run backup:create
+npm run backup:verify -- "backend/data/backups/<tên-bản-sao>"
+npm run backup:restore -- "backend/data/backups/<tên-bản-sao>" "backend/data/restored-new"
+```
+
+`backup:create` chụp SQLite bằng API backup (bao gồm dữ liệu đang nằm trong WAL), sao chép ảnh uploads và tạo manifest SHA-256. Mặc định lưu dưới thư mục dữ liệu của `DB_PATH`; có thể truyền thư mục lưu sau `--`. Tên mỗi bản là duy nhất, không ghi đè bản cũ. Kiểm tra bao gồm checksum, cấu trúc SQLite, khóa ngoại và ảnh được nội dung tham chiếu. Bản không đầy đủ/đã bị thay đổi sẽ bị từ chối.
+
+Khôi phục chỉ vào thư mục mới, giữ nguyên dữ liệu đang chạy. Phiên đăng nhập trong bản khôi phục bị thu hồi; tài khoản, nội dung, yêu cầu, giao dịch và nhật ký được giữ lại. Sau khi kiểm tra bản khôi phục, dừng backend, đặt `DB_PATH` thành đường dẫn tuyệt đối tới `restored-new/firstclass.sqlite`, rồi khởi động lại. Ảnh nằm cạnh DB trong `uploads`. Không sao chép riêng file SQLite khi backend đang chạy thay cho công cụ backup.
+
+Bản sao chứa thông tin khách hàng và bản băm mật khẩu; giữ riêng ở máy chủ, hạn chế quyền thư mục và sao chép sang nơi lưu trữ riêng khi cần. `backend/data` bị loại khỏi Git và chặn truy cập qua Vite; không đặt bản sao vào thư mục công khai. Checksum phát hiện hỏng/thay đổi dữ liệu, không xác minh nguồn gốc bản sao. Công cụ chưa tự chạy theo lịch hoặc tự dọn bản cũ.
+
+## Nhật ký thao tác quản trị
+
+**Admin → Nhật ký thao tác** xem 30 mục/trang, lọc loại thao tác và tải lại. API `GET /api/admin/audit?page=1&action=tours.update` chỉ dành cho phiên quản trị. Nhật ký ghi tên/mã người thực hiện, thời gian, đối tượng, loại thao tác và thông tin thay đổi. Các thao tác gồm nội dung tour/eSIM/bài viết/banner, khóa tài khoản, đổi mật khẩu, upload, trạng thái yêu cầu và ghi nhận giao dịch.
+
+Thay đổi trong SQLite và nhật ký được ghi trong cùng transaction: lỗi ghi nhật ký sẽ hoàn tác thay đổi. Upload ảnh ghi nhật ký sau khi tệp đã được lưu; nếu ghi nhật ký lỗi, ảnh dư có thể vẫn còn và chưa được áp dụng vào nội dung. Nhật ký bắt đầu từ bản cập nhật này, không dựng lại các thao tác cũ. Không lưu mật khẩu, bản băm mật khẩu hoặc token; chỉ Admin xem nhật ký, không có API sửa/xóa. Đây là nhật ký ứng dụng trong SQLite, chưa phải kho log chống sửa bởi người có quyền truy cập máy chủ.
+
+## Giới hạn truy cập và reverse proxy
+
+Các bộ đếm độc lập theo nhóm, có cửa sổ 15 phút: đăng nhập/đăng ký khách hàng 20 lần/IP, đăng nhập Admin 20 lần/IP, yêu cầu vé 10 lần, yêu cầu tour/eSIM 10 lần, upload 60 lần, ghi dữ liệu Admin 120 lần, đổi mật khẩu Admin 5 lần. Các thao tác có phiên được kiểm tra cả IP và tài khoản; yêu cầu trùng được trả lại trước bộ đếm gửi mới. Đổi mật khẩu cũng thuộc thao tác ghi quản trị. API bị giới hạn trả HTTP 429 và `Retry-After`.
+
+Mặc định chỉ dùng IP kết nối, bỏ qua `X-Forwarded-For`. Khi chạy sau reverse proxy, cấu hình `TRUSTED_PROXY_IPS` bằng IP chính xác của proxy (không dùng `*`). Backend chỉ đọc chuỗi IP hợp lệ từ peer được tin cậy và lấy IP không tin cậy đầu tiên từ phải sang trái. Proxy cần ghi đè/append header đúng cách; nếu app và proxy cùng loopback, cấu hình IP tương ứng theo môi trường và giới hạn truy cập trực tiếp tới backend. Bộ đếm ở bộ nhớ tiến trình, reset khi khởi động lại; triển khai nhiều tiến trình cần bộ đếm dùng chung hoặc giới hạn bổ sung tại proxy.
+
+Proxy Vite của demo đã bật chuyển tiếp IP. Với backend chỉ lắng nghe loopback, có thể đặt `TRUSTED_PROXY_IPS=127.0.0.1,::1` trong cấu hình riêng của máy để nhận IP khách truy cập demo; cấu hình trên máy triển khai phải theo proxy thực tế.
+
+## Yêu cầu tư vấn tour/eSIM trong app
+
+Trang chi tiết tour/eSIM có form gửi họ tên, điện thoại, số người/số gói, ngày mong muốn và ghi chú. Khách đăng nhập tại chỗ rồi bấm gửi để xác nhận. API `POST /api/service-requests` chỉ nhận phiên khách hàng, kiểm tra dịch vụ đang công khai và lưu thông tin gói/giá từ backend tại thời điểm gửi, bỏ qua giá/tài khoản do trình duyệt tự gửi. Cùng tài khoản và `requestKey` không tạo yêu cầu trùng; cùng mã nhưng khác nội dung bị từ chối.
+
+**Lịch sử → Yêu cầu tour/eSIM** (`/history?tab=services`) xem dữ liệu của riêng tài khoản, 20 mục/trang, gồm phản hồi nhân viên. **Admin → Yêu cầu tour/eSIM** tiếp nhận, xử lý, báo giá, hoàn tất hoặc hủy; cập nhật có nhật ký. API đọc là `GET /api/service-requests`, `GET /api/admin/service-requests`; cập nhật là `POST /api/admin/service-requests/status`. Đây là yêu cầu tư vấn, chưa xác nhận mua, thanh toán, đặt chỗ hay cấp mã eSIM. Liên kết OA vẫn có để khách trao đổi trực tiếp.
 
 ## Nguồn gốc
 

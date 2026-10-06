@@ -30,7 +30,7 @@ export default function ProfilePage() {
     },
     {
       title: "Lịch sử giao dịch",
-      description: "Giao dịch & yêu cầu đặt vé",
+      description: "Giao dịch, vé, tour và eSIM",
       icon: "🧾",
       action: () => navigate("/history"),
     },

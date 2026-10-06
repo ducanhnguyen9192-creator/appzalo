@@ -13,7 +13,7 @@ export default () => {
         deny: ["**/.env", "**/.env.*", "**/*.{crt,pem}", "**/.git/**", "**/backend/**"],
       },
       proxy: {
-        "/api": "http://127.0.0.1:3001",
+        "/api": { target: "http://127.0.0.1:3001", xfwd: true },
       },
     },
     plugins: [zaloMiniApp(), react()],

@@ -13,6 +13,7 @@ export function adminApi<T>(path: string, body?: unknown): Promise<T> {
   const work = () => requestAdmin<T>(path, body);
   if (!body) return work();
   const notices: Record<string, { title: string; message: string }> = {
+    "service-requests/status": { title: "Đã cập nhật yêu cầu tư vấn", message: "Khách hàng có thể xem trạng thái và phản hồi trong lịch sử tour/eSIM." },
     "bookings/payment": { title: "Đã ghi nhận giao dịch", message: "Khoản thanh toán đã được lưu trong lịch sử khách hàng. Thao tác này không thu tiền hoặc chuyển tiền." },
     "bookings/status": { title: "Đã cập nhật yêu cầu", message: "Trạng thái và phản hồi đã được lưu. Khách hàng có thể xem trong lịch sử." },
     "password": { title: "Đổi mật khẩu thành công", message: "Mật khẩu mới đã được lưu và các phiên cũ đã được thu hồi." },
