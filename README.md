@@ -152,6 +152,18 @@ Vào **Admin → eSIM → Thêm gói eSIM**, nhập thông tin và chọn ảnh 
 
 Dữ liệu lưu trong SQLite. API công khai `GET /api/content/esims` và `GET /api/content/esims/:id` chỉ trả gói đã bật hiển thị. Quản trị sử dụng `GET /api/admin/esims`, `POST /api/admin/esims/save`. Đây là danh mục thông tin, chưa có thanh toán, cấp mã kích hoạt hoặc đồng bộ nhà cung cấp eSIM. Không nhập mã kích hoạt riêng của khách hàng vào nội dung công khai.
 
+## Dữ liệu mẫu tour và eSIM
+
+Sau khi backend đã khởi tạo cơ sở dữ liệu, có thể bổ sung danh mục minh họa bằng:
+
+```bash
+npm run content:sample
+```
+
+Lệnh thêm 4 tour (Đà Nẵng – Hội An, Đà Lạt, Dubai, combo Phú Quốc) và 4 gói eSIM (Nhật Bản, Hàn Quốc, Thái Lan, Singapore), bật hiển thị trên trang chủ và danh mục. Tên và nội dung ghi rõ là mẫu, ảnh minh họa và giá để trống để hiện “Giá liên hệ”; chưa phải dịch vụ được xác nhận mở bán.
+
+Lệnh giữ nguyên nội dung đã có và chỉ nạp một lần. Chạy lại không tạo bản sao hoặc bật lại các mẫu đã ẩn. Có thể chỉnh sửa, thay ảnh hoặc ẩn từng mục trong Admin. Dữ liệu nằm trong SQLite tại máy chạy, không được đưa lên GitHub; trên máy mới cần chạy lệnh riêng sau khi khởi tạo backend.
+
 ## Lịch sử giao dịch và yêu cầu đặt vé
 
 Mở **Tài khoản → Lịch sử giao dịch** hoặc `/history`. Trang có hai mục: yêu cầu đặt vé (mở từng yêu cầu để xem thông tin và phản hồi), giao dịch đã ghi nhận. Khách hàng chỉ xem dữ liệu của phiên tài khoản mình; không dựa trên email/số điện thoại gửi từ trình duyệt. Danh sách phân trang 20 mục và có nút làm mới.
