@@ -5,6 +5,7 @@ import { Account, authRequest } from "@/utils/auth";
 import { Booking, BookingApiError, bookingApi } from "@/utils/bookings";
 import { DRAFT_KEY, EMPTY_FLIGHT, FlightErrors, FlightForm, readFlightDraft, TripType, validateFlight, vietnamToday } from "@/utils/flight-form";
 import AIRPORTS from "@/mock/airports.json";
+import { showNotice } from "@/utils/notifications";
 
 export default function FlightSearchPage() {
   const [draft] = useState(readFlightDraft);
@@ -77,7 +78,7 @@ export default function FlightSearchPage() {
     if (sending.current) return;
     const nextErrors = validateFlight(form, tripType); setErrors(nextErrors); setSubmitError("");
     const firstError = Object.keys(nextErrors)[0];
-    if (firstError) { focusField(firstError); return; }
+    if (firstError) { focusField(firstError); showNotice("error", "Vui lòng kiểm tra yêu cầu", nextErrors[firstError as keyof FlightForm] ?? "Sửa các ô được đánh dấu trước khi tiếp tục."); return; }
     if (authLoading) { setSubmitError("Đang kiểm tra tài khoản. Vui lòng thử gửi lại sau giây lát."); return; }
     if (!account) { setShowAuth(true); return; }
     const payload = { ...form, tripType, returnDate: tripType === "oneway" ? "" : form.returnDate };

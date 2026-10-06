@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useState } from "react";
-import { adminApi, adminApiBase } from "@/utils/admin-api";
+import { adminApi, uploadAdminImage } from "@/utils/admin-api";
 import { Esim, esimTextFields, initialEsim } from "@/utils/esims";
 import { tourPrice } from "@/utils/tours";
 import ImagePicker from "./image-picker";
@@ -23,12 +23,8 @@ export default function EsimManager() {
   }
   async function upload(file: File) {
     await act(async () => {
-      if (file.size > 5 * 1024 * 1024) throw new Error("Ảnh phải nhỏ hơn hoặc bằng 5 MB.");
-      if (!["image/jpeg", "image/png", "image/webp", "image/gif"].includes(file.type)) throw new Error("Chọn ảnh JPG, PNG, WebP hoặc GIF.");
-      const response = await fetch(`${adminApiBase}/api/admin/uploads`, { method: "POST", credentials: "include", headers: { "Content-Type": file.type }, body: file });
-      const data = await response.json().catch(() => null);
-      if (!response.ok) throw new Error(data?.message ?? "Không tải được ảnh.");
-      setItem((current) => current ? { ...current, image: data.image } : null);
+      const image = await uploadAdminImage(file);
+      setItem((current) => current ? { ...current, image } : null);
       setNotice("Đã tải ảnh lên. Bấm Lưu gói eSIM để áp dụng.");
     });
   }

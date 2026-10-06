@@ -4,7 +4,8 @@ import ImagePicker from "./image-picker";
 import TourManager from "./tour-manager";
 import EsimManager from "./esim-manager";
 import BookingManager from "./booking-manager";
-import { adminApi } from "@/utils/admin-api";
+import { adminApi, uploadAdminImage } from "@/utils/admin-api";
+import { showNotice } from "@/utils/notifications";
 
 type Customer = Account & { disabled: number; created_at: number };
 type Article = { id?: number; name: string; image: string; summary: string; content: string; publishedAt: string; categoryId: number; type: "news" | "offer"; published: boolean };
@@ -15,7 +16,6 @@ const initialBanner = (): Banner => ({ title: "", image: "/images/banners/banner
 const input = "w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-gray-900 mt-1";
 const primary = "rounded-xl bg-blue-600 text-white px-4 py-2.5 font-medium disabled:opacity-50";
 const secondary = "rounded-xl border border-gray-200 bg-white px-4 py-2.5 font-medium disabled:opacity-50";
-const apiBase = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "");
 
 export default function AdminPage() {
   const [account, setAccount] = useState<Account | null>(null);
@@ -66,13 +66,9 @@ export default function AdminPage() {
   }
   async function uploadImage(file: File, target: "banner" | "article") {
     await act(async () => {
-      if (file.size > 5 * 1024 * 1024) throw new Error("Ảnh phải nhỏ hơn hoặc bằng 5 MB.");
-      if (!["image/jpeg", "image/png", "image/webp", "image/gif"].includes(file.type)) throw new Error("Chọn ảnh JPG, PNG, WebP hoặc GIF.");
-      const response = await fetch(`${apiBase}/api/admin/uploads`, { method: "POST", credentials: "include", headers: { "Content-Type": file.type }, body: file });
-      const result = await response.json().catch(() => null);
-      if (!response.ok) throw new Error(result?.message ?? "Không tải được ảnh. Vui lòng thử lại.");
-      if (target === "banner") setBanner((current) => current ? { ...current, image: result.image } : null);
-      else setArticle((current) => current ? { ...current, image: result.image } : null);
+      const image = await uploadAdminImage(file);
+      if (target === "banner") setBanner((current) => current ? { ...current, image } : null);
+      else setArticle((current) => current ? { ...current, image } : null);
       setNotice("Đã tải ảnh lên. Bấm Lưu để áp dụng vào nội dung.");
     });
   }
@@ -162,7 +158,7 @@ export default function AdminPage() {
             </form>}
             {banners.map((item) => <div key={item.id} className="bg-white rounded-xl border border-gray-100 p-4 flex items-center justify-between gap-4"><div><p className="font-medium">{item.title}</p><p className="text-sm text-gray-500 break-all">{item.image}</p><p className="text-sm mt-1">{item.active ? "Đang hiển thị" : "Đã ẩn"}</p></div><button className={secondary} disabled={busy} onClick={() => setBanner({ ...item })}>Sửa</button></div>)}
           </>}
-          {tab === "security" && <form className="bg-white rounded-2xl border border-gray-100 p-5 space-y-4 max-w-xl" onSubmit={(e) => { e.preventDefault(); act(async () => { if (newPassword !== confirmation) throw new Error("Mật khẩu xác nhận không khớp."); await adminApi("password", { currentPassword, password: newPassword }); setCurrentPassword(""); setNewPassword(""); setConfirmation(""); setNotice("Đã đổi mật khẩu và thu hồi các phiên cũ."); }); }}>
+          {tab === "security" && <form className="bg-white rounded-2xl border border-gray-100 p-5 space-y-4 max-w-xl" onSubmit={(e) => { e.preventDefault(); act(async () => { if (newPassword !== confirmation) { showNotice("error", "Chưa đổi được mật khẩu", "Mật khẩu xác nhận không khớp."); throw new Error("Mật khẩu xác nhận không khớp."); } await adminApi("password", { currentPassword, password: newPassword }); setCurrentPassword(""); setNewPassword(""); setConfirmation(""); setNotice("Đã đổi mật khẩu và thu hồi các phiên cũ."); }); }}>
             <h3 className="font-semibold">Đổi mật khẩu quản trị</h3><p className="text-sm text-gray-500">Mật khẩu mới từ 12 đến 128 ký tự. Các phiên đăng nhập khác sẽ bị thu hồi.</p>
             <label className="block text-sm">Mật khẩu hiện tại<input type="password" autoComplete="current-password" required maxLength={128} className={input} value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} /></label>
             <label className="block text-sm">Mật khẩu mới<input type="password" autoComplete="new-password" required minLength={12} maxLength={128} className={input} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} /></label>

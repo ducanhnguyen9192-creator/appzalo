@@ -1,5 +1,5 @@
 import { FormEvent, useState } from "react";
-import toast from "react-hot-toast";
+import { showNotice } from "@/utils/notifications";
 import { Account, authRequest } from "@/utils/auth";
 import { Link } from "react-router-dom";
 
@@ -29,6 +29,7 @@ export default function AccountPanel({ account, loading, error, onChange, onRetr
     setFormError("");
     if (mode === "register" && password !== confirmPassword) {
       setFormError("Mật khẩu xác nhận không khớp.");
+      showNotice("error", "Chưa tạo được tài khoản", "Mật khẩu xác nhận không khớp. Vui lòng kiểm tra lại.");
       return;
     }
     setBusy(true);
@@ -36,7 +37,6 @@ export default function AccountPanel({ account, loading, error, onChange, onRetr
       const result = await authRequest(mode, { email, password, ...(mode === "register" ? { name } : {}) });
       onChange(result);
       setPassword(""); setConfirmPassword("");
-      toast.success(mode === "register" ? "Đăng ký thành công" : "Đăng nhập thành công");
     } catch (error) {
       setFormError(error instanceof Error ? error.message : "Không thể đăng nhập.");
     } finally { setBusy(false); }
@@ -47,7 +47,6 @@ export default function AccountPanel({ account, loading, error, onChange, onRetr
     try {
       await authRequest("logout", {});
       onChange(null);
-      toast.success("Đã đăng xuất");
     } catch (error) {
       setFormError(error instanceof Error ? error.message : "Không thể đăng xuất.");
     } finally { setBusy(false); }

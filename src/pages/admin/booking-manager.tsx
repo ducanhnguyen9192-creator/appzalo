@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import BookingInfo from "@/components/booking-info";
 import { adminApi } from "@/utils/admin-api";
+import { showNotice } from "@/utils/notifications";
 import { Booking, BookingStatus, BOOKING_STATUS, formatDateTime, formatMoney } from "@/utils/bookings";
 
 type AdminBooking = Booking & { customerEmail: string; transactions: { id: string; amount: number; reference: string; note: string; paidAt: string }[] };
@@ -34,7 +35,7 @@ export default function BookingManager() {
     event.preventDefault(); if (!selected) return;
     await act(async () => {
       const paidAt = new Date(payment.paidAt);
-      if (!Number.isFinite(paidAt.getTime())) throw new Error("Thời điểm thanh toán không hợp lệ.");
+      if (!Number.isFinite(paidAt.getTime())) { showNotice("error", "Chưa ghi nhận được giao dịch", "Thời điểm thanh toán không hợp lệ."); throw new Error("Thời điểm thanh toán không hợp lệ."); }
       await adminApi("bookings/payment", { bookingId: selected.id, amount: Number(payment.amount), reference: payment.reference, paidAt: paidAt.toISOString(), note: payment.note });
       await refresh(); setPayment({ amount: "", reference: "", paidAt: localNow(), note: "" }); setNotice("Đã ghi nhận giao dịch thanh toán vào lịch sử khách hàng.");
     });

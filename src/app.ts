@@ -1,10 +1,11 @@
 // React core
-import { createElement } from "react";
+import { createElement, Fragment } from "react";
 import { createRoot } from "react-dom/client";
 import { RouterProvider } from "react-router-dom";
 
 // Router
 import router from "@/router";
+import OperationPopup from "@/components/operation-popup";
 
 // ZaUI stylesheet
 import "zmp-ui/zaui.css";
@@ -22,4 +23,4 @@ if (!window.APP_CONFIG) {
 
 // Mount the app
 const root = createRoot(document.getElementById("app")!);
-root.render(createElement(RouterProvider, { router }));
+root.render(createElement(Fragment, null, createElement(RouterProvider, { router }), createElement(OperationPopup)));

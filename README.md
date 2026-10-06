@@ -184,6 +184,12 @@ Chia sẻ bài viết dùng SDK trong Zalo và sao chép link trên web; lỗi S
 
 Trang quản trị và form vé được tải khi mở trang tương ứng; trang chủ không tải sẵn mã quản trị và danh sách sân bay. Nếu tải mã giao diện thất bại, trang khôi phục cho phép tải lại.
 
+## Popup kết quả thao tác
+
+Ứng dụng và Admin dùng chung popup cho đăng nhập, đăng ký, đăng xuất, gửi yêu cầu vé, lưu dữ liệu quản trị, cập nhật yêu cầu, ghi nhận giao dịch và tải ảnh. Thành công chỉ hiện sau phản hồi API; lỗi kết nối, API hoặc thông tin nhập chưa hợp lệ có popup lỗi, đồng thời giữ thông báo tại form. Việc tải danh sách và kiểm tra phiên nền không bật popup.
+
+Popup không tự đóng; bấm **Đã hiểu**, nút đóng hoặc Escape để tiếp tục. Khi mở, popup giữ focus bàn phím và chặn tương tác với trang phía sau. Các kết quả đến đồng thời được xếp hàng, không ghi đè nhau. Thông báo yêu cầu vé nêu rõ chưa phải xác nhận mua/thanh toán; giao dịch quản trị chỉ xác nhận ghi nhận lịch sử.
+
 ## Nguồn gốc
 
 Dự án được phát triển từ template ZaUI Fashion của Zalo và đã tùy chỉnh cho FirstClass Travel. Thông tin bản quyền của template được giữ trong file `LICENSE`.

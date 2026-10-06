@@ -18,7 +18,7 @@
     "dev:web": "vite . --host 127.0.0.1 --port 5173",
     "dev:backend": "node --env-file-if-exists=backend/.env backend/server.mjs",
     "admin:create": "node --env-file-if-exists=backend/.env backend/create-admin.mjs",
-    "test:backend": "node --test backend/auth.test.mjs backend/flight-form.test.mjs",
+    "test:backend": "node --test backend/auth.test.mjs backend/flight-form.test.mjs backend/notifications.test.mjs",
     "start": "zmp start",
     "deploy": "zmp deploy",
     "build:css": "postcss src/css/tailwind.css -o src/css/styles.css"
