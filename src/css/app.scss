@@ -48,6 +48,17 @@ input, select, textarea { min-width: 0; }
 .tour-card { transition: box-shadow .15s; }
 .tour-card:hover { box-shadow: 0 4px 14px #16284212; }
 .tour-grid > a { min-width: 0; }
+.content-hero { height: clamp(220px, 40vw, 384px); }
+.carousel-controls { padding: 8px 16px; gap: 0; }
+.carousel-dot { width: 44px; height: 44px; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; }
+.carousel-dot span { width: 8px; height: 8px; border-radius: 50%; background: #94a3b8; }
+.carousel-dot.is-active span { width: 20px; border-radius: 8px; background: #2563eb; }
+.carousel-pause { min-height: 44px; }
+:where(a, button, input, select, textarea, summary):focus-visible { outline: 3px solid #2563eb; outline-offset: 3px; }
+@media (prefers-reduced-motion: reduce) {
+  .animate-pulse { animation: none; }
+  .tour-card { transition: none; }
+}
 
 @media (min-width: 768px) {
   .news-grid, .product-grid, .tour-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }

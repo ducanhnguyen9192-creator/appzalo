@@ -41,6 +41,7 @@ export const useDotButton = (
     onInit(emblaApi);
     onSelect(emblaApi);
     emblaApi.on("reInit", onInit).on("reInit", onSelect).on("select", onSelect);
+    return () => { emblaApi.off("reInit", onInit).off("reInit", onSelect).off("select", onSelect); };
   }, [emblaApi, onInit, onSelect]);
 
   return {
@@ -56,14 +57,20 @@ export interface CarouselProps {
 }
 
 export default function Carousel(props: CarouselProps) {
+  const [paused, setPaused] = useState(() => window.matchMedia("(prefers-reduced-motion: reduce)").matches);
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true }, [
-    Autoplay({ active: !props.disabled }),
+    Autoplay({ active: !props.disabled && !paused, stopOnInteraction: false }),
   ]);
   const { selectedIndex, scrollSnaps, onDotButtonClick } =
     useDotButton(emblaApi);
 
+  useEffect(() => {
+    const autoplay = emblaApi?.plugins().autoplay;
+    if (paused || props.disabled) autoplay?.stop(); else autoplay?.play();
+  }, [emblaApi, paused, props.disabled]);
+
   return (
-    <div className="overflow-hidden" ref={emblaRef}>
+    <section className="overflow-hidden" ref={emblaRef} aria-label="Banner FirstClass Travel">
       <div className="flex">
         {props.slides.map((slide, i) => (
           <div key={i} className="flex-none basis-full p-4 pb-0">
@@ -72,17 +79,19 @@ export default function Carousel(props: CarouselProps) {
         ))}
       </div>
 
-      <div className="py-4 flex justify-center items-center space-x-2">
+      {!props.disabled && scrollSnaps.length > 1 && <div className="carousel-controls flex flex-wrap justify-center items-center">
         {scrollSnaps.map((_, index) => (
           <button
             key={index}
+            type="button"
+            aria-label={`Xem banner ${index + 1}`}
+            aria-current={index === selectedIndex ? "true" : undefined}
             onClick={() => onDotButtonClick(index)}
-            className={`rounded-full w-1 h-1 bg-black/10 ${
-              index === selectedIndex && !props.disabled ? "bg-primary" : ""
-            }`}
-          />
+            className={`carousel-dot ${index === selectedIndex ? "is-active" : ""}`}
+          ><span /></button>
         ))}
-      </div>
-    </div>
+        <button type="button" className="carousel-pause text-sm text-blue-600 rounded-lg px-3" aria-pressed={paused} onClick={() => setPaused((value) => !value)}>{paused ? "Tiếp tục" : "Tạm dừng"}</button>
+      </div>}
+    </section>
   );
 }

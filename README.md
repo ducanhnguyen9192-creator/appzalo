@@ -202,6 +202,12 @@ Trang quản trị và form vé được tải khi mở trang tương ứng; tra
 
 Thông báo nằm ở góc phải phía trên, tự ẩn sau 4 giây và có nút đóng sớm. Thông báo không phủ nền, không chuyển focus hoặc chặn thao tác trên trang. Các kết quả đến đồng thời được xếp hàng, không ghi đè nhau. Thông báo yêu cầu vé nêu rõ chưa phải xác nhận mua/thanh toán; giao dịch quản trị chỉ xác nhận ghi nhận lịch sử.
 
+## Ảnh, trạng thái tải và khả năng truy cập
+
+Ảnh nội dung tour, eSIM, tin tức và banner có ảnh thay thế FirstClass Travel khi đường dẫn trống hoặc tải lỗi. Ảnh danh mục được tải khi gần vùng xem; banner đầu tiên và ảnh chính trang chi tiết được ưu tiên tải ngay. Khung ảnh giữ kích thước để hạn chế xê dịch bố cục. Danh sách và chi tiết tour/eSIM có khung chờ với trạng thái dành cho trình đọc màn hình.
+
+Nút chuyển banner có vùng bấm 44 × 44 px, nhãn theo số thứ tự, trạng thái banner hiện tại và nút tạm dừng/tiếp tục. Thiết bị bật giảm chuyển động sẽ bắt đầu với banner tạm dừng và không dùng hiệu ứng nhấp nháy khung chờ. Liên kết và ô nhập có viền focus khi dùng bàn phím; web cho phép phóng to màn hình. Tiêu đề tab theo từng trang, trang chi tiết dùng tên nội dung và thương hiệu FirstClass Travel.
+
 ## Nguồn gốc
 
 Dự án được phát triển từ template ZaUI Fashion của Zalo và đã tùy chỉnh cho FirstClass Travel. Thông tin bản quyền của template được giữ trong file `LICENSE`.

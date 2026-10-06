@@ -110,4 +110,14 @@ const router = createBrowserRouter(
   }
 );
 
+function updatePageTitle(state: typeof router.state) {
+  const match = state.matches[state.matches.length - 1];
+  const title = (match?.route.handle as { title?: unknown } | undefined)?.title;
+  const categoryTitles: Record<string, string> = { "5": "Khách sạn", "6": "Visa", "8": "Dịch vụ sân bay", "9": "Thuê xe", "10": "Bảo hiểm du lịch" };
+  const fallback = categoryTitles[match?.params.id ?? ""] && match?.route.path === "/category/:id" ? categoryTitles[match.params.id!] : state.location.pathname.endsWith("/admin") ? "Quản trị" : state.location.pathname.endsWith("/profile") ? "Tài khoản" : "Trang chủ";
+  document.title = `${typeof title === "string" ? title : fallback} | FirstClass Travel`;
+}
+updatePageTitle(router.state);
+router.subscribe(updatePageTitle);
+
 export default router;

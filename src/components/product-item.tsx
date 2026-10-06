@@ -1,3 +1,4 @@
+import ContentImage from "@/components/content-image";
 import { Product } from "@/types";
 import { formatPrice } from "@/utils/format";
 import TransitionLink from "./transition-link";
@@ -24,7 +25,7 @@ export default function ProductItem(props: ProductItemProps) {
     >
       {({ isTransitioning }) => (
         <>
-          <img
+          <ContentImage
             src={props.product.image}
             className="w-full aspect-square object-cover rounded-t-lg"
             style={{

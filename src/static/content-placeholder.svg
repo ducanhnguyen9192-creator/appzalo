@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 480">
+  <rect width="640" height="480" fill="#eff6ff"/>
+  <rect x="240" y="130" width="160" height="130" rx="16" fill="none" stroke="#93c5fd" stroke-width="8"/>
+  <circle cx="280" cy="169" r="13" fill="#93c5fd"/>
+  <path d="m245 250 55-57 35 35 30-30 30 52" fill="none" stroke="#93c5fd" stroke-width="8" stroke-linejoin="round"/>
+  <text x="320" y="323" text-anchor="middle" font-family="Arial,sans-serif" font-size="26" fill="#1e40af">FirstClass Travel</text>
+  <text x="320" y="360" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" fill="#64748b">Ảnh đang được cập nhật</text>
+</svg>

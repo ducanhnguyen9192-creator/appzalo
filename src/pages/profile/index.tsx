@@ -42,7 +42,7 @@ export default function ProfilePage() {
     },
     {
       title: "Hỗ trợ",
-      description: "Firstclass hỗ trợ bạn",
+      description: "FirstClass hỗ trợ bạn",
       icon: "💬",
       action: () => navigate("/support"),
     },
@@ -82,7 +82,7 @@ export default function ProfilePage() {
       <div className="px-4 -mt-1">
         <div className="bg-gradient-to-r from-blue-600 to-blue-500 rounded-2xl p-4 text-white shadow-sm">
           <div className="text-sm text-blue-100">
-            Firstclass Travel
+            FirstClass Travel
           </div>
 
           <div className="text-xl font-semibold mt-1">
@@ -135,7 +135,7 @@ export default function ProfilePage() {
           </div>
 
           <div className="text-sm text-gray-500 mt-1 leading-5">
-            Firstclass Travel luôn sẵn sàng hỗ trợ các yêu cầu vé máy bay, tour và dịch vụ du lịch.
+            FirstClass Travel luôn sẵn sàng hỗ trợ các yêu cầu vé máy bay, tour và dịch vụ du lịch.
           </div>
 
           <button
@@ -149,7 +149,7 @@ export default function ProfilePage() {
       </div>
 
       <div className="profile-signature text-center text-xs text-gray-400 mt-6">
-        Firstclass Travel
+        FirstClass Travel
       </div>
     </div>
   );

@@ -1,3 +1,4 @@
+import ContentImage from "@/components/content-image";
 import Carousel from "./carousel";
 
 import banner1 from "../assets/banners/banner-1.jpg";
@@ -10,10 +11,11 @@ export default function Banners() {
   return (
     <Carousel
       slides={BANNERS.map((banner, index) => (
-        <img
+        <ContentImage
           key={index}
+          loading={index === 0 ? "eager" : "lazy"}
           src={banner}
-          alt={`Firstclass Travel banner ${index + 1}`}
+          alt={`FirstClass Travel banner ${index + 1}`}
           className="w-full rounded object-cover"
         />
       ))}

@@ -1,3 +1,4 @@
+import ContentImage from "@/components/content-image";
 import Carousel from "../../components/carousel";
 import { useAtomValue } from "jotai";
 import { bannersState } from "@/state";
@@ -8,11 +9,12 @@ export default function Banners() {
   return (
     <Carousel
       slides={banners.map((banner, index) => (
-        <img
+        <ContentImage
           key={index}
+          loading={index === 0 ? "eager" : "lazy"}
           className="w-full rounded object-cover"
           src={banner}
-          alt={`Firstclass Travel banner ${index + 1}`}
+          alt={`FirstClass Travel banner ${index + 1}`}
         />
       ))}
     />

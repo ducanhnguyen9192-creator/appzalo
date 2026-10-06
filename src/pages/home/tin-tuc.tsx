@@ -1,3 +1,4 @@
+import ContentImage from "@/components/content-image";
 import Section from "../../components/section";
 import { useAtomValue } from "jotai";
 import { flashSaleProductsState } from "../../state";
@@ -20,7 +21,7 @@ export default function Tintuc() {
             >
               {/* Ảnh */}
               <div className="news-image w-full aspect-square overflow-hidden rounded-lg bg-gray-100">
-                <img
+                <ContentImage
                   src={image}
                   alt={product.name}
                   className="w-full h-full object-cover"
