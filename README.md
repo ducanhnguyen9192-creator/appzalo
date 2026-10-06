@@ -170,6 +170,12 @@ Trang `/support` dùng OA Zalo `887244279805076722`: mở chat bằng SDK trong 
 
 Khách có thể nhập hành trình trước khi đăng nhập. Form có gợi ý sân bay, đảo điểm đi/đến, thông báo lỗi theo từng ô và kiểm tra ngày bay cùng số hành khách ở cả giao diện và backend. Đăng nhập tại chỗ giữ lại nội dung; người dùng bấm gửi để xác nhận sau khi đăng nhập. Bản nháp lưu trong `sessionStorage`, hết hạn sau 24 giờ, được xóa khi gửi thành công hoặc đăng xuất; có nút xóa thủ công. Đây là yêu cầu tư vấn vé, chưa phải xác nhận mua vé hoặc thanh toán.
 
+## Tìm kiếm và tư vấn tour/eSIM
+
+Trang `/search` tìm chung tour, eSIM và bài viết, hỗ trợ từ khóa không dấu và lọc theo loại kết quả. Tour/eSIM chỉ lấy từ API nội dung đã công khai; có trạng thái tải, lỗi và thử lại riêng cho từng nhóm. Có thể chia sẻ đường dẫn chứa từ khóa bằng tham số `q`.
+
+Trang chi tiết tour/eSIM có nút **Nhận tư vấn** mở `/support?service=tour&item=ID` hoặc `/support?service=esim&item=ID`. Trang hỗ trợ tải lại dữ liệu công khai theo mã để tạo nội dung gợi ý; khách sao chép, mở OA và tự gửi. Tour/gói đã ẩn hoặc không tồn tại không hiển thị nội dung gợi ý. Danh sách trống cũng có đường dẫn tư vấn chung. Luồng này chưa tạo đơn tour/eSIM, chưa thanh toán hay cấp eSIM; lịch sử hiện vẫn ghi nhận yêu cầu vé máy bay và giao dịch do quản trị nhập.
+
 ## Nguồn gốc
 
 Dự án được phát triển từ template ZaUI Fashion của Zalo và đã tùy chỉnh cho FirstClass Travel. Thông tin bản quyền của template được giữ trong file `LICENSE`.
