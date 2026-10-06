@@ -1,28 +1,31 @@
-import FlightSearchPage from "@/pages/flights";
+import { lazy, Suspense } from "react";
 import ToursPage, { CategoryDestination } from "@/pages/tours";
 import TourDetail from "@/pages/tours/detail";
 import EsimsPage from "@/pages/esims";
 import EsimDetail from "@/pages/esims/detail";
 import HistoryPage from "@/pages/history";
 import SupportPage from "@/pages/support";
-import AdminPage from "@/pages/admin";
 import Layout from "@/components/layout";
-import CartPage from "@/pages/cart";
+import NotFoundPage, { RouteErrorPage } from "@/pages/not-found";
 import ProductListPage from "@/pages/catalog/product-list";
 import CategoryListPage from "@/pages/catalog/category-list";
 import ProductDetailPage from "@/pages/catalog/product-detail";
 import HomePage from "@/pages/home";
 import ProfilePage from "@/pages/profile";
 import SearchPage from "@/pages/search";
-import { createBrowserRouter } from "react-router-dom";
+import { createBrowserRouter, Navigate } from "react-router-dom";
 import { getBasePath } from "@/utils/zma";
+
+const FlightSearchPage = lazy(() => import("@/pages/flights"));
+const AdminPage = lazy(() => import("@/pages/admin"));
 
 const router = createBrowserRouter(
   [
-    { path: "/admin", element: <AdminPage /> },
+    { path: "/admin", element: <Suspense fallback={<p role="status" className="p-6">Đang tải trang quản trị…</p>}><AdminPage /></Suspense>, errorElement: <RouteErrorPage /> },
     {
       path: "/",
       element: <Layout />,
+      errorElement: <RouteErrorPage />,
       children: [
         { path: "/support", element: <SupportPage />, handle: { title: "Hỗ trợ & tư vấn" } },
         { path: "/history", element: <HistoryPage />, handle: { title: "Lịch sử của bạn" } },
@@ -61,9 +64,9 @@ const router = createBrowserRouter(
         },
         {
           path: "/cart",
-          element: <CartPage />,
+          element: <Navigate to="/history" replace />,
           handle: {
-            title: "Giỏ hàng",
+            title: "Lịch sử của bạn",
           },
         },
         {
@@ -87,6 +90,7 @@ const router = createBrowserRouter(
           path: "/product/:id",
           element: <ProductDetailPage />,
           handle: {
+            title: "Bài viết & ưu đãi",
             scrollRestoration: 0,
           },
         },
@@ -97,6 +101,7 @@ const router = createBrowserRouter(
             title: "Tìm kiếm",
           },
         },
+        { path: "*", element: <NotFoundPage />, handle: { title: "Không tìm thấy trang" } },
       ],
     },
   ],

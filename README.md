@@ -176,6 +176,14 @@ Trang `/search` tìm chung tour, eSIM và bài viết, hỗ trợ từ khóa kh�
 
 Trang chi tiết tour/eSIM có nút **Nhận tư vấn** mở `/support?service=tour&item=ID` hoặc `/support?service=esim&item=ID`. Trang hỗ trợ tải lại dữ liệu công khai theo mã để tạo nội dung gợi ý; khách sao chép, mở OA và tự gửi. Tour/gói đã ẩn hoặc không tồn tại không hiển thị nội dung gợi ý. Danh sách trống cũng có đường dẫn tư vấn chung. Luồng này chưa tạo đơn tour/eSIM, chưa thanh toán hay cấp eSIM; lịch sử hiện vẫn ghi nhận yêu cầu vé máy bay và giao dịch do quản trị nhập.
 
+## Bài viết và khôi phục khi gặp lỗi
+
+Bài viết `/product/:id` tải nội dung công khai trực tiếp, hiển thị nội dung ngay và có nút tư vấn. Không còn giỏ hàng, màu/kích thước hay luồng mua hàng của template ở trang bài viết. Bài không tồn tại/đã ẩn hiển thị đường quay lại danh sách; lỗi kết nối có nút thử lại. Link `/cart` cũ chuyển sang lịch sử yêu cầu. Đường dẫn không tồn tại có trang 404; lỗi giao diện có trang khôi phục thay cho thông báo kỹ thuật.
+
+Chia sẻ bài viết dùng SDK trong Zalo và sao chép link trên web; lỗi SDK có cách sao chép thay thế. Trong lịch sử, mở chi tiết yêu cầu để sao chép mã và liên hệ hỗ trợ. Nếu thiết bị không cho phép dùng clipboard, app hiện ô nội dung để chọn sao chép thủ công. Lịch sử có nút tải lại khi lỗi và quay về trang đầu khi trang phân trang không còn dữ liệu.
+
+Trang quản trị và form vé được tải khi mở trang tương ứng; trang chủ không tải sẵn mã quản trị và danh sách sân bay. Nếu tải mã giao diện thất bại, trang khôi phục cho phép tải lại.
+
 ## Nguồn gốc
 
 Dự án được phát triển từ template ZaUI Fashion của Zalo và đã tùy chỉnh cho FirstClass Travel. Thông tin bản quyền của template được giữ trong file `LICENSE`.
