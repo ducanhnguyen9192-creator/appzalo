@@ -77,6 +77,7 @@ Mở `http://127.0.0.1:5173/admin` khi backend và demo web đang chạy. Trang 
 - Tìm tài khoản theo tên/email, xem ngày tạo và khóa/mở khóa khách hàng. Khóa sẽ thu hồi các phiên đăng nhập hiện có.
 - Thêm/sửa tin tức và ưu đãi, lưu bản nháp hoặc bật hiển thị.
 - Thêm/sửa banner và bật/tắt hiển thị; chọn ảnh trực tiếp từ máy hoặc điện thoại, có ảnh xem trước.
+- Xoá tour, gói eSIM và banner bằng nút **Xoá** cạnh **Sửa**, có xác nhận trước khi xoá vĩnh viễn. Thao tác được ghi vào nhật ký; lịch sử yêu cầu tư vấn đã gửi vẫn giữ thông tin dịch vụ tại thời điểm gửi. File ảnh được giữ lại để tránh ảnh hưởng nội dung dùng chung.
 - Đổi mật khẩu quản trị; các phiên cũ bị thu hồi.
 
 Tạo tài khoản quản trị riêng trên máy chủ bằng lệnh:

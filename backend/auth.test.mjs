@@ -249,6 +249,27 @@ test("eSIM catalog protects drafts, validates packages and persists admin edits"
   db.close();
 });
 
+test("multi-city booking preserves every leg, validates the itinerary and retries safely", async t => {
+  const { api, request, cookie } = await adminFixture(t);
+  const customerCookie = (await request("register", account)).headers.get("set-cookie");
+  const segments = [{ origin: " HAN ", destination: "SGN", departureDate: "2099-01-10" }, { origin: "DAD", destination: "HAN", departureDate: "2099-01-13" }];
+  const body = { requestKey: "22222222-1111-1111-1111-111111111111", tripType: "multicity", segments, adults: 1, children: 0, infants: 0, cabin: "Phổ thông", fullName: "Khách thử nghiệm", phone: "0901234567", note: "Đa chặng" };
+  const created = await api("bookings", body, customerCookie);
+  assert.equal(created.status, 201);
+  const booking = (await created.json()).booking;
+  assert.equal(booking.tripType, "multicity");
+  assert.equal(booking.origin, "HAN"); assert.equal(booking.destination, "HAN");
+  assert.equal(booking.departureDate, segments[0].departureDate); assert.equal(booking.returnDate, "");
+  assert.deepEqual(booking.segments, segments.map(s => ({ ...s, origin: s.origin.trim() })));
+  assert.equal((await api("bookings", body, customerCookie)).status, 200);
+  assert.equal((await api("bookings", { ...body, segments: [segments[0], { ...segments[1], destination: "SIN" }] }, customerCookie)).status, 409);
+  for (const invalid of [null, [], [segments[0]], Array(7).fill(segments[0]), [segments[0], null], [segments[0], { ...segments[1], destination: "dad" }], [segments[0], { ...segments[1], origin: 42 }], [segments[0], { ...segments[1], departureDate: "2099-01-09" }], [segments[0], { ...segments[1], departureDate: "2099-02-30" }], [{ ...segments[0], departureDate: "2000-01-01" }, segments[1]]]) {
+    assert.equal((await api("bookings", { ...body, requestKey: "33333333-1111-1111-1111-111111111111", segments: invalid }, customerCookie)).status, 400);
+  }
+  assert.deepEqual((await (await api("bookings", null, customerCookie)).json()).bookings[0].segments, booking.segments);
+  assert.deepEqual((await (await api("admin/bookings", null, cookie)).json()).bookings[0].segments, booking.segments);
+});
+
 test("booking history is account-scoped, retry-safe and records admin-confirmed transactions", async (t) => {
   const { api, request, cookie, databasePath } = await adminFixture(t);
   const registered = await request("register", account);

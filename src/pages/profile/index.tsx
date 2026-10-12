@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import AccountPanel from "@/components/account-panel";
-import AccountSettings from "@/components/account-settings";
+import AccountLogout from "@/components/account-logout";
 import { Account, authRequest } from "@/utils/auth";
 
 export default function ProfilePage() {
@@ -73,37 +73,19 @@ export default function ProfilePage() {
             <div className="text-sm text-gray-500 mt-1">
               {account ? "Đã đăng nhập FirstClass Travel" : "Chưa đăng nhập"}
             </div>
+            {account && <p className="text-sm text-gray-500 mt-1 break-all">{account.email}</p>}
           </div>
         </div>
       </div>
 
-      <AccountPanel account={account} loading={loading} error={authError}
-        onRetry={loadAccount} onChange={(value) => { setAccount(value); setAuthError(""); }} />
-      {account && <AccountSettings key={account.id} account={account} onChange={setAccount} />}
-
-      <div className="px-4 -mt-1">
-        <div className="bg-gradient-to-r from-blue-600 to-blue-500 rounded-2xl p-4 text-white shadow-sm">
-          <div className="text-sm text-blue-100">
-            FirstClass Travel
-          </div>
-
-          <div className="text-xl font-semibold mt-1">
-            Chào mừng bạn!
-          </div>
-
-          <div className="text-sm text-blue-100 mt-2 leading-5">
-            Gửi yêu cầu vé máy bay, theo dõi dịch vụ và nhận hỗ trợ trong cùng một nơi.
-          </div>
-
-          <button
-            type="button"
-            onClick={() => navigate("/flights")}
-            className="mt-4 bg-white text-blue-600 font-medium text-sm px-4 py-2.5 rounded-xl active:scale-[0.99]"
-          >
-            Đặt vé máy bay
-          </button>
-        </div>
-      </div>
+      {(loading || !account) && <AccountPanel account={account} loading={loading} error={authError}
+        onRetry={loadAccount} onChange={(value) => { setAccount(value); setAuthError(""); }} />}
+      {account && <div className="profile-settings-link px-4 my-4">
+        <button type="button" onClick={() => navigate("/profile/settings")}
+          className="w-full flex items-center justify-between gap-3 bg-white rounded-2xl border border-gray-100 p-4 text-left font-medium text-gray-900 shadow-sm">
+          <span>Cài đặt tài khoản</span><span aria-hidden="true" className="text-gray-400">›</span>
+        </button>
+      </div>}
 
       <div className="px-4 mt-4">
         <div className="grid grid-cols-2 gap-3">
@@ -153,6 +135,7 @@ export default function ProfilePage() {
       <div className="profile-signature text-center text-xs text-gray-400 mt-6">
         FirstClass Travel
       </div>
+      {account && <AccountLogout onLogout={() => { setAccount(null); setAuthError(""); }} />}
     </div>
   );
 }

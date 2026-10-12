@@ -10,6 +10,7 @@ import headerLogoImage from "@/static/header-logo.svg";
 import { BackIcon } from "./vectors";
 import { useMemo } from "react";
 import { useRouteHandle } from "@/hooks";
+import SearchBar from "./search-bar";
 
 export default function Header() {
   const categories = useAtomValue(categoriesStateUpwrapped);
@@ -31,8 +32,13 @@ export default function Header() {
 
   if (handle?.logo) {
     return (
-      <div className="h-14 w-full flex items-center px-4 py-2">
+      <div className="h-14 w-full flex items-center gap-3 px-4 py-2">
         <img src={headerLogoImage} className="max-h-full flex-none" />
+        {location.pathname === "/" && (
+          <div className="header-search min-w-0">
+            <SearchBar aria-label="Tìm kiếm" readOnly onClick={() => navigate("/search")} />
+          </div>
+        )}
       </div>
     );
   }

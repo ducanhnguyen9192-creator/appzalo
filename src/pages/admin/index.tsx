@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { Account, adminAuthRequest as authRequest } from "@/utils/auth";
 import ImagePicker from "./image-picker";
+import DeleteConfirmDialog from "./delete-confirm-dialog";
 import TourManager from "./tour-manager";
 import EsimManager from "./esim-manager";
 import BookingManager from "./booking-manager";
@@ -23,6 +24,7 @@ export default function AdminPage() {
   const [account, setAccount] = useState<Account | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Banner | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [tab, setTab] = useState("overview");
@@ -74,6 +76,15 @@ export default function AdminPage() {
       setNotice("Đã tải ảnh lên. Bấm Lưu để áp dụng vào nội dung.");
     });
   }
+  async function removeBanner(target: Banner) {
+    setDeleteTarget(null);
+    await act(async () => {
+      await adminApi("banners/delete", { id: target.id });
+      setBanner((current) => current?.id === target.id ? null : current);
+      await refresh();
+      setNotice("Đã xoá banner.");
+    });
+  }
   async function login(event: FormEvent) {
     event.preventDefault();
     await act(async () => {
@@ -121,6 +132,7 @@ export default function AdminPage() {
         <main className="flex-1 min-w-0 space-y-4">
           <div className="flex justify-between gap-3 items-center"><h2 className="text-xl font-bold">{tabs.find((item) => item.id === tab)?.label}</h2><button className={secondary} disabled={busy} onClick={() => act(refresh)}>Làm mới</button></div>
           {error && <div role="alert" className="rounded-xl bg-red-50 text-red-700 p-4">{error}</div>}
+          {deleteTarget && <DeleteConfirmDialog label="Banner" name={deleteTarget.title} onCancel={() => setDeleteTarget(null)} onConfirm={() => removeBanner(deleteTarget)} />}
           {notice && <div role="status" className="rounded-xl bg-green-50 text-green-700 p-4">{notice}</div>}
           {tab === "tours" && <TourManager />}
           {tab === "esims" && <EsimManager />}
@@ -160,7 +172,7 @@ export default function AdminPage() {
               <label className="flex gap-2 items-center text-sm"><input type="checkbox" checked={banner.active} onChange={(e) => setBanner({ ...banner, active: e.target.checked })} />Bật hiển thị banner</label>
               <div className="flex gap-2"><button className={primary} disabled={busy}>Lưu banner</button><button type="button" className={secondary} disabled={busy} onClick={() => setBanner(null)}>Hủy</button></div>
             </form>}
-            {banners.map((item) => <div key={item.id} className="bg-white rounded-xl border border-gray-100 p-4 flex items-center justify-between gap-4"><div><p className="font-medium">{item.title}</p><p className="text-sm text-gray-500 break-all">{item.image}</p><p className="text-sm mt-1">{item.active ? "Đang hiển thị" : "Đã ẩn"}</p></div><button className={secondary} disabled={busy} onClick={() => setBanner({ ...item })}>Sửa</button></div>)}
+            {banners.map((item) => <div key={item.id} className="bg-white rounded-xl border border-gray-100 p-4 flex items-center justify-between gap-4"><div><p className="font-medium">{item.title}</p><p className="text-sm text-gray-500 break-all">{item.image}</p><p className="text-sm mt-1">{item.active ? "Đang hiển thị" : "Đã ẩn"}</p></div><div className="flex flex-wrap shrink-0 gap-2"><button className={secondary} disabled={busy} onClick={() => setBanner({ ...item })}>Sửa</button><button disabled={busy} className="rounded-xl border border-red-200 bg-white text-red-700 px-4 py-2.5 font-medium disabled:opacity-50" onClick={() => setDeleteTarget(item)}>Xoá</button></div></div>)}
           </>}
           {tab === "security" && <form className="bg-white rounded-2xl border border-gray-100 p-5 space-y-4 max-w-xl" onSubmit={(e) => { e.preventDefault(); act(async () => { if (newPassword !== confirmation) { showNotice("error", "Chưa đổi được mật khẩu", "Mật khẩu xác nhận không khớp."); throw new Error("Mật khẩu xác nhận không khớp."); } await adminApi("password", { currentPassword, password: newPassword }); setCurrentPassword(""); setNewPassword(""); setConfirmation(""); setNotice("Đã đổi mật khẩu và thu hồi các phiên cũ."); }); }}>
             <h3 className="font-semibold">Đổi mật khẩu quản trị</h3><p className="text-sm text-gray-500">Mật khẩu mới từ 12 đến 128 ký tự. Các phiên đăng nhập khác sẽ bị thu hồi.</p>

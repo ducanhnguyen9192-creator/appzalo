@@ -1,9 +1,10 @@
+import type { FlightSegment, TripType } from "./flight-form";
 import { API_BASE } from "./tours";
 import { notified } from "./notifications";
 
 export const BOOKING_STATUS = { received: "Đã tiếp nhận", reviewing: "Đang xử lý", quoted: "Đã báo giá", ticketed: "Đã xuất vé", cancelled: "Đã hủy" } as const;
 export type BookingStatus = keyof typeof BOOKING_STATUS;
-export type Booking = { id: string; tripType: "oneway" | "roundtrip"; origin: string; destination: string; departureDate: string; returnDate: string; adults: number; children: number; infants: number; cabin: string; fullName: string; phone: string; note: string; status: BookingStatus; response: string; createdAt: number; updatedAt: number };
+export type Booking = { id: string; tripType: TripType; segments?: FlightSegment[]; origin: string; destination: string; departureDate: string; returnDate: string; adults: number; children: number; infants: number; cabin: string; fullName: string; phone: string; note: string; status: BookingStatus; response: string; createdAt: number; updatedAt: number };
 export type Transaction = { id: string; bookingId: string; amount: number; reference: string; note: string; paidAt: string; origin: string; destination: string };
 export class BookingApiError extends Error { constructor(message: string, public status: number) { super(message); } }
 async function requestBooking<T>(path: string, body?: unknown): Promise<T> {
@@ -25,3 +26,5 @@ export function bookingApi<T>(path: string, body?: unknown): Promise<T> {
 export const formatMoney = (amount: number) => `${new Intl.NumberFormat("vi-VN").format(amount)} đ`;
 export const formatDateTime = (value: number | string) => new Date(value).toLocaleString("vi-VN");
 export const formatFlightDate = (value: string) => value.split("-").reverse().join("/");
+
+export const formatBookingRoute = (booking: Booking) => booking.tripType === "multicity" && booking.segments?.length ? booking.segments.map((segment) => `${segment.origin} → ${segment.destination}`).join(" · ") : `${booking.origin} → ${booking.destination}`;

@@ -25,6 +25,48 @@ const tour = { name: "Tour kiểm thử", kind: "domestic", destination: "Đà N
 const esim = { name: "eSIM kiểm thử", coverage: "Nhật Bản", allowance: "5 GB", validity: "7 ngày", network: "", activation: "", price: null, image: "/images/news/news-2.jpg", summary: "Mẫu", instructions: "Mẫu", notes: "Mẫu", published: true };
 const requestBody = (service, itemId) => ({ service, itemId, requestKey: randomUUID(), fullName: "Khách thử nghiệm", phone: "0901234567", quantity: 2, desiredDate: "", note: "Tư vấn thử nghiệm", price: 1, userId: "forged" });
 
+test("catalog deletion is admin-only, validates IDs, removes public content and preserves request history", async t => {
+  const f = await fixture(t);
+  for (const [table, body, service] of [["tours", tour, "tour"], ["esims", esim, "esim"], ["banners", { title: "Banner kiểm thử", image: tour.image, active: true }, null]]) {
+    const id = (await (await f.api(`admin/${table}/save`, body, f.adminCookie)).json()).id;
+    if (service) assert.equal((await f.api("service-requests", requestBody(service, id), f.cookie)).status, 201);
+    assert.equal((await f.api(`admin/${table}/delete`, { id })).status, 401);
+    assert.equal((await f.api(`admin/${table}/delete`, { id }, f.cookie)).status, 401);
+    for (const invalid of [undefined, null, "1", 0, -1, 1.5, Number.MAX_SAFE_INTEGER + 1]) {
+      assert.equal((await f.api(`admin/${table}/delete`, { id: invalid }, f.adminCookie)).status, 400);
+    }
+    assert.equal((await f.api(`admin/${table}/delete`, { id }, f.adminCookie)).status, 200);
+    assert.equal((await f.api(`admin/${table}/delete`, { id }, f.adminCookie)).status, 404);
+    const items = (await (await f.api(`admin/${table}`, null, f.adminCookie)).json())[table];
+    assert.ok(!items.some(item => item.id === id));
+    if (service) {
+      assert.equal((await f.api(`content/${table}/${id}`)).status, 404);
+      assert.equal((await f.api("service-requests", requestBody(service, id), f.cookie)).status, 404);
+    } else assert.ok(!(await (await f.api("content/banners")).json()).includes(body.image));
+    const logs = (await (await f.api(`admin/audit?action=${table}.delete`, null, f.adminCookie)).json()).logs;
+    assert.equal(logs.length, 1);
+    assert.equal(logs[0].target_id, String(id));
+    assert.equal(logs[0].details.before.id, id);
+    assert.equal(logs[0].details.after, null);
+  }
+  const history = (await (await f.api("service-requests", null, f.cookie)).json()).requests;
+  assert.equal(history.length, 2);
+  assert.ok(history.some(item => item.item.name === tour.name));
+  assert.ok(history.some(item => item.item.name === esim.name));
+});
+
+test("deletion rolls back when the audit cannot be written", async t => {
+  const f = await fixture(t);
+  const db = new DatabaseSync(f.databasePath);
+  try { for (const [table, body] of [["tours", tour], ["esims", esim], ["banners", { title: "Banner rollback", image: tour.image, active: true }]]) {
+    const id = (await (await f.api(`admin/${table}/save`, body, f.adminCookie)).json()).id;
+    db.exec("CREATE TRIGGER reject_deletion_audit BEFORE INSERT ON admin_audit WHEN NEW.action LIKE '%.delete' BEGIN SELECT RAISE(ABORT, 'test delete rollback'); END");
+    assert.equal((await f.api(`admin/${table}/delete`, { id }, f.adminCookie)).status, 500);
+    assert.ok(db.prepare(`SELECT id FROM ${table} WHERE id = ?`).get(id));
+    db.exec("DROP TRIGGER reject_deletion_audit");
+  } } finally { db.close(); }
+});
+
 test("service requests are account-scoped, snapshot trusted catalog data, reject drafts and retry safely", async t => {
   const f = await fixture(t);
   const tourId = (await (await f.api("admin/tours/save", tour, f.adminCookie)).json()).id;

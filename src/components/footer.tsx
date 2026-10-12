@@ -1,8 +1,15 @@
 import { HomeIcon, PlaneIcon, TravelIcon, ProfileIcon } from "./vectors";
 import HorizontalDivider from "./horizontal-divider";
-import { useAtomValue } from "jotai";
-import { cartState } from "@/state";
 import TransitionLink from "./transition-link";
+
+function HistoryIcon({ active }: { active?: boolean }) {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={active ? "var(--primary)" : "currentColor"} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M3 11a9 9 0 1 1 2.6 7.4M3 4v7h7" />
+      <path d="M12 7v5l3 2" />
+    </svg>
+  );
+}
 
 const NAV_ITEMS = [
   {
@@ -21,6 +28,11 @@ const NAV_ITEMS = [
     icon: TravelIcon,
   },
   {
+    name: "Lịch sử",
+    path: "/history",
+    icon: HistoryIcon,
+  },
+  {
     name: "Tài khoản",
     path: "/profile",
     icon: ProfileIcon,
@@ -31,7 +43,8 @@ export default function Footer() {
   return (
     <>
       <HorizontalDivider />
-      <div
+      <nav
+        aria-label="Điều hướng chính"
         className="w-full px-4 pt-2 grid"
         style={{
           gridTemplateColumns: `repeat(${NAV_ITEMS.length}, 1fr)`,
@@ -58,7 +71,7 @@ export default function Footer() {
             </TransitionLink>
           );
         })}
-      </div>
+      </nav>
     </>
   );
 }

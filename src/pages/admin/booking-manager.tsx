@@ -2,7 +2,7 @@ import { FormEvent, useEffect, useState } from "react";
 import BookingInfo from "@/components/booking-info";
 import { adminApi } from "@/utils/admin-api";
 import { showNotice } from "@/utils/notifications";
-import { Booking, BookingStatus, BOOKING_STATUS, formatDateTime, formatMoney } from "@/utils/bookings";
+import { Booking, BookingStatus, BOOKING_STATUS, formatBookingRoute, formatDateTime, formatMoney } from "@/utils/bookings";
 
 type AdminBooking = Booking & { customerEmail: string; transactions: { id: string; amount: number; reference: string; note: string; paidAt: string }[] };
 const input = "w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-gray-900 mt-1";
@@ -54,7 +54,7 @@ export default function BookingManager() {
         <label className="block text-sm">Ghi chú giao dịch<textarea rows={2} maxLength={2000} className={input} value={payment.note} onChange={(e) => setPayment({ ...payment, note: e.target.value })} /></label><button className={primary}>Ghi nhận giao dịch</button>
       </fieldset></form>
     </section>}
-    {loading ? <p role="status">Đang tải yêu cầu…</p> : bookings.length ? bookings.map((booking) => <div key={booking.id} className="bg-white border rounded-xl p-4 flex flex-wrap justify-between gap-3 items-center"><div className="min-w-0 break-words"><p className="font-medium">{booking.origin} → {booking.destination}</p><p className="text-sm text-gray-500">{booking.fullName} · {booking.phone}</p><p className="text-sm text-blue-600">{BOOKING_STATUS[booking.status]} · {formatDateTime(booking.createdAt)}</p></div><button className={secondary} disabled={busy} onClick={() => open(booking)}>Xem / xử lý</button></div>) : <p className="bg-white border rounded-xl p-6 text-gray-500">Chưa có yêu cầu đặt vé.</p>}
+    {loading ? <p role="status">Đang tải yêu cầu…</p> : bookings.length ? bookings.map((booking) => <div key={booking.id} className="bg-white border rounded-xl p-4 flex flex-wrap justify-between gap-3 items-center"><div className="min-w-0 break-words"><p className="font-medium">{formatBookingRoute(booking)}</p><p className="text-sm text-gray-500">{booking.fullName} · {booking.phone}</p><p className="text-sm text-blue-600">{BOOKING_STATUS[booking.status]} · {formatDateTime(booking.createdAt)}</p></div><button className={secondary} disabled={busy} onClick={() => open(booking)}>Xem / xử lý</button></div>) : <p className="bg-white border rounded-xl p-6 text-gray-500">Chưa có yêu cầu đặt vé.</p>}
     {total > 20 && <div className="flex justify-between items-center gap-3 text-sm"><span>{total} yêu cầu · Trang {page}</span><div className="flex gap-2"><button className={secondary} disabled={busy || loading || page === 1} onClick={() => setPage(page - 1)}>Trước</button><button className={secondary} disabled={busy || loading || page * 20 >= total} onClick={() => setPage(page + 1)}>Sau</button></div></div>}
   </div>;
 }

@@ -3,6 +3,7 @@ import { adminApi, uploadAdminImage } from "@/utils/admin-api";
 import { Esim, esimTextFields, initialEsim } from "@/utils/esims";
 import { tourPrice } from "@/utils/tours";
 import ImagePicker from "./image-picker";
+import DeleteConfirmDialog from "./delete-confirm-dialog";
 
 const input = "w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-gray-900 mt-1";
 const primary = "rounded-xl bg-blue-600 text-white px-4 py-2.5 font-medium disabled:opacity-50";
@@ -12,6 +13,7 @@ export default function EsimManager() {
   const [items, setItems] = useState<Esim[]>([]);
   const [item, setItem] = useState<Esim | null>(null);
   const [busy, setBusy] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Esim | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -33,7 +35,17 @@ export default function EsimManager() {
     if (!item) return;
     await act(async () => { await adminApi("esims/save", item); setItem(null); await refresh(); setNotice("Đã lưu gói eSIM. Tải lại ứng dụng để xem thay đổi."); });
   }
+  async function remove(target: Esim) {
+    setDeleteTarget(null);
+    await act(async () => {
+      await adminApi("esims/delete", { id: target.id });
+      setItem((current) => current?.id === target.id ? null : current);
+      await refresh();
+      setNotice("Đã xoá gói eSIM.");
+    });
+  }
   return <div className="space-y-4">
+    {deleteTarget && <DeleteConfirmDialog label="Gói eSIM" name={deleteTarget.name} onCancel={() => setDeleteTarget(null)} onConfirm={() => remove(deleteTarget)} />}
     <div className="flex flex-wrap gap-2"><button className={primary} disabled={busy} onClick={() => { setItem(initialEsim()); setNotice(""); }}>+ Thêm gói eSIM</button><button className={secondary} disabled={busy} onClick={() => act(refresh)}>Làm mới danh sách eSIM</button></div>
     <p className="text-sm text-gray-500">Nhập thông tin gói dữ liệu và bật hiển thị để đưa gói lên trang chủ và danh sách eSIM.</p>
     {error && <p role="alert" className="rounded-xl bg-red-50 text-red-700 p-4">{error}</p>}
@@ -50,6 +62,6 @@ export default function EsimManager() {
         <div className="flex gap-2"><button className={primary}>Lưu gói eSIM</button><button type="button" className={secondary} onClick={() => setItem(null)}>Hủy</button></div>
       </fieldset>
     </form>}
-    {loading ? <p role="status">Đang tải eSIM…</p> : items.length === 0 ? <p className="bg-white border rounded-xl p-6 text-gray-500">Chưa có gói eSIM. Bấm “Thêm gói eSIM” để tạo gói đầu tiên.</p> : items.map((entry) => <div key={entry.id} className="bg-white border border-gray-100 rounded-xl p-4 flex justify-between gap-4 items-center"><div className="min-w-0 break-words"><p className="font-medium">{entry.name}</p><p className="text-sm text-gray-500">{entry.coverage} · {entry.allowance} · {entry.validity} · {tourPrice(entry.price)}</p><p className={`text-sm mt-1 ${entry.published ? "text-green-700" : "text-gray-500"}`}>{entry.published ? "Đang hiển thị" : "Bản nháp / đã ẩn"}</p></div><button disabled={busy} className={secondary} onClick={() => { setItem({ ...entry }); setNotice(""); }}>Sửa</button></div>)}
+    {loading ? <p role="status">Đang tải eSIM…</p> : items.length === 0 ? <p className="bg-white border rounded-xl p-6 text-gray-500">Chưa có gói eSIM. Bấm “Thêm gói eSIM” để tạo gói đầu tiên.</p> : items.map((entry) => <div key={entry.id} className="bg-white border border-gray-100 rounded-xl p-4 flex justify-between gap-4 items-center"><div className="min-w-0 break-words"><p className="font-medium">{entry.name}</p><p className="text-sm text-gray-500">{entry.coverage} · {entry.allowance} · {entry.validity} · {tourPrice(entry.price)}</p><p className={`text-sm mt-1 ${entry.published ? "text-green-700" : "text-gray-500"}`}>{entry.published ? "Đang hiển thị" : "Bản nháp / đã ẩn"}</p></div><div className="flex flex-wrap shrink-0 gap-2"><button disabled={busy} className={secondary} onClick={() => { setItem({ ...entry }); setNotice(""); }}>Sửa</button><button disabled={busy} className="rounded-xl border border-red-200 bg-white text-red-700 px-4 py-2.5 font-medium disabled:opacity-50" onClick={() => setDeleteTarget(entry)}>Xoá</button></div></div>)}
   </div>;
 }

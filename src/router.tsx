@@ -12,6 +12,7 @@ import CategoryListPage from "@/pages/catalog/category-list";
 import ProductDetailPage from "@/pages/catalog/product-detail";
 import HomePage from "@/pages/home";
 import ProfilePage from "@/pages/profile";
+import AccountSettingsPage from "@/pages/profile/settings";
 import AccountRecovery from "@/pages/profile/recovery";
 import SearchPage from "@/pages/search";
 import { createBrowserRouter, Navigate } from "react-router-dom";
@@ -28,6 +29,7 @@ const router = createBrowserRouter(
       element: <Layout />,
       errorElement: <RouteErrorPage />,
       children: [
+        { path: "/profile/settings", element: <AccountSettingsPage />, handle: { title: "Cài đặt tài khoản", scrollRestoration: 0 } },
         { path: "/forgot-password", element: <AccountRecovery key="forgot" />, handle: { title: "Quên mật khẩu" } },
         { path: "/reset-password", element: <AccountRecovery key="reset" />, handle: { title: "Đặt lại mật khẩu" } },
         { path: "/verify-email", element: <AccountRecovery key="verify" />, handle: { title: "Xác minh email" } },

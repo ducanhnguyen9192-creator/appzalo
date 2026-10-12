@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { adminApi, uploadAdminImage } from "@/utils/admin-api";
 import { Tour, TourKind, TOUR_KINDS, tourPrice } from "@/utils/tours";
 import ImagePicker from "./image-picker";
+import DeleteConfirmDialog from "./delete-confirm-dialog";
 
 const initialTour = (): Tour => ({ name: "", kind: "domestic", destination: "", duration: "", departure: "", price: null, image: "/images/news/news-3.jpg", summary: "", itinerary: "", included: "", excluded: "", published: false });
 const input = "w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-gray-900 mt-1";
@@ -12,6 +13,7 @@ export default function TourManager() {
   const [tours, setTours] = useState<Tour[]>([]);
   const [tour, setTour] = useState<Tour | null>(null);
   const [busy, setBusy] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Tour | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -33,7 +35,17 @@ export default function TourManager() {
     if (!tour) return;
     await act(async () => { await adminApi("tours/save", tour); setTour(null); await refresh(); setNotice("Đã lưu tour. Tour bật hiển thị sẽ xuất hiện khi tải lại ứng dụng."); });
   }
+  async function remove(target: Tour) {
+    setDeleteTarget(null);
+    await act(async () => {
+      await adminApi("tours/delete", { id: target.id });
+      setTour((current) => current?.id === target.id ? null : current);
+      await refresh();
+      setNotice("Đã xoá tour.");
+    });
+  }
   return <div className="space-y-4">
+    {deleteTarget && <DeleteConfirmDialog label="Tour" name={deleteTarget.name} onCancel={() => setDeleteTarget(null)} onConfirm={() => remove(deleteTarget)} />}
     <div className="flex flex-wrap gap-2"><button className={primary} disabled={busy} onClick={() => { setTour(initialTour()); setNotice(""); }}>+ Thêm tour</button><button className={secondary} disabled={busy} onClick={() => act(refresh)}>Làm mới danh sách tour</button></div>
     <p className="text-sm text-gray-500">Quản lý tour trong nước, quốc tế và combo. Bật hiển thị để đưa tour lên trang chủ và danh sách tương ứng.</p>
     {error && <p role="alert" className="rounded-xl bg-red-50 text-red-700 p-4">{error}</p>}
@@ -55,6 +67,6 @@ export default function TourManager() {
         <div className="flex gap-2"><button className={primary}>Lưu tour</button><button type="button" className={secondary} onClick={() => setTour(null)}>Hủy</button></div>
       </fieldset>
     </form>}
-    {loading ? <p role="status">Đang tải tour…</p> : tours.length === 0 ? <p className="bg-white border rounded-xl p-6 text-gray-500">Chưa có tour. Bấm “Thêm tour” để tạo tour đầu tiên.</p> : tours.map((item) => <div key={item.id} className="bg-white border border-gray-100 rounded-xl p-4 flex justify-between gap-4 items-center"><div className="min-w-0"><p className="font-medium break-words">{item.name}</p><p className="text-sm text-gray-500">{TOUR_KINDS[item.kind]} · {item.destination} · {tourPrice(item.price)}</p><p className={`text-sm mt-1 ${item.published ? "text-green-700" : "text-gray-500"}`}>{item.published ? "Đang hiển thị" : "Bản nháp / đã ẩn"}</p></div><button disabled={busy} className={secondary} onClick={() => { setTour({ ...item }); setNotice(""); }}>Sửa</button></div>)}
+    {loading ? <p role="status">Đang tải tour…</p> : tours.length === 0 ? <p className="bg-white border rounded-xl p-6 text-gray-500">Chưa có tour. Bấm “Thêm tour” để tạo tour đầu tiên.</p> : tours.map((item) => <div key={item.id} className="bg-white border border-gray-100 rounded-xl p-4 flex justify-between gap-4 items-center"><div className="min-w-0"><p className="font-medium break-words">{item.name}</p><p className="text-sm text-gray-500">{TOUR_KINDS[item.kind]} · {item.destination} · {tourPrice(item.price)}</p><p className={`text-sm mt-1 ${item.published ? "text-green-700" : "text-gray-500"}`}>{item.published ? "Đang hiển thị" : "Bản nháp / đã ẩn"}</p></div><div className="flex flex-wrap shrink-0 gap-2"><button disabled={busy} className={secondary} onClick={() => { setTour({ ...item }); setNotice(""); }}>Sửa</button><button disabled={busy} className="rounded-xl border border-red-200 bg-white text-red-700 px-4 py-2.5 font-medium disabled:opacity-50" onClick={() => setDeleteTarget(item)}>Xoá</button></div></div>)}
   </div>;
 }

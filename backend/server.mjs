@@ -157,15 +157,25 @@ function vietnamToday() {
   return ["year", "month", "day"].map(key => parts.find(part => part.type === key).value).join("-");
 }
 function bookingData(body) {
+  let segments;
+  if (body.tripType === "multicity") {
+    if (!Array.isArray(body.segments) || body.segments.length < 2 || body.segments.length > 6) throw new HttpError(400, "Hành trình đa chặng cần từ 2 đến 6 chặng.");
+    segments = body.segments.map((segment, index) => {
+      if (!segment || ["origin", "destination"].some(field => typeof segment[field] !== "string" || !segment[field].trim() || segment[field].length > 200) || segment.origin.trim().toLowerCase() === segment.destination.trim().toLowerCase()) throw new HttpError(400, `Điểm đi / điểm đến chặng ${index + 1} không hợp lệ.`);
+      if (!validDate(segment.departureDate) || segment.departureDate < vietnamToday() || (index > 0 && segment.departureDate < body.segments[index - 1].departureDate)) throw new HttpError(400, `Ngày bay chặng ${index + 1} phải từ hôm nay và sau hoặc bằng ngày bay chặng trước.`);
+      return { origin: segment.origin.trim(), destination: segment.destination.trim(), departureDate: segment.departureDate };
+    });
+    body = { ...body, origin: segments[0].origin, destination: segments[segments.length - 1].destination, departureDate: segments[0].departureDate, returnDate: "" };
+  }
   const limits = { origin: 200, destination: 200, fullName: 100, phone: 30, note: 2000 };
   for (const [field, max] of Object.entries(limits)) if (typeof body[field] !== "string" || body[field].length > max || (field !== "note" && !body[field].trim())) throw new HttpError(400, "Vui lòng kiểm tra hành trình và thông tin liên hệ.");
-  if (!["oneway", "roundtrip"].includes(body.tripType) || body.origin.trim().toLowerCase() === body.destination.trim().toLowerCase() || !validDate(body.departureDate) || (body.tripType === "roundtrip" && (!validDate(body.returnDate) || body.returnDate < body.departureDate))) throw new HttpError(400, "Hành trình hoặc ngày đi / ngày về không hợp lệ.");
+  if (!["oneway", "roundtrip", "multicity"].includes(body.tripType) || (body.tripType !== "multicity" && body.origin.trim().toLowerCase() === body.destination.trim().toLowerCase()) || !validDate(body.departureDate) || (body.tripType === "roundtrip" && (!validDate(body.returnDate) || body.returnDate < body.departureDate))) throw new HttpError(400, "Hành trình hoặc ngày đi / ngày về không hợp lệ.");
   const todayParts = new Intl.DateTimeFormat("en", { timeZone: "Asia/Ho_Chi_Minh", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date());
   const today = ["year", "month", "day"].map((part) => todayParts.find((value) => value.type === part).value).join("-");
   if (body.departureDate < today) throw new HttpError(400, "Ngày đi phải từ hôm nay trở đi.");
   if (!["Phổ thông", "Phổ thông đặc biệt", "Thương gia", "Hạng nhất"].includes(body.cabin) || ![body.adults, body.children, body.infants].every((count) => Number.isInteger(count) && count >= 0 && count <= 20) || body.adults < 1 || body.infants > body.adults || body.adults + body.children + body.infants > 20) throw new HttpError(400, "Số hành khách hoặc hạng ghế không hợp lệ (tối đa 20 người, mỗi em bé cần một người lớn).");
   if (body.fullName.trim().length < 2 || !/^\+?[\d\s().-]{7,30}$/.test(body.phone.trim())) throw new HttpError(400, "Họ tên hoặc số điện thoại không hợp lệ.");
-  return { ...Object.fromEntries(Object.keys(limits).map((key) => [key, body[key].trim()])), tripType: body.tripType, departureDate: body.departureDate, returnDate: body.tripType === "roundtrip" ? body.returnDate : "", adults: body.adults, children: body.children, infants: body.infants, cabin: body.cabin };
+  return { ...Object.fromEntries(Object.keys(limits).map((key) => [key, body[key].trim()])), tripType: body.tripType, ...(segments ? { segments } : {}), departureDate: body.departureDate, returnDate: body.tripType === "roundtrip" ? body.returnDate : "", adults: body.adults, children: body.children, infants: body.infants, cabin: body.cabin };
 }
 function imageUrl(value) {
   if (typeof value !== "string" || value.length > 2000 || !(value.startsWith("/images/") || value.startsWith("https://") || MEDIA_PATH.test(value))) throw new HttpError(400, "Hãy chọn ảnh từ máy hoặc nhập URL ảnh HTTPS.");
@@ -382,6 +392,17 @@ export function createAuthServer(options = {}) {
         if (req.method === "POST") {
           rateLimit(req, res, "admin", admin.id);
           const body = await readJson(req, 131072);
+          const deletion = path.match(/^\/api\/admin\/(tours|esims|banners)\/delete$/);
+          if (deletion) {
+            const table = deletion[1];
+            const label = { tours: "tour", esims: "gói eSIM", banners: "banner" }[table];
+            if (!Number.isSafeInteger(body.id) || body.id <= 0) throw new HttpError(400, "Mã nội dung không hợp lệ.");
+            const previous = db.prepare(`SELECT * FROM ${table} WHERE id = ?`).get(body.id);
+            if (!previous) throw new HttpError(404, `Không tìm thấy ${label}.`);
+            const before = table === "banners" ? { ...previous, active: Boolean(previous.active) } : articleRow(previous);
+            auditedMutation(db, admin, `${table}.delete`, body.id, { before, after: null }, () => db.prepare(`DELETE FROM ${table} WHERE id = ?`).run(body.id));
+            return send(200, { message: `Đã xoá ${label}.` });
+          }
           if (path === "/api/admin/service-requests/status") {
             if (!["received", "reviewing", "quoted", "completed", "cancelled"].includes(body.status) || typeof body.response !== "string" || body.response.length > 5000) throw new HttpError(400, "Trạng thái hoặc phản hồi không hợp lệ.");
             const previous = db.prepare("SELECT status, response FROM service_requests WHERE id = ?").get(typeof body.id === "string" ? body.id : "");
