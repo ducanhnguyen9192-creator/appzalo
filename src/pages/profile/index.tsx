@@ -42,10 +42,10 @@ export default function ProfilePage() {
       action: () => navigate("/tours"),
     },
     {
-      title: "Hỗ trợ",
-      description: "FirstClass hỗ trợ bạn",
-      icon: "💬",
-      action: () => navigate("/support"),
+      title: "eSIM",
+      description: "Khám phá gói eSIM du lịch",
+      icon: "📱",
+      action: () => navigate("/esims"),
     },
   ];
 

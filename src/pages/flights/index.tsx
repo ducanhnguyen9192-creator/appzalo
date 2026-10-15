@@ -6,11 +6,14 @@ import { Booking, BookingApiError, bookingApi } from "@/utils/bookings";
 import { DRAFT_KEY, EMPTY_FLIGHT, EMPTY_SEGMENT, MAX_FLIGHT_SEGMENTS, FlightErrors, FlightField, FlightSegment, FlightForm, readFlightDraft, TripType, validateFlight, vietnamToday } from "@/utils/flight-form";
 import AIRPORTS from "@/mock/airports.json";
 import { showNotice } from "@/utils/notifications";
+import FlightResults from "@/components/flight-results";
+import SelectedFlightInfo from "@/components/selected-flight-info";
+import type { SelectedFlight } from "@/utils/flight-selection";
 
 export default function FlightSearchPage() {
   const [draft] = useState(readFlightDraft);
   const [form, setForm] = useState<FlightForm>(draft?.form ?? EMPTY_FLIGHT());
-  const [tripType, setTripType] = useState<TripType>(draft?.tripType ?? "roundtrip");
+  const [tripType, setTripType] = useState<TripType>(draft?.tripType ?? "oneway");
   const [restored, setRestored] = useState(Boolean(draft));
   const [account, setAccount] = useState<Account | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -20,6 +23,7 @@ export default function FlightSearchPage() {
   const [submitError, setSubmitError] = useState("");
   const [lastBooking, setLastBooking] = useState<Booking | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedFlights, setSelectedFlights] = useState<SelectedFlight[]>([]);
   const [activeAirport, setActiveAirport] = useState<FlightField | null>(null);
   const sending = useRef(false);
   const requestIdentity = useRef<{ payload: string; key: string } | null>(null);
@@ -35,7 +39,7 @@ export default function FlightSearchPage() {
   useEffect(() => { loadAccount(); }, []);
   useEffect(() => {
     if (previousAccount.current && previousAccount.current !== account?.id) {
-      setForm(EMPTY_FLIGHT()); setRestored(false); setErrors({}); requestIdentity.current = null;
+      setForm(EMPTY_FLIGHT()); setSelectedFlights([]); setRestored(false); setErrors({}); requestIdentity.current = null;
       try { sessionStorage.removeItem(DRAFT_KEY); } catch {}
     }
     previousAccount.current = account?.id ?? null;
@@ -67,6 +71,7 @@ export default function FlightSearchPage() {
     setTripType(value); setErrors({}); setActiveAirport(null); setSubmitError("");
   }
   function clearDraft() {
+    setSelectedFlights([]);
     setForm(EMPTY_FLIGHT()); setTripType("roundtrip"); setErrors({}); setRestored(false); setActiveAirport(null); setSubmitError(""); requestIdentity.current = null;
     try { sessionStorage.removeItem(DRAFT_KEY); } catch {}
   }
@@ -86,6 +91,7 @@ export default function FlightSearchPage() {
   }
   async function submitRequest() {
     if (sending.current) return;
+    if (tripType === "roundtrip" && selectedFlights.length === 1) { setSubmitError("Chọn đủ chuyến đi và chuyến về, hoặc bỏ lựa chọn để gửi yêu cầu tư vấn hành trình."); return; }
     const nextErrors = validateFlight(form, tripType); setErrors(nextErrors); setSubmitError("");
     const firstError = Object.keys(nextErrors)[0];
     if (firstError) { focusField(firstError); showNotice("error", "Vui lòng kiểm tra yêu cầu", nextErrors[firstError as FlightField] ?? "Sửa các ô được đánh dấu trước khi tiếp tục."); return; }
@@ -94,7 +100,7 @@ export default function FlightSearchPage() {
     const { segments, ...details } = form;
     const payload = tripType === "multicity"
       ? { ...details, tripType, segments, origin: segments[0].origin, destination: segments[segments.length - 1].destination, departureDate: segments[0].departureDate, returnDate: "" }
-      : { ...details, tripType, returnDate: tripType === "roundtrip" ? form.returnDate : "" };
+      : { ...details, tripType, returnDate: tripType === "roundtrip" ? form.returnDate : "", ...(selectedFlights.length ? { selectedFlights } : {}) };
     const serialized = JSON.stringify({ ...payload, accountId: account.id });
     if (requestIdentity.current?.payload !== serialized) {
       const bytes = Array.from(crypto.getRandomValues(new Uint8Array(16)), (value) => value.toString(16).padStart(2,"0")).join("");
@@ -117,7 +123,7 @@ export default function FlightSearchPage() {
   return <div ref={formRef} className="flight-page p-4 pb-8 space-y-4">
     <div className="bg-white rounded-2xl p-4 shadow-sm">
       <div className="mb-5"><h1 className="text-xl font-semibold">Yêu cầu đặt vé máy bay</h1><p className="text-sm text-gray-500 mt-2">Nhập hành trình để FirstClass kiểm tra phương án vé và liên hệ tư vấn. Gửi yêu cầu chưa phải xác nhận mua vé hay thanh toán.</p></div>
-      {lastBooking && <div role="status" className="mb-5 rounded-xl bg-green-50 border border-green-200 p-4 break-words"><h2 className="font-semibold text-green-800">Đã tiếp nhận yêu cầu đặt vé</h2><p className="mt-2 text-sm">Mã yêu cầu: {lastBooking.id}</p><Link to="/history" className="inline-block mt-3 text-blue-600 text-sm font-medium">Theo dõi yêu cầu trong lịch sử →</Link></div>}
+      {lastBooking && <div role="status" className="mb-5 rounded-xl bg-green-50 border border-green-200 p-4 break-words"><h2 className="font-semibold text-green-800">Đã lưu yêu cầu trong app</h2><p className="mt-2 text-sm">Mã yêu cầu: {lastBooking.id}. Chưa đặt vé hay giữ chỗ với Vietjet.</p><SelectedFlightInfo flights={lastBooking.selectedFlights ?? []} /><Link to="/history" className="inline-block mt-3 text-blue-600 text-sm font-medium">Theo dõi yêu cầu trong lịch sử →</Link></div>}
       {restored && <p role="status" className="mb-4 rounded-xl bg-blue-50 p-3 text-sm text-blue-700">Đã khôi phục bản nháp trong phiên này. Bạn có thể tiếp tục nhập hoặc xóa bản nháp.</p>}
       <div className="flex gap-2 mb-5">{([ ["roundtrip", "Khứ hồi"], ["oneway", "Một chiều"], ["multicity", "Đa chặng"] ] as const).map(([value, label]) => <button key={value} type="button" aria-pressed={tripType === value} disabled={isSubmitting} onClick={() => changeTripType(value)} className={`flex-1 py-3 rounded-xl text-sm font-medium ${tripType === value ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-600"}`}>{label}</button>)}</div>
       {Object.values(errors).some(Boolean) && <div role="alert" className="mb-4 rounded-xl bg-red-50 text-red-700 p-3 text-sm">Vui lòng sửa các ô được đánh dấu bên dưới trước khi tiếp tục.</div>}
@@ -151,6 +157,8 @@ export default function FlightSearchPage() {
         </>}
         <fieldset><legend className="text-sm font-medium">Hành khách</legend><div className="grid grid-cols-3 gap-2 mt-2">{([ ["adults", "Người lớn", "Từ 12 tuổi", 1], ["children", "Trẻ em", "2–11 tuổi", 0], ["infants", "Em bé", "Dưới 2 tuổi", 0] ] as const).map(([field, label, age, min]) => <div key={field}><label htmlFor={`flight-${field}`} className="text-xs font-medium">{label}</label><p className="text-xs text-gray-500 mt-1">{age}</p><input {...fieldProps(field)} type="number" min={min} max={20} step={1} value={Number.isFinite(form[field]) ? form[field] : ""} onChange={(e) => update(field, e.target.value === "" ? NaN : Number(e.target.value))} />{errorText(field)}</div>)}</div><p className="text-xs text-gray-500 mt-2">Tối đa 20 người. Độ tuổi được tính tại ngày bay; điều kiện cụ thể được xác nhận khi tư vấn.</p></fieldset>
         <div><label htmlFor="flight-cabin" className="text-sm font-medium">Hạng ghế</label><select {...fieldProps("cabin")} value={form.cabin} onChange={(e) => update("cabin", e.target.value)}>{["Phổ thông", "Phổ thông đặc biệt", "Thương gia", "Hạng nhất"].map((cabin) => <option key={cabin}>{cabin}</option>)}</select>{errorText("cabin")}</div>
+        <FlightResults form={form} tripType={tripType} selectedFlights={selectedFlights} onSelectionChange={setSelectedFlights} disabled={isSubmitting} />
+        <SelectedFlightInfo flights={selectedFlights} onClear={() => setSelectedFlights([])} disabled={isSubmitting} />
         <div className="flight-contact border-t pt-4"><h2 className="font-semibold mb-3">Thông tin liên hệ</h2><div className="flight-contact-fields space-y-3">
           <div><label htmlFor="flight-fullName" className="text-sm font-medium">Họ và tên <span className="text-red-600">*</span></label><input {...fieldProps("fullName")} autoComplete="name" maxLength={100} value={form.fullName} placeholder="Nhập họ và tên" onChange={(e) => update("fullName", e.target.value)} />{errorText("fullName")}</div>
           <div><label htmlFor="flight-phone" className="text-sm font-medium">Số điện thoại / Zalo <span className="text-red-600">*</span></label><input {...fieldProps("phone")} type="tel" inputMode="tel" autoComplete="tel" maxLength={30} value={form.phone} placeholder="Ví dụ: 0901234567" onChange={(e) => update("phone", e.target.value)} />{errorText("phone")}</div>

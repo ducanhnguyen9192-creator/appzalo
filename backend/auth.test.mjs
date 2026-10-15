@@ -319,6 +319,38 @@ test("booking history is account-scoped, retry-safe and records admin-confirmed 
   assert.equal((await api("transactions", null, customerCookie)).status, 401);
 });
 
+test("selected flight requests persist only internally, validate both legs and remain retry-safe", async t => {
+  let airlineSearches = 0;
+  const f = await start(t, { searchFlights: async () => { airlineSearches++; throw new Error("Booking must never call the search worker"); } });
+  const registered = await f.request("register", account);
+  const cookie = registered.headers.get("set-cookie");
+  const outbound = { leg: "outbound", origin: "HAN", destination: "SGN", departureDate: "2027-01-10", number: "VJ123", aircraft: "Airbus A321", departure: "05:30", arrival: "07:40", arrivalNextDay: false, fareName: "Eco", amount: 1290000, currency: "VND", priceType: "displayed_fare", searchedAt: new Date().toISOString(), airlineBookingCode: "FORGED" };
+  const inbound = { ...outbound, leg: "inbound", origin: "SGN", destination: "HAN", departureDate: "2027-01-13", number: "VJ120", fareName: "Deluxe", amount: 1500000 };
+  const data = { requestKey: "11111111-1111-1111-1111-111111111111", tripType: "roundtrip", origin: "Hà Nội (HAN)", destination: "SGN", departureDate: "2027-01-10", returnDate: "2027-01-13", adults: 1, children: 0, infants: 0, cabin: "Phổ thông", fullName: "Khách thử nghiệm", phone: "0901234567", note: "Chỉ lưu nội bộ", selectedFlights: [outbound, inbound], status: "ticketed", airlineBookingCode: "FORGED" };
+  assert.equal((await f.api("bookings", data)).status, 401);
+  for (const selectedFlights of [null, [], [outbound], [outbound, outbound], [outbound, { ...inbound, destination: "DAD" }], [outbound, { ...inbound, departureDate: "2027-01-14" }], [outbound, { ...inbound, amount: null }], [outbound, { ...inbound, amount: -1 }], [outbound, { ...inbound, departure: "25:00" }], [outbound, { ...inbound, arrivalNextDay: true }], [outbound, { ...inbound, priceType: "confirmed" }]]) {
+    assert.equal((await f.api("bookings", { ...data, selectedFlights }, cookie)).status, 400);
+  }
+  assert.equal((await f.api("bookings", { ...data, adults: 2 }, cookie)).status, 400);
+  const created = await f.api("bookings", data, cookie);
+  assert.equal(created.status, 201);
+  const { booking } = await created.json();
+  assert.equal(booking.status, "received");
+  assert.equal(booking.selectedFlights.length, 2);
+  assert.equal(booking.selectedFlights[1].fareName, "Deluxe");
+  assert.equal(booking.selectedFlights[1].amount, 1500000);
+  assert.equal(booking.airlineBookingCode, undefined);
+  assert.equal(booking.selectedFlights[0].airlineBookingCode, undefined);
+  assert.equal((await f.api("bookings", data, cookie)).status, 200);
+  assert.equal((await f.api("bookings", { ...data, selectedFlights: [outbound, { ...inbound, amount: 1600000 }] }, cookie)).status, 409);
+  const history = await (await f.api("bookings", null, cookie)).json();
+  assert.deepEqual(history.bookings[0].selectedFlights, booking.selectedFlights);
+  const oneWay = await f.api("bookings", { ...data, requestKey: "22222222-1111-1111-1111-111111111111", tripType: "oneway", selectedFlights: [outbound] }, cookie);
+  assert.equal(oneWay.status, 201);
+  assert.equal((await oneWay.json()).booking.selectedFlights.length, 1);
+  assert.equal(airlineSearches, 0);
+});
+
 test("booking pagination separates pages and one-way requests omit return dates", async (t) => {
   const { api, request } = await start(t, { rateLimit: 100 });
   const customer = await request("register", account);

@@ -11,7 +11,29 @@ Zalo Mini App của FirstClass Travel, hỗ trợ khách hàng gửi yêu cầu 
 - Xem tin tức, danh mục dịch vụ và trang tài khoản khách hàng.
 - Đăng ký, đăng nhập bằng email và mật khẩu; duy trì phiên đăng nhập và đăng xuất.
 
-Form đặt vé yêu cầu đăng nhập và lưu yêu cầu vào backend theo tài khoản khách hàng. Nhân viên FirstClass Travel xem và xử lý trong admin, kiểm tra hành trình, giá vé và liên hệ lại; ứng dụng hiện chưa tra giá hoặc xuất vé tự động. Form không còn gửi tới Google Apps Script.
+Form gửi yêu cầu đặt vé cần đăng nhập và lưu yêu cầu vào backend theo tài khoản khách hàng. Nhân viên FirstClass Travel xem và xử lý trong admin. Mục **Một chiều → Tìm chuyến bay** có bản thử tra giá Vietjet cho 1 người lớn bằng trình duyệt trên máy chủ; không cần nhập thông tin liên hệ hoặc đăng nhập để tìm. Ứng dụng chưa xuất vé tự động. Form không còn gửi tới Google Apps Script.
+
+### Bản thử tìm vé Vietjet một chiều và hai chiều
+
+Nguồn tìm kiếm mặc định là cổng đại lý `https://agents2.vietjetair.com/booking`. Backend dùng Playwright đọc giao diện bằng tài khoản đại lý; không cần khóa API. Cài dependency bằng `npm install`. Bản thử local cần Chrome, đặt `VIETJET_BROWSER_CHANNEL=chrome` trong `backend/.env` và chạy `npm run dev:agency` thay cho `dev:backend`. Lệnh này mở cửa sổ Chrome riêng để chủ đại lý đăng nhập trực tiếp trên website Vietjet. Không nhập mật khẩu vào chat, biến VITE, API của app hoặc mã nguồn. Phiên đăng nhập chỉ nằm trong context trình duyệt của tiến trình đang chạy, không xuất cookie/storageState, không lưu mật khẩu hay profile đăng nhập. Khởi động lại backend hoặc phiên hết hạn cần chủ đại lý đăng nhập lại. Phiên đăng nhập trong trình duyệt của chat độc lập với phiên backend.
+
+`dev:agency` mặc định chạy cổng 3002. Frontend thử cần `VITE_API_URL=http://127.0.0.1:3002` và CORS backend phải cho phép đúng nguồn frontend (ví dụ `http://127.0.0.1:5174`). Chỉ một lượt tìm chạy đồng thời, cache giá tối đa 60 giây. Phiên đại lý nằm trên máy chủ; khách chỉ nhận dữ liệu chuyến/giá, không nhận thông tin đăng nhập. Backend chỉ tìm vé, không tự chọn vé, gửi hành khách, đặt chỗ hoặc thanh toán.
+
+Chạy backend và frontend như bên dưới, mở `/flights`, chọn **Một chiều**, chọn hai sân bay từ gợi ý, ngày đi, 1 người lớn và bấm **Tìm chuyến bay**. API `POST /api/flights/search` nhận `{ origin: "HAN", destination: "SGN", departureDate: "YYYY-MM-DD", tripType: "oneway", adults: 1, children: 0, infants: 0 }`. Backend cuộn hết danh sách trước khi trả chuyến và 4 hạng giá. Các giá là giá ở bảng kết quả, chưa phải tổng thanh toán sau chọn vé; giao diện ghi rõ thời điểm lấy giá.
+
+Chọn **Khứ hồi** và thêm ngày về để tra hai chiều. App gọi lần lượt hai lượt tìm một chiều, đảo sân bay và dùng ngày về cho lượt thứ hai. Hai tab hiển thị đầy đủ kết quả từng chiều, chưa phải giá xác nhận của một vé khứ hồi và không cộng thành tổng thanh toán. Nếu chiều về lỗi, giữ danh sách chiều đi và báo lỗi riêng. Sửa hành trình hoặc ngày sẽ hủy lượt đang chờ và xóa kết quả cũ. Kiểm tra giao diện bằng `node backend/flight-results-ui.mjs` khi app đang chạy; kiểm tra giá thật bằng `FLIGHT_TEST_RETURN_DATE` cùng các biến `FLIGHT_TEST_ORIGIN`, `FLIGHT_TEST_DESTINATION`, `FLIGHT_TEST_DATE` với script `test:flight-live`.
+
+Trang nguồn có thể lỗi tải, thay đổi giao diện hoặc yêu cầu xác minh. Kết quả trống chưa được xác thực được trả lỗi 502, không kết luận hết chuyến. Nếu chưa có phiên backend hoặc phiên hết hạn, API trả 503 với mã `VIETJET_AGENT_LOGIN_REQUIRED`; khách không được yêu cầu đăng nhập vào tài khoản đại lý. Không có dữ liệu mẫu thay thế giá thật. Chưa hỗ trợ giá xác nhận khứ hồi, trẻ em, em bé hoặc nhiều người lớn trong bản thử; các form gửi yêu cầu tư vấn vẫn sử dụng được. Triển khai trên Zalo thật cần backend HTTPS, cơ chế quản lý phiên đại lý trên máy chủ và cấu hình `VITE_API_URL`, tên miền API, CORS. Bản thử phiên tương tác local chưa phải thiết lập vận hành production.
+
+Adapter website công khai cũ vẫn có trong mã để chẩn đoán, không còn là nguồn mặc định. Nguồn cũ đã trả HTTP 403 trong thử nghiệm, nên không tự chuyển về nguồn đó khi phiên đại lý lỗi.
+
+Trong danh sách kết quả, bấm **Chọn giá này** để chọn chuyến và hạng giá cho yêu cầu nội bộ. Khứ hồi cần đủ hai chiều nếu có chọn chuyến; có thể bỏ toàn bộ lựa chọn để gửi yêu cầu tư vấn thông thường. Hạng hết chỗ không chọn được. Tìm lại hoặc sửa hành trình/ngày/số khách sẽ xóa lựa chọn cũ. Lựa chọn chưa gửi chỉ ở bộ nhớ trang, không khôi phục cùng bản nháp; thông tin liên hệ vẫn được giữ khi đăng nhập.
+
+**Gửi yêu cầu đặt vé** chỉ ghi vào SQLite của app (`bookings.data.selectedFlights`), trạng thái ban đầu `received`. Lưu mã chuyến, hành trình, ngày/giờ bay, loại máy bay, hạng giá, giá VND tham khảo và thời điểm tra. Backend kiểm tra lựa chọn khớp hành trình và số khách, không nhận mã đặt chỗ hoặc trạng thái xuất vé từ khách. Không gọi API đặt chỗ hãng, không chọn giá trong trình duyệt Vietjet. Giá do khách gửi là ảnh chụp tham khảo, không phải báo giá được hãng xác nhận. Lịch sử khách và trang quản trị cùng hiển thị các chuyến đã chọn; không tự tạo giao dịch thanh toán.
+
+Để cập nhật backend của app mà giữ phiên Chrome đại lý, giữ `dev:agency` tại cổng 3002, chạy thêm `npm run dev:app-api` tại cổng 3003 và cấu hình frontend `VITE_API_URL=http://127.0.0.1:3003`. Backend app dùng cùng SQLite và chỉ chuyển tiếp `/api/flights/search` sang worker local 3002; mọi thao tác lưu yêu cầu ở backend app. Cho phép nguồn frontend trong `AUTH_ALLOWED_ORIGINS` trên cả hai tiến trình. Có thể đặt `FLIGHT_SEARCH_WORKER` tới endpoint tìm kiếm local khác. Chạy `node backend/flight-selection-ui.mjs` với frontend đang chạy để kiểm tra chọn vé, gửi vào SQLite riêng cho test và xem lại lịch sử, không ghi yêu cầu thử vào dữ liệu khách. Script giá thật `test:flight-live` hỗ trợ `FLIGHT_TEST_SELECT=1` để thử chọn nội bộ, không gửi yêu cầu.
+
+Kiểm tra riêng: `node --test backend/flight-search.test.mjs`.
 
 ## Công nghệ
 

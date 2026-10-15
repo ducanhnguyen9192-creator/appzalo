@@ -9,6 +9,8 @@ import { createRateLimiter } from "./rate-limit.mjs";
 import { auditedMutation } from "./audit.mjs";
 import { createAccountMailer } from "./mail.mjs";
 import { customerAccountRoutes } from "./customer-account.mjs";
+import { createFlightSearch, FlightSearchError } from "./flight-search.mjs";
+import { selectedFlightData } from "./selected-flight-data.mjs";
 
 const deriveKey = promisify(scrypt);
 const SESSION_SECONDS = 7 * 24 * 60 * 60;
@@ -175,7 +177,8 @@ function bookingData(body) {
   if (body.departureDate < today) throw new HttpError(400, "Ngày đi phải từ hôm nay trở đi.");
   if (!["Phổ thông", "Phổ thông đặc biệt", "Thương gia", "Hạng nhất"].includes(body.cabin) || ![body.adults, body.children, body.infants].every((count) => Number.isInteger(count) && count >= 0 && count <= 20) || body.adults < 1 || body.infants > body.adults || body.adults + body.children + body.infants > 20) throw new HttpError(400, "Số hành khách hoặc hạng ghế không hợp lệ (tối đa 20 người, mỗi em bé cần một người lớn).");
   if (body.fullName.trim().length < 2 || !/^\+?[\d\s().-]{7,30}$/.test(body.phone.trim())) throw new HttpError(400, "Họ tên hoặc số điện thoại không hợp lệ.");
-  return { ...Object.fromEntries(Object.keys(limits).map((key) => [key, body[key].trim()])), tripType: body.tripType, ...(segments ? { segments } : {}), departureDate: body.departureDate, returnDate: body.tripType === "roundtrip" ? body.returnDate : "", adults: body.adults, children: body.children, infants: body.infants, cabin: body.cabin };
+  const selectedFlights = selectedFlightData(body.selectedFlights, body);
+  return { ...Object.fromEntries(Object.keys(limits).map((key) => [key, body[key].trim()])), tripType: body.tripType, ...(segments ? { segments } : {}), ...(selectedFlights ? { selectedFlights } : {}), departureDate: body.departureDate, returnDate: body.tripType === "roundtrip" ? body.returnDate : "", adults: body.adults, children: body.children, infants: body.infants, cabin: body.cabin };
 }
 function imageUrl(value) {
   if (typeof value !== "string" || value.length > 2000 || !(value.startsWith("/images/") || value.startsWith("https://") || MEDIA_PATH.test(value))) throw new HttpError(400, "Hãy chọn ảnh từ máy hoặc nhập URL ảnh HTTPS.");
@@ -186,6 +189,7 @@ function imageUrl(value) {
 }
 
 export function createAuthServer(options = {}) {
+  const searchFlights = options.searchFlights ?? createFlightSearch();
   const mailer = options.mailer === undefined ? createAccountMailer() : options.mailer;
   const rateLimit = createRateLimiter({ trustedProxies: options.trustedProxies ?? process.env.TRUSTED_PROXY_IPS ?? "", limit: options.rateLimit });
   const databasePath = options.databasePath ?? defaultDatabasePath();
@@ -250,6 +254,11 @@ export function createAuthServer(options = {}) {
         res.writeHead(204); res.end(); return;
       }
       if (req.method === "GET" && path === "/api/health") return send(200, { ok: true });
+      if (req.method === "POST" && path === "/api/flights/search") {
+        rateLimit(req, res, "flight-search");
+        const body = await readJson(req);
+        return send(200, await searchFlights(body));
+      }
       if (path === "/api/service-requests") {
         const customer = getSessionUser(req, "customer");
         if (!customer) throw new HttpError(401, "Vui lòng đăng nhập để gửi và xem yêu cầu tư vấn.");
@@ -544,7 +553,7 @@ export function createAuthServer(options = {}) {
       throw new HttpError(404, "Không tìm thấy API.");
     } catch (error) {
       if (!(error instanceof HttpError) && error.status !== 429) console.error("Auth request failed:", error.message);
-      if (!res.headersSent && !res.destroyed) send(error.status ?? 500, { message: error.status ? error.message : "Máy chủ gặp lỗi. Vui lòng thử lại." });
+      if (!res.headersSent && !res.destroyed) send(error.status ?? 500, { message: error.status ? error.message : "Máy chủ gặp lỗi. Vui lòng thử lại.", ...(error instanceof FlightSearchError && error.code ? { code: error.code } : {}) });
     }
   });
   server.on("close", () => db.close());
