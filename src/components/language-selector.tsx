@@ -84,6 +84,7 @@ export default function LanguageSelector() {
       </div>
       <div className="language-dialog-body" id={panelId} role="tabpanel" aria-labelledby={`${titleId}-${tab}`}>
         <h2 id={titleId}>{tab === "language" ? "Tất Cả Ngôn Ngữ" : "Tiền Tệ"}</h2>
+        {tab === "language" && <p className="text-sm text-gray-600 mb-4">Ứng dụng hiện hiển thị bằng tiếng Việt. Lựa chọn bên dưới chỉ lưu ngôn ngữ ưu tiên trên thiết bị, chưa dịch nội dung.</p>}
         {tab === "language" ? <div className="language-grid">
           {languages.map(([code, label, country]) => <button type="button" key={code} lang={code} aria-pressed={selected === code} className={`language-option${selected === code ? " is-selected" : ""}`} onClick={() => choose(code)}><LanguageIcon country={country} /><span dir="auto">{label}</span></button>)}
         </div> : <div className="language-currency"><button type="button" className="language-option is-selected" aria-pressed="true" onClick={() => setOpen(false)}><LanguageIcon country="vn" /><span>VND — Việt Nam Đồng</span></button><p>Giá và thanh toán hiện được tính bằng Việt Nam Đồng (VND).</p></div>}

@@ -1,5 +1,6 @@
 import { readFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { validPassengers } from "../src/utils/passengers.mjs";
 
 const airports = JSON.parse(readFileSync(new URL("../src/mock/airports.json", import.meta.url), "utf8").replace(/^\uFEFF/, ""));
 export class FlightSearchError extends Error {
@@ -35,11 +36,11 @@ export function watchVietjetAccess(session) {
 export function validateSearch(body, today = new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Ho_Chi_Minh" }).format(new Date())) {
   const { origin, destination, departureDate } = body;
   const codes = new Set(airports.map(a => a.code));
-  if (body.tripType !== "oneway" || body.adults !== 1 || body.children !== 0 || body.infants !== 0) throw new FlightSearchError(400, "Bản thử hỗ trợ một chiều, 1 người lớn, không có trẻ em hoặc em bé.");
+  if (body.tripType !== "oneway" || !validPassengers(body)) throw new FlightSearchError(400, "Tổng người lớn và trẻ em tối đa 10, có ít nhất 1 người lớn; em bé tối đa 2.");
   if (!codes.has(origin) || !codes.has(destination) || origin === destination) throw new FlightSearchError(400, "Chọn hai sân bay khác nhau từ danh sách gợi ý.");
   const date = new Date(`${departureDate}T00:00:00Z`);
   if (typeof departureDate !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(departureDate) || !Number.isFinite(+date) || date.toISOString().slice(0, 10) !== departureDate || departureDate < today || +date - +new Date(`${today}T00:00:00Z`) > 330 * 86400000) throw new FlightSearchError(400, "Ngày đi phải từ hôm nay đến tối đa 330 ngày tới.");
-  return { origin, destination, departureDate, tripType: "oneway", adults: 1, children: 0, infants: 0 };
+  return { origin, destination, departureDate, tripType: "oneway", adults: body.adults, children: body.children, infants: body.infants };
 }
 
 // Runs in the browser. Read rendered flight rows, never marketing/calendar prices.

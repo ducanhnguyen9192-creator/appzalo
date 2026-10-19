@@ -1,0 +1,70 @@
+{
+  "note": "Downloaded travel illustration assets, mirrored in src/assets for Vite bundling. news-1.jpg is the existing airplane image.",
+  "photos": [
+    {
+      "file": "tours/hoi-an.jpg",
+      "photographer": "Filipe Freitas",
+      "source": "https://unsplash.com/photos/9AF2TWINK-o",
+      "license": "https://unsplash.com/license"
+    },
+    {
+      "file": "tours/da-lat.jpg",
+      "photographer": "thinh nguyen",
+      "source": "https://unsplash.com/photos/A6Fg9OvGkpI",
+      "license": "https://unsplash.com/license"
+    },
+    {
+      "file": "tours/phu-quoc.jpg",
+      "photographer": "allPhoto Bangkok",
+      "source": "https://unsplash.com/photos/DxKMiUXirxg",
+      "license": "https://unsplash.com/license"
+    },
+    {
+      "file": "news/news-4.jpg",
+      "photographer": "allPhoto Bangkok",
+      "source": "https://unsplash.com/photos/DxKMiUXirxg",
+      "license": "https://unsplash.com/license"
+    },
+    {
+      "file": "news/news-2.jpg",
+      "photographer": "Jerry Zhang",
+      "source": "https://unsplash.com/photos/BvuZn3FhEdU",
+      "license": "https://unsplash.com/license"
+    },
+    {
+      "file": "news/news-3.jpg",
+      "photographer": "Sir. Simo",
+      "source": "https://unsplash.com/photos/C3JMhtlrOJQ",
+      "license": "https://unsplash.com/license"
+    },
+    {
+      "file": "news/news-5.jpg",
+      "photographer": "Kin Shing Lai",
+      "source": "https://unsplash.com/photos/GOzvLXx4E-E",
+      "license": "https://unsplash.com/license"
+    },
+    {
+      "file": "news/news-6.jpg",
+      "photographer": "My Spain Visa",
+      "source": "https://unsplash.com/photos/4NkooaqwutU",
+      "license": "https://unsplash.com/license"
+    },
+    {
+      "file": "news/news-7.jpg",
+      "photographer": "Bernd Dittrich",
+      "source": "https://unsplash.com/photos/WOeiFjKnl-I",
+      "license": "https://unsplash.com/license"
+    },
+    {
+      "file": "news/news-8.jpg",
+      "photographer": "JESHOOTS.COM",
+      "source": "https://unsplash.com/photos/mSESwdMZr-A",
+      "license": "https://unsplash.com/license"
+    },
+    {
+      "file": "tours/dubai.jpg",
+      "source": "https://images.unsplash.com/photo-1512453979798-5ea266f8880c",
+      "license": "https://unsplash.com/license"
+    }
+  ]
+}

@@ -24,12 +24,12 @@ export function readAgencyRows() {
   return [...new Map(rows.map(row => [row.number, row])).values()];
 }
 
-export async function startAgencyBrowser({ channel = process.env.VIETJET_BROWSER_CHANNEL || "chrome" } = {}) {
-  if (activeSession) return activeSession;
+export async function startAgencyBrowser({ channel = process.env.VIETJET_BROWSER_CHANNEL ?? "chrome", headless = Boolean(process.env.VIETJET_AGENT_USERNAME && process.env.VIETJET_AGENT_PASSWORD) } = {}) {
+  if (activeSession && !activeSession.page.isClosed()) return activeSession;
+  if (activeSession) await activeSession.close().catch(() => {});
   const { chromium } = await import("playwright");
-  // The user signs in directly on Vietjet. No passwords, cookies or storageState
-  // are exported. This isolated browser context exists only for this process.
-  const browser = await chromium.launch({ channel, headless: false });
+  // Credentials stay server-side; browser sessions are never exported to disk.
+  const browser = await chromium.launch({ ...(channel ? { channel } : {}), headless });
   const context = await browser.newContext({ locale: "vi-VN", timezoneId: "Asia/Ho_Chi_Minh", viewport: { width: 1366, height: 900 } });
   const page = await context.newPage();
   page.setDefaultTimeout(15000);
@@ -38,6 +38,29 @@ export async function startAgencyBrowser({ channel = process.env.VIETJET_BROWSER
   browser.on("disconnected", () => { if (activeSession === session) activeSession = undefined; });
   await page.goto(AGENCY_URL, { waitUntil: "domcontentloaded", timeout: 30000 }).catch(async error => { await browser.close(); throw error; });
   return session;
+}
+
+export async function ensureAgencyLogin(session, { username = process.env.VIETJET_AGENT_USERNAME, password = process.env.VIETJET_AGENT_PASSWORD, now = Date.now } = {}) {
+  const { page } = session;
+  const search = page.getByRole("radio", { name: "Một chiều", exact: true });
+  const account = page.getByRole("textbox", { name: "Tài khoản", exact: true });
+  await Promise.any([search.waitFor(), account.waitFor()]).catch(() => { throw loginRequired(); });
+  if (await search.isVisible()) return;
+  if (!username || !password) throw loginRequired();
+  // Never fill credentials into a redirected third-party page.
+  if (new URL(page.url()).origin !== new URL(AGENCY_URL).origin) throw loginRequired();
+  if (session.loginRetryAt > now()) throw loginRequired();
+  session.loginRetryAt = now() + 60000;
+  try {
+    await account.fill(username);
+    await page.getByLabel("Mật khẩu", { exact: false }).fill(password);
+    await page.getByRole("button", { name: "Đăng nhập", exact: true }).click();
+    await search.waitFor({ timeout: 20000 });
+    session.loginRetryAt = 0;
+  } catch {
+    // Do not expose Playwright call logs, credentials or airline login errors.
+    throw loginRequired();
+  }
 }
 
 export async function chooseAgencyDate(page, date) {
@@ -74,23 +97,58 @@ export async function chooseAgencyAirport(page, label, code) {
   if (!(await field.innerText()).includes(`(${code})`)) throw new Error("Agency airport selection failed");
 }
 
+export async function chooseAgencyPassengers(page, query) {
+  const summary = page.getByRole("button", { name: /Hành khách/ });
+  await summary.click();
+  const addButtons = page.locator("button").filter({ hasText: /^\s*add\s*$/ });
+  await addButtons.first().waitFor();
+  if (await addButtons.count() !== 3) throw new Error("Agency passenger controls changed");
+  const targets = [query.adults, query.children, query.infants];
+  // Remove old passengers first, so a previous search cannot constrain the next.
+  for (const direction of [-1, 1]) {
+    for (const index of direction === -1 ? [2, 1, 0] : [0, 1, 2]) {
+      const row = addButtons.nth(index).locator("..");
+      const count = async () => Number((await row.locator(":scope > div").innerText()).trim());
+      for (let step = 0; step < 10; step++) {
+        const current = await count();
+        if (!Number.isInteger(current)) throw new Error("Agency passenger count unavailable");
+        if (direction === -1 ? current <= targets[index] : current >= targets[index]) break;
+        const button = row.locator("button").filter({ hasText: direction === -1 ? /^\s*remove\s*$/ : /^\s*add\s*$/ });
+        if (await button.isDisabled()) throw new FlightSearchError(400, "Vietjet chưa chấp nhận tổ hợp hành khách này. Vui lòng điều chỉnh số khách hoặc liên hệ tư vấn.");
+        await button.click();
+        await page.waitForFunction(({ index, expected }) => {
+          const buttons = [...document.querySelectorAll("button")].filter(button => button.textContent.trim() === "add");
+          return Number(buttons[index]?.parentElement.querySelector(":scope > div")?.textContent.trim()) === expected;
+        }, { index, expected: current + direction });
+      }
+      if (direction === 1 && await count() !== targets[index]) throw new Error("Agency passenger count mismatch");
+    }
+  }
+  await summary.click();
+  const text = await summary.innerText();
+  for (const [count, label] of [[query.adults, "Người lớn"], [query.children, "Trẻ em"], [query.infants, "Em bé"]]) {
+    if (!new RegExp(`\\b${count}\\s+${label}`, "i").test(text)) throw new Error("Agency passenger summary mismatch");
+  }
+}
+
 export async function searchAgency(query, session = activeSession) {
+  if ((!session || session.page.isClosed()) && process.env.VIETJET_AGENT_USERNAME && process.env.VIETJET_AGENT_PASSWORD) {
+    try { session = await startAgencyBrowser(); }
+    catch { throw loginRequired(); }
+  }
   if (!session || session.page.isClosed()) throw loginRequired();
   const { page } = session;
   let timer;
   const deadline = new Promise((_, reject) => { timer = setTimeout(() => { void page.close().catch(() => {}); reject(new FlightSearchError(504, "Tìm vé đại lý quá lâu. Vui lòng thử lại sau.")); }, 90000); });
   const work = async () => {
     await page.goto(AGENCY_URL, { waitUntil: "domcontentloaded", timeout: 30000 });
-    await Promise.race([
-      page.getByRole("radio", { name: "Một chiều", exact: true }).waitFor(),
-      page.getByRole("textbox", { name: "Tài khoản", exact: true }).waitFor().then(() => { throw loginRequired(); }),
-    ]);
-    if (new URL(page.url()).pathname.includes("login")) throw loginRequired();
+    await ensureAgencyLogin(session);
     await chooseAgencyOneWay(page);
     for (const [label, code] of [["Điểm khởi hành", query.origin], ["Điểm đến", query.destination]]) {
       await chooseAgencyAirport(page, label, code);
     }
     await chooseAgencyDate(page, query.departureDate);
+    await chooseAgencyPassengers(page, query);
     // Only a search is submitted; no passenger, booking or payment steps run.
     await page.getByRole("button", { name: "Tìm chuyến bay", exact: true }).click();
     await page.locator(".list_card .fare-information_flight").first().waitFor({ timeout: 35000 });

@@ -25,6 +25,45 @@ const tour = { name: "Tour kiểm thử", kind: "domestic", destination: "Đà N
 const esim = { name: "eSIM kiểm thử", coverage: "Nhật Bản", allowance: "5 GB", validity: "7 ngày", network: "", activation: "", price: null, image: "/images/news/news-2.jpg", summary: "Mẫu", instructions: "Mẫu", notes: "Mẫu", published: true };
 const requestBody = (service, itemId) => ({ service, itemId, requestKey: randomUUID(), fullName: "Khách thử nghiệm", phone: "0901234567", quantity: 2, desiredDate: "", note: "Tư vấn thử nghiệm", price: 1, userId: "forged" });
 
+test("admin request filters search all pages, combine status and Vietnam dates, and treat wildcard input literally", async t => {
+  const f = await fixture(t);
+  const db = new DatabaseSync(f.databasePath);
+  try {
+    for (const table of ["bookings", "service_requests"]) {
+      const insert = db.prepare(`INSERT INTO ${table} (id, user_id, request_key, data, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)`);
+      for (let i = 0; i < 23; i++) {
+        const details = { fullName: i === 0 ? "Khách 100%_\\ đặc biệt" : "Khách thường", phone: i === 0 ? "0909999999" : "0901234567" };
+        const data = table === "bookings" ? details : { request: details, item: { name: "Tour thử" } };
+        const time = Date.parse(i === 0 ? "2026-10-19T23:59:59+07:00" : i === 1 ? "2026-10-20T00:00:00+07:00" : "2026-10-19T00:00:00+07:00");
+        insert.run(`${table}-${i}`, f.customer.id, randomUUID(), JSON.stringify(data), i === 1 ? "quoted" : "received", time, time);
+      }
+    }
+  } finally { db.close(); }
+  for (const path of ["bookings", "service-requests"]) {
+    const key = path === "bookings" ? "bookings" : "requests";
+    const get = async query => {
+      const response = await f.api(`admin/${path}?${query}`, null, f.adminCookie);
+      assert.equal(response.status, 200); return response.json();
+    };
+    assert.equal((await f.api(`admin/${path}?q=0909999999`, null, f.cookie)).status, 401);
+    const first = await get(""); assert.equal(first.total, 23); assert.equal(first[key].length, 20);
+    const second = await get("page=2"); assert.equal(second.total, 23); assert.equal(second[key].length, 3);
+    assert.equal(new Set([...first[key], ...second[key]].map(row => row.id)).size, 23);
+    for (const q of ["0909999999", "100%_\\", "đặc biệt", `${path === "bookings" ? "bookings" : "service_requests"}-0`]) {
+      const result = await get(`q=${encodeURIComponent(q)}`); assert.equal(result.total, 1); assert.equal(result[key].length, 1);
+    }
+    assert.equal((await get("q=customer%40operations.test")).total, 23);
+    assert.equal((await get("from=2026-10-19&to=2026-10-19&status=received")).total, 22);
+    assert.equal((await get("from=2026-10-19&to=2026-10-19&status=quoted")).total, 0);
+    assert.equal((await get("from=2026-10-20&to=2026-10-20&status=quoted")).total, 1);
+    assert.equal((await get("q=missing")).total, 0);
+    assert.equal((await get("q=%27%20OR%201%3D1--")).total, 0);
+    for (const query of ["status=invalid", "from=2026-02-30", "to=oops", "from=2026-10-20&to=2026-10-19"]) {
+      assert.equal((await f.api(`admin/${path}?${query}`, null, f.adminCookie)).status, 400);
+    }
+  }
+});
+
 test("catalog deletion is admin-only, validates IDs, removes public content and preserves request history", async t => {
   const f = await fixture(t);
   for (const [table, body, service] of [["tours", tour, "tour"], ["esims", esim, "esim"], ["banners", { title: "Banner kiểm thử", image: tour.image, active: true }, null]]) {
@@ -74,6 +113,8 @@ test("service requests are account-scoped, snapshot trusted catalog data, reject
   assert.equal((await f.api("service-requests", requestBody("tour", tourId))).status, 401);
   assert.equal((await f.api("service-requests", requestBody("tour", tourId), f.adminCookie)).status, 401);
   const body = requestBody("tour", tourId);
+  assert.equal((await f.api("service-requests", { ...body, phone: "-------" }, f.cookie)).status, 400);
+  assert.equal((await f.api("auth/profile", { name: "Khách thử", phone: "-------" }, f.cookie)).status, 400);
   const created = await f.api("service-requests", body, f.cookie); assert.equal(created.status, 201);
   const item = (await created.json()).request; assert.equal(item.item.price, tour.price); assert.equal(item.request.service, "tour");
   await f.api("admin/tours/save", { ...tour, id: tourId, name: "Tour đã sửa", price: 8000000, published: false }, f.adminCookie);

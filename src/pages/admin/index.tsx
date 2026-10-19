@@ -1,3 +1,5 @@
+import { Link } from "react-router-dom";
+import { confirmDiscardChanges, useUnsavedChanges } from "./unsaved-changes";
 import { FormEvent, useEffect, useState } from "react";
 import { Account, adminAuthRequest as authRequest } from "@/utils/auth";
 import ImagePicker from "./image-picker";
@@ -43,6 +45,8 @@ export default function AdminPage() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmation, setConfirmation] = useState("");
 
+  useUnsavedChanges(Boolean((article && JSON.stringify(article) !== JSON.stringify(articles.find(item => item.id === article.id) ?? initialArticle())) || (banner && JSON.stringify(banner) !== JSON.stringify(banners.find(item => item.id === banner.id) ?? initialBanner())) || currentPassword || newPassword || confirmation));
+
   async function loadUsers(search = query, currentPage = page) {
     const result = await adminApi<{ users: Customer[]; total: number }>(`users?q=${encodeURIComponent(search)}&page=${currentPage}`);
     setUsers(result.users); setTotal(result.total);
@@ -54,6 +58,12 @@ export default function AdminPage() {
       adminApi<{ articles: Article[] }>("articles"), adminApi<{ banners: Banner[] }>("banners"),
     ]);
     setOverview(stats); setUsers(people.users); setTotal(people.total); setArticles(content.articles); setBanners(images.banners);
+  }
+  async function refreshCurrent() {
+    if (tab === "overview") setOverview(await adminApi<Overview>("overview"));
+    else if (tab === "users") await loadUsers();
+    else if (tab === "articles") setArticles((await adminApi<{ articles: Article[] }>("articles")).articles);
+    else if (tab === "banners") setBanners((await adminApi<{ banners: Banner[] }>("banners")).banners);
   }
   useEffect(() => {
     authRequest("me").then(setAccount).catch((e) => setError(e.message)).finally(() => setLoading(false));
@@ -95,6 +105,7 @@ export default function AdminPage() {
     });
   }
   async function logout() {
+    if (!confirmDiscardChanges()) return;
     await act(async () => { await authRequest("logout", {}); setAccount(null); setUsers([]); setOverview(null); setArticles([]); setBanners([]); });
   }
 
@@ -113,7 +124,7 @@ export default function AdminPage() {
           </form>
         )}
         {error && <p className="mt-4 text-sm text-red-600" role="alert">{error}</p>}
-        <a href="/" className="block mt-6 text-sm text-blue-600">← Về ứng dụng</a>
+        <Link to="/" className="block mt-6 text-sm text-blue-600">← Về ứng dụng</Link>
       </div>
     </main>
   );
@@ -123,14 +134,14 @@ export default function AdminPage() {
     <div className="min-h-screen bg-gray-50 text-gray-900">
       <header className="bg-white border-b border-gray-200 px-5 py-4 flex flex-wrap items-center justify-between gap-3">
         <div><p className="font-bold text-blue-600">FIRSTCLASS TRAVEL</p><h1 className="text-lg font-semibold">Trang quản trị</h1></div>
-        <div className="flex flex-wrap items-center gap-3 text-sm"><span>{account.name}</span><a href="/" className="text-blue-600">Xem ứng dụng ↗</a><button className={secondary} disabled={busy} onClick={logout}>Đăng xuất</button></div>
+        <div className="flex flex-wrap items-center gap-3 text-sm"><span>{account.name}</span><Link to="/" onClick={event => { if (!confirmDiscardChanges()) event.preventDefault(); }} className="text-blue-600">Xem ứng dụng ↗</Link><button className={secondary} disabled={busy} onClick={logout}>Đăng xuất</button></div>
       </header>
       <div className="max-w-7xl mx-auto p-5 flex flex-col md:flex-row gap-5">
         <nav className="md:w-56 shrink-0 flex md:flex-col gap-2 flex-wrap" aria-label="Quản trị">
-          {tabs.map((item) => <button key={item.id} disabled={busy} aria-current={tab === item.id ? "page" : undefined} onClick={() => { setTab(item.id); setError(""); setNotice(""); }} className={`text-left rounded-xl px-4 py-3 font-medium ${tab === item.id ? "bg-blue-600 text-white" : "bg-white text-gray-600"}`}>{item.label}</button>)}
+          {tabs.map((item) => <button key={item.id} disabled={busy} aria-current={tab === item.id ? "page" : undefined} onClick={() => { if (tab === item.id || !confirmDiscardChanges()) return; setArticle(null); setBanner(null); setCurrentPassword(""); setNewPassword(""); setConfirmation(""); setTab(item.id); setError(""); setNotice(""); }} className={`text-left rounded-xl px-4 py-3 font-medium ${tab === item.id ? "bg-blue-600 text-white" : "bg-white text-gray-600"}`}>{item.label}</button>)}
         </nav>
         <main className="flex-1 min-w-0 space-y-4">
-          <div className="flex justify-between gap-3 items-center"><h2 className="text-xl font-bold">{tabs.find((item) => item.id === tab)?.label}</h2><button className={secondary} disabled={busy} onClick={() => act(refresh)}>Làm mới</button></div>
+          <div className="flex justify-between gap-3 items-center"><h2 className="text-xl font-bold">{tabs.find((item) => item.id === tab)?.label}</h2>{["overview", "users", "articles", "banners"].includes(tab) && <button className={secondary} disabled={busy} onClick={() => act(refreshCurrent)}>{busy ? "Đang cập nhật…" : "Làm mới"}</button>}</div>
           {error && <div role="alert" className="rounded-xl bg-red-50 text-red-700 p-4">{error}</div>}
           {deleteTarget && <DeleteConfirmDialog label="Banner" name={deleteTarget.title} onCancel={() => setDeleteTarget(null)} onConfirm={() => removeBanner(deleteTarget)} />}
           {notice && <div role="status" className="rounded-xl bg-green-50 text-green-700 p-4">{notice}</div>}
@@ -151,7 +162,7 @@ export default function AdminPage() {
             <div className="flex justify-between items-center text-sm"><span>{total} tài khoản · Trang {page}</span><div className="flex gap-2"><button className={secondary} disabled={busy || page === 1} onClick={() => { const next = page - 1; setPage(next); act(() => loadUsers(query, next)); }}>Trước</button><button className={secondary} disabled={busy || page * 50 >= total} onClick={() => { const next = page + 1; setPage(next); act(() => loadUsers(query, next)); }}>Sau</button></div></div>
           </>}
           {tab === "articles" && <>
-            <button className={primary} disabled={busy} onClick={() => setArticle(initialArticle())}>+ Thêm bài viết</button>
+            <button className={primary} disabled={busy} onClick={() => { if (confirmDiscardChanges()) setArticle(initialArticle()); }}>+ Thêm bài viết</button>
             {article && <form className="bg-white border border-gray-100 rounded-2xl p-5 space-y-4" onSubmit={(e) => { e.preventDefault(); act(async () => { await adminApi("articles/save", article); setArticle(null); await refresh(); setNotice("Đã lưu bài viết. Tải lại ứng dụng để xem nội dung mới."); }); }}>
               <h3 className="font-semibold">{article.id ? "Sửa bài viết" : "Bài viết mới"}</h3>
               <label className="block text-sm">Tiêu đề<input required minLength={3} maxLength={200} className={input} value={article.name} onChange={(e) => setArticle({ ...article, name: e.target.value })} /></label>
@@ -160,19 +171,19 @@ export default function AdminPage() {
               <label className="block text-sm">Tóm tắt<textarea maxLength={1000} className={input} value={article.summary} onChange={(e) => setArticle({ ...article, summary: e.target.value })} /></label>
               <label className="block text-sm">Nội dung<textarea rows={6} maxLength={20000} className={input} value={article.content} onChange={(e) => setArticle({ ...article, content: e.target.value })} /></label>
               <label className="flex gap-2 items-center text-sm"><input type="checkbox" checked={article.published} onChange={(e) => setArticle({ ...article, published: e.target.checked })} />Hiển thị trong ứng dụng</label>
-              <div className="flex gap-2"><button className={primary} disabled={busy}>Lưu bài viết</button><button type="button" className={secondary} disabled={busy} onClick={() => setArticle(null)}>Hủy</button></div>
+              <div className="flex gap-2"><button className={primary} disabled={busy}>Lưu bài viết</button><button type="button" className={secondary} disabled={busy} onClick={() => { if (confirmDiscardChanges()) setArticle(null); }}>Hủy</button></div>
             </form>}
-            <div className="space-y-3">{articles.map((item) => <div key={item.id} className="bg-white border border-gray-100 rounded-xl p-4 flex items-center justify-between gap-4"><div><p className="font-medium">{item.name}</p><p className="text-sm text-gray-500 mt-1">{item.type === "offer" ? "Ưu đãi" : "Tin tức"} · {item.published ? "Đang hiển thị" : "Bản nháp / đã ẩn"} · {item.publishedAt}</p></div><button className={secondary} disabled={busy} onClick={() => setArticle({ ...item })}>Sửa</button></div>)}</div>
+            <div className="space-y-3">{articles.map((item) => <div key={item.id} className="bg-white border border-gray-100 rounded-xl p-4 flex items-center justify-between gap-4"><div><p className="font-medium">{item.name}</p><p className="text-sm text-gray-500 mt-1">{item.type === "offer" ? "Ưu đãi" : "Tin tức"} · {item.published ? "Đang hiển thị" : "Bản nháp / đã ẩn"} · {item.publishedAt}</p></div><button className={secondary} disabled={busy} onClick={() => { if (confirmDiscardChanges()) setArticle({ ...item }); }}>Sửa</button></div>)}</div>
           </>}
           {tab === "banners" && <>
-            <button className={primary} disabled={busy} onClick={() => setBanner(initialBanner())}>+ Thêm banner</button>
+            <button className={primary} disabled={busy} onClick={() => { if (confirmDiscardChanges()) setBanner(initialBanner()); }}>+ Thêm banner</button>
             {banner && <form className="bg-white rounded-2xl border border-gray-100 p-5 space-y-4" onSubmit={(e) => { e.preventDefault(); act(async () => { await adminApi("banners/save", banner); setBanner(null); await refresh(); setNotice("Đã lưu banner. Tải lại ứng dụng để xem thay đổi."); }); }}>
               <label className="block text-sm">Tên banner<input required minLength={2} maxLength={200} className={input} value={banner.title} onChange={(e) => setBanner({ ...banner, title: e.target.value })} /></label>
               <ImagePicker label="Ảnh banner" image={banner.image} disabled={busy} onChange={(image) => setBanner({ ...banner, image })} onUpload={(file) => uploadImage(file, "banner")} />
               <label className="flex gap-2 items-center text-sm"><input type="checkbox" checked={banner.active} onChange={(e) => setBanner({ ...banner, active: e.target.checked })} />Bật hiển thị banner</label>
-              <div className="flex gap-2"><button className={primary} disabled={busy}>Lưu banner</button><button type="button" className={secondary} disabled={busy} onClick={() => setBanner(null)}>Hủy</button></div>
+              <div className="flex gap-2"><button className={primary} disabled={busy}>Lưu banner</button><button type="button" className={secondary} disabled={busy} onClick={() => { if (confirmDiscardChanges()) setBanner(null); }}>Hủy</button></div>
             </form>}
-            {banners.map((item) => <div key={item.id} className="bg-white rounded-xl border border-gray-100 p-4 flex items-center justify-between gap-4"><div><p className="font-medium">{item.title}</p><p className="text-sm text-gray-500 break-all">{item.image}</p><p className="text-sm mt-1">{item.active ? "Đang hiển thị" : "Đã ẩn"}</p></div><div className="flex flex-wrap shrink-0 gap-2"><button className={secondary} disabled={busy} onClick={() => setBanner({ ...item })}>Sửa</button><button disabled={busy} className="rounded-xl border border-red-200 bg-white text-red-700 px-4 py-2.5 font-medium disabled:opacity-50" onClick={() => setDeleteTarget(item)}>Xoá</button></div></div>)}
+            {banners.map((item) => <div key={item.id} className="bg-white rounded-xl border border-gray-100 p-4 flex items-center justify-between gap-4"><div><p className="font-medium">{item.title}</p><p className="text-sm text-gray-500 break-all">{item.image}</p><p className="text-sm mt-1">{item.active ? "Đang hiển thị" : "Đã ẩn"}</p></div><div className="flex flex-wrap shrink-0 gap-2"><button className={secondary} disabled={busy} onClick={() => { if (confirmDiscardChanges()) setBanner({ ...item }); }}>Sửa</button><button disabled={busy} className="rounded-xl border border-red-200 bg-white text-red-700 px-4 py-2.5 font-medium disabled:opacity-50" onClick={() => setDeleteTarget(item)}>Xoá</button></div></div>)}
           </>}
           {tab === "security" && <form className="bg-white rounded-2xl border border-gray-100 p-5 space-y-4 max-w-xl" onSubmit={(e) => { e.preventDefault(); act(async () => { if (newPassword !== confirmation) { showNotice("error", "Chưa đổi được mật khẩu", "Mật khẩu xác nhận không khớp."); throw new Error("Mật khẩu xác nhận không khớp."); } await adminApi("password", { currentPassword, password: newPassword }); setCurrentPassword(""); setNewPassword(""); setConfirmation(""); setNotice("Đã đổi mật khẩu và thu hồi các phiên cũ."); }); }}>
             <h3 className="font-semibold">Đổi mật khẩu quản trị</h3><p className="text-sm text-gray-500">Mật khẩu mới từ 12 đến 128 ký tự. Các phiên đăng nhập khác sẽ bị thu hồi.</p>

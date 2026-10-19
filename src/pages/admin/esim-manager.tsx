@@ -1,3 +1,4 @@
+import { confirmDiscardChanges, useUnsavedChanges } from "./unsaved-changes";
 import { FormEvent, useEffect, useState } from "react";
 import { adminApi, uploadAdminImage } from "@/utils/admin-api";
 import { Esim, esimTextFields, initialEsim } from "@/utils/esims";
@@ -17,6 +18,7 @@ export default function EsimManager() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  useUnsavedChanges(Boolean(item && JSON.stringify(item) !== JSON.stringify(items.find(entry => entry.id === item.id) ?? initialEsim())));
   async function refresh() { const data = await adminApi<{ esims: Esim[] }>("esims"); setItems(data.esims); }
   useEffect(() => { refresh().catch((e) => setError(e.message)).finally(() => setLoading(false)); }, []);
   async function act(work: () => Promise<void>) {
@@ -46,7 +48,7 @@ export default function EsimManager() {
   }
   return <div className="space-y-4">
     {deleteTarget && <DeleteConfirmDialog label="Gói eSIM" name={deleteTarget.name} onCancel={() => setDeleteTarget(null)} onConfirm={() => remove(deleteTarget)} />}
-    <div className="flex flex-wrap gap-2"><button className={primary} disabled={busy} onClick={() => { setItem(initialEsim()); setNotice(""); }}>+ Thêm gói eSIM</button><button className={secondary} disabled={busy} onClick={() => act(refresh)}>Làm mới danh sách eSIM</button></div>
+    <div className="flex flex-wrap gap-2"><button className={primary} disabled={busy} onClick={() => { if (!confirmDiscardChanges()) return; setItem(initialEsim()); setNotice(""); }}>+ Thêm gói eSIM</button><button className={secondary} disabled={busy} onClick={() => act(refresh)}>Làm mới danh sách eSIM</button></div>
     <p className="text-sm text-gray-500">Nhập thông tin gói dữ liệu và bật hiển thị để đưa gói lên trang chủ và danh sách eSIM.</p>
     {error && <p role="alert" className="rounded-xl bg-red-50 text-red-700 p-4">{error}</p>}
     {notice && <p role="status" className="rounded-xl bg-green-50 text-green-700 p-4">{notice}</p>}
@@ -59,9 +61,9 @@ export default function EsimManager() {
         <ImagePicker label="Ảnh gói eSIM" image={item.image} disabled={busy} onChange={(image) => setItem({ ...item, image })} onUpload={upload} />
         {([ ["summary", "Giới thiệu ngắn", 1000], ["instructions", "Hướng dẫn sử dụng", 20000], ["notes", "Lưu ý / thiết bị tương thích", 5000] ] as const).map(([field, label, max]) => <label key={field} className="block text-sm">{label}<textarea rows={field === "instructions" ? 6 : 3} maxLength={max} className={input} value={item[field]} onChange={(e) => setItem({ ...item, [field]: e.target.value })} /></label>)}
         <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={item.published} onChange={(e) => setItem({ ...item, published: e.target.checked })} />Hiển thị gói eSIM trong ứng dụng</label>
-        <div className="flex gap-2"><button className={primary}>Lưu gói eSIM</button><button type="button" className={secondary} onClick={() => setItem(null)}>Hủy</button></div>
+        <div className="flex gap-2"><button className={primary}>Lưu gói eSIM</button><button type="button" className={secondary} onClick={() => { if (confirmDiscardChanges()) setItem(null); }}>Hủy</button></div>
       </fieldset>
     </form>}
-    {loading ? <p role="status">Đang tải eSIM…</p> : items.length === 0 ? <p className="bg-white border rounded-xl p-6 text-gray-500">Chưa có gói eSIM. Bấm “Thêm gói eSIM” để tạo gói đầu tiên.</p> : items.map((entry) => <div key={entry.id} className="bg-white border border-gray-100 rounded-xl p-4 flex justify-between gap-4 items-center"><div className="min-w-0 break-words"><p className="font-medium">{entry.name}</p><p className="text-sm text-gray-500">{entry.coverage} · {entry.allowance} · {entry.validity} · {tourPrice(entry.price)}</p><p className={`text-sm mt-1 ${entry.published ? "text-green-700" : "text-gray-500"}`}>{entry.published ? "Đang hiển thị" : "Bản nháp / đã ẩn"}</p></div><div className="flex flex-wrap shrink-0 gap-2"><button disabled={busy} className={secondary} onClick={() => { setItem({ ...entry }); setNotice(""); }}>Sửa</button><button disabled={busy} className="rounded-xl border border-red-200 bg-white text-red-700 px-4 py-2.5 font-medium disabled:opacity-50" onClick={() => setDeleteTarget(entry)}>Xoá</button></div></div>)}
+    {loading ? <p role="status">Đang tải eSIM…</p> : items.length === 0 ? <p className="bg-white border rounded-xl p-6 text-gray-500">Chưa có gói eSIM. Bấm “Thêm gói eSIM” để tạo gói đầu tiên.</p> : items.map((entry) => <div key={entry.id} className="bg-white border border-gray-100 rounded-xl p-4 flex justify-between gap-4 items-center"><div className="min-w-0 break-words"><p className="font-medium">{entry.name}</p><p className="text-sm text-gray-500">{entry.coverage} · {entry.allowance} · {entry.validity} · {tourPrice(entry.price)}</p><p className={`text-sm mt-1 ${entry.published ? "text-green-700" : "text-gray-500"}`}>{entry.published ? "Đang hiển thị" : "Bản nháp / đã ẩn"}</p></div><div className="flex flex-wrap shrink-0 gap-2"><button disabled={busy} className={secondary} onClick={() => { if (!confirmDiscardChanges()) return; setItem({ ...entry }); setNotice(""); }}>Sửa</button><button disabled={busy} className="rounded-xl border border-red-200 bg-white text-red-700 px-4 py-2.5 font-medium disabled:opacity-50" onClick={() => setDeleteTarget(entry)}>Xoá</button></div></div>)}
   </div>;
 }

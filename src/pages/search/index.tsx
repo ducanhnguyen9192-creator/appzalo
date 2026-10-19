@@ -1,3 +1,5 @@
+import ArticlesError from "@/components/articles-error";
+import { articlesResultState } from "@/state";
 import { CatalogSkeleton } from "@/components/catalog-skeleton";
 import { useAtomValue } from "jotai";
 import { useEffect, useState } from "react";
@@ -11,6 +13,7 @@ import { Esim } from "@/utils/esims";
 import { matchesSearch } from "@/utils/search";
 
 export default function SearchPage() {
+  const { error: articlesError } = useAtomValue(articlesResultState);
   const [params, setParams] = useSearchParams();
   const query = (params.get("q") ?? "").slice(0, 200);
   const [input, setInput] = useState(query);
@@ -34,7 +37,7 @@ export default function SearchPage() {
     </div>
     {(group === "all" || group === "tours") && <section aria-label="Kết quả tour"><h2 className="px-4 font-semibold">Tour du lịch</h2>{tours.loading ? <CatalogSkeleton label="Đang tìm tour…" /> : tours.error ? <p role="alert" className="p-4 text-sm text-red-600">Không tải được tour. <button className="underline" onClick={tours.retry}>Thử lại</button></p> : foundTours.length ? <TourCards tours={foundTours} /> : <p className="p-4 text-sm text-gray-500">Chưa có tour phù hợp đang được công khai. <Link to="/support?service=tour" className="text-blue-600 underline">Nhờ tư vấn hành trình</Link></p>}</section>}
     {(group === "all" || group === "esims") && <section aria-label="Kết quả eSIM" className="mt-4"><h2 className="px-4 font-semibold">eSIM du lịch</h2>{esims.loading ? <CatalogSkeleton label="Đang tìm eSIM…" /> : esims.error ? <p role="alert" className="p-4 text-sm text-red-600">Không tải được eSIM. <button className="underline" onClick={esims.retry}>Thử lại</button></p> : foundEsims.length ? <EsimCards esims={foundEsims} /> : <p className="p-4 text-sm text-gray-500">Chưa có gói eSIM phù hợp đang được công khai. <Link to="/support?service=esim" className="text-blue-600 underline">Nhờ tư vấn gói dữ liệu</Link></p>}</section>}
-    {(group === "all" || group === "articles") && <section aria-label="Kết quả bài viết" className="mt-4"><h2 className="px-4 font-semibold">Bài viết & kinh nghiệm</h2>{foundArticles.length ? <ProductGrid products={foundArticles} /> : <p className="p-4 text-sm text-gray-500">Không tìm thấy bài viết. Thử từ khóa ngắn hơn hoặc điểm đến khác.</p>}</section>}
+    {(group === "all" || group === "articles") && <section aria-label="Kết quả bài viết" className="mt-4"><h2 className="px-4 font-semibold">Bài viết & kinh nghiệm</h2>{articlesError ? <ArticlesError /> : foundArticles.length ? <ProductGrid products={foundArticles} /> : <p className="p-4 text-sm text-gray-500">Không tìm thấy bài viết. Thử từ khóa ngắn hơn hoặc điểm đến khác.</p>}</section>}
     <p className="px-4 mt-4 text-xs text-gray-500">Giá và tình trạng dịch vụ cần được FirstClass xác nhận khi tư vấn.</p>
   </div>;
 }

@@ -1,3 +1,5 @@
+import { validPhone } from "./contact.mjs";
+import { passengerErrors, validPassengers } from "./passengers.mjs";
 export type TripType = "roundtrip" | "oneway" | "multicity";
 export type FlightSegment = { origin: string; destination: string; departureDate: string };
 export const MAX_FLIGHT_SEGMENTS = 6;
@@ -16,6 +18,7 @@ export function readFlightDraft(): { form: FlightForm; tripType: TripType } | nu
     const draft = JSON.parse(sessionStorage.getItem(DRAFT_KEY) ?? "null");
     if (!draft || !["roundtrip", "oneway", "multicity"].includes(draft.tripType) || !draft.form || typeof draft.form !== "object" || !Number.isFinite(draft.savedAt) || draft.savedAt > Date.now() || Date.now() - draft.savedAt > 24 * 60 * 60 * 1000) return null;
     const form = EMPTY_FLIGHT();
+    if (!validPassengers(draft.form)) return null;
     for (const key of Object.keys(form) as (keyof FlightForm)[]) {
       if (key === "segments") continue;
       const value = draft.form[key];
@@ -29,7 +32,7 @@ export function readFlightDraft(): { form: FlightForm; tripType: TripType } | nu
     return { form: { ...Object.fromEntries(Object.keys(form).filter((key) => key !== "segments").map((key) => [key, draft.form[key]])), segments: form.segments } as FlightForm, tripType: draft.tripType };
   } catch { return null; }
 }
-export function validateFlight(form: FlightForm, tripType: TripType): FlightErrors {
+export function validateFlight(form: FlightForm, tripType: TripType, scope: "journey" | "all" = "all"): FlightErrors {
   const errors: FlightErrors = {};
   const validDate = (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(Date.parse(`${value}T00:00:00Z`)) && new Date(`${value}T00:00:00Z`).toISOString().slice(0,10) === value;
   if (tripType !== "multicity") {
@@ -53,13 +56,11 @@ export function validateFlight(form: FlightForm, tripType: TripType): FlightErro
       else if (index > 0 && segment.departureDate < form.segments[index - 1].departureDate) errors[`segments.${index}.departureDate`] = "Ngày bay phải sau hoặc bằng ngày bay chặng trước.";
     });
   }
-  if (!Number.isInteger(form.adults) || form.adults < 1 || form.adults > 20) errors.adults = "Cần từ 1 đến 20 người lớn.";
-  if (!Number.isInteger(form.children) || form.children < 0 || form.children > 20) errors.children = "Số trẻ em từ 0 đến 20.";
-  if (!Number.isInteger(form.infants) || form.infants < 0 || form.infants > form.adults) errors.infants = "Mỗi em bé cần một người lớn đi cùng.";
-  if (form.adults + form.children + form.infants > 20) errors.adults = "Tối đa 20 hành khách trong một yêu cầu.";
+  for (const [field, message] of Object.entries(passengerErrors(form))) if (message) errors[field as FlightField] = message;
   if (!["Phổ thông", "Phổ thông đặc biệt", "Thương gia", "Hạng nhất"].includes(form.cabin)) errors.cabin = "Chọn hạng ghế hợp lệ.";
+  if (scope === "journey") return errors;
   if (form.fullName.trim().length < 2 || form.fullName.length > 100) errors.fullName = "Nhập họ tên từ 2 đến 100 ký tự.";
-  if (!/^\+?[\d\s().-]{7,30}$/.test(form.phone.trim())) errors.phone = "Nhập số điện thoại hợp lệ, ví dụ 0901234567.";
+  if (!validPhone(form.phone.trim())) errors.phone = "Nhập số điện thoại hợp lệ, ví dụ 0901234567.";
   if (form.note.length > 2000) errors.note = "Ghi chú tối đa 2.000 ký tự.";
   return errors;
 }

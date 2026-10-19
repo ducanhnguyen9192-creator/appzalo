@@ -1,3 +1,4 @@
+import { validPassengers } from "../src/utils/passengers.mjs";
 // A customer's requested itinerary and displayed price snapshot, never a ticket.
 // Validation has no network calls or dependency on the airline browser.
 export function selectedFlightData(value, booking) {
@@ -5,7 +6,7 @@ export function selectedFlightData(value, booking) {
   const invalid = () => { throw Object.assign(new Error("Chuyến đã chọn không hợp lệ hoặc không khớp hành trình. Vui lòng tìm và chọn lại."), { status: 400 }); };
   const code = text => typeof text === "string" ? text.trim().toUpperCase().match(/(?:^|\()([A-Z]{3})\)?$/)?.[1] : undefined;
   const count = booking.tripType === "roundtrip" ? 2 : 1;
-  if (booking.tripType === "multicity" || !Array.isArray(value) || value.length !== count || booking.adults !== 1 || booking.children !== 0 || booking.infants !== 0) invalid();
+  if (booking.tripType === "multicity" || !Array.isArray(value) || value.length !== count || !validPassengers(booking)) invalid();
   return ["outbound", ...(count === 2 ? ["inbound"] : [])].map(leg => {
     const matches = value.filter(item => item && item.leg === leg);
     if (matches.length !== 1) invalid();

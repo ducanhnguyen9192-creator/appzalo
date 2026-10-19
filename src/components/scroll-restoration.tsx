@@ -32,7 +32,7 @@ export const ScrollRestoration: FC = () => {
     // Look for the main scroll element on the page
     const content = findElementWithScrollbar();
     if (content) {
-      if (handle.scrollRestoration !== undefined) {
+      if (handle?.scrollRestoration !== undefined) {
         content.scrollTo(0, handle.scrollRestoration);
       } else {
         const key = `${location.pathname}${location.search}`;

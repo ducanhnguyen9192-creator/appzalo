@@ -1,3 +1,5 @@
+import ArticlesError from "@/components/articles-error";
+import { articlesResultState } from "@/state";
 import ProductGrid from "@/components/product-grid";
 import { useAtomValue } from "jotai";
 import { useState } from "react";
@@ -5,6 +7,7 @@ import { Link, useParams } from "react-router-dom";
 import { categoriesState, productsState } from "@/state";
 
 export default function ProductListPage() {
+  const { error: articlesError } = useAtomValue(articlesResultState);
   const products = useAtomValue(productsState);
   const categories = useAtomValue(categoriesState);
   const { id } = useParams();
@@ -19,6 +22,6 @@ export default function ProductListPage() {
       {!id && <nav aria-label="Chủ đề tin tức" className="flex flex-wrap gap-2">{[{ id: 0, name: "Tất cả" }, ...categories.filter((item) => products.some((product) => product.category?.id === item.id))].map((item) => <button key={item.id} aria-pressed={topic === item.id} onClick={() => setTopic(item.id)} className={`rounded-xl px-3 py-2 text-sm ${topic === item.id ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-600"}`}>{item.name}</button>)}</nav>}
       <label className="block text-sm">Tìm bài viết<input type="search" placeholder="Tên bài viết hoặc từ khóa" className="block w-full max-w-lg border rounded-xl px-4 py-3 mt-1" value={search} onChange={(e) => setSearch(e.target.value)} /></label>
     </div>
-    {filtered.length ? <ProductGrid products={filtered} /> : <p className="px-4 py-6 text-sm text-gray-500">{search ? "Không tìm thấy bài viết phù hợp. Thử từ khóa khác." : "Thông tin đang được cập nhật. Bạn có thể liên hệ FirstClass để được tư vấn."}</p>}
+    {articlesError ? <ArticlesError /> : filtered.length ? <ProductGrid products={filtered} /> : <p className="px-4 py-6 text-sm text-gray-500">{search ? "Không tìm thấy bài viết phù hợp. Thử từ khóa khác." : "Thông tin đang được cập nhật. Bạn có thể liên hệ FirstClass để được tư vấn."}</p>}
   </div>;
 }

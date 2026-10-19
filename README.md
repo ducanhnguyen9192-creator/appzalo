@@ -11,19 +11,25 @@ Zalo Mini App của FirstClass Travel, hỗ trợ khách hàng gửi yêu cầu 
 - Xem tin tức, danh mục dịch vụ và trang tài khoản khách hàng.
 - Đăng ký, đăng nhập bằng email và mật khẩu; duy trì phiên đăng nhập và đăng xuất.
 
-Form gửi yêu cầu đặt vé cần đăng nhập và lưu yêu cầu vào backend theo tài khoản khách hàng. Nhân viên FirstClass Travel xem và xử lý trong admin. Mục **Một chiều → Tìm chuyến bay** có bản thử tra giá Vietjet cho 1 người lớn bằng trình duyệt trên máy chủ; không cần nhập thông tin liên hệ hoặc đăng nhập để tìm. Ứng dụng chưa xuất vé tự động. Form không còn gửi tới Google Apps Script.
+Form gửi yêu cầu đặt vé cần đăng nhập và lưu yêu cầu vào backend theo tài khoản khách hàng. Nhân viên FirstClass Travel xem và xử lý trong admin. Mục **Một chiều → Tìm chuyến bay** có bản thử tra giá Vietjet theo số khách đã chọn bằng trình duyệt trên máy chủ; không cần nhập thông tin liên hệ hoặc đăng nhập để tìm. Ứng dụng chưa xuất vé tự động. Form không còn gửi tới Google Apps Script.
 
 ### Bản thử tìm vé Vietjet một chiều và hai chiều
 
-Nguồn tìm kiếm mặc định là cổng đại lý `https://agents2.vietjetair.com/booking`. Backend dùng Playwright đọc giao diện bằng tài khoản đại lý; không cần khóa API. Cài dependency bằng `npm install`. Bản thử local cần Chrome, đặt `VIETJET_BROWSER_CHANNEL=chrome` trong `backend/.env` và chạy `npm run dev:agency` thay cho `dev:backend`. Lệnh này mở cửa sổ Chrome riêng để chủ đại lý đăng nhập trực tiếp trên website Vietjet. Không nhập mật khẩu vào chat, biến VITE, API của app hoặc mã nguồn. Phiên đăng nhập chỉ nằm trong context trình duyệt của tiến trình đang chạy, không xuất cookie/storageState, không lưu mật khẩu hay profile đăng nhập. Khởi động lại backend hoặc phiên hết hạn cần chủ đại lý đăng nhập lại. Phiên đăng nhập trong trình duyệt của chat độc lập với phiên backend.
+Nguồn tìm kiếm mặc định là cổng đại lý `https://agents2.vietjetair.com/booking`. Backend dùng Playwright đọc giao diện bằng tài khoản đại lý; không cần khóa API. Cài dependency bằng `npm install`.
+
+**Tự đăng nhập, chỉ cần một backend:** đặt `VIETJET_AGENT_USERNAME` và `VIETJET_AGENT_PASSWORD` trong `backend/.env` (xem `backend/.env.example`), rồi chạy `npm run dev:backend`. Frontend gọi backend này như bình thường; không cần chạy thêm `dev:agency` hoặc `dev:app-api`. Khi lượt tìm đầu tiên đến, backend tự mở trình duyệt nền và đăng nhập; các lượt sau dùng lại phiên. Khi phiên hết hạn, backend tự đăng nhập lại trước khi tìm. Khởi động lại backend sẽ tạo phiên mới ở lượt tìm tiếp theo. Phiên và cookie chỉ nằm trong bộ nhớ, không xuất profile/storageState. Trên Windows dùng `VIETJET_BROWSER_CHANNEL=chrome`; trên Linux có thể để trống biến channel và cài Chromium bằng `npx playwright install --with-deps chromium`.
+
+Chỉ cấu hình tài khoản trên máy chủ hoặc secret manager, không đưa mật khẩu vào chat, mã nguồn, biến `VITE_*` hoặc API khách hàng. File `backend/.env` bị loại khỏi Git. Nếu mật khẩu chứa ký tự đặc biệt như `#`, đặt giá trị trong dấu nháy theo định dạng dotenv. Nếu đăng nhập thất bại, backend trả lỗi nguồn giá và chờ ít nhất 60 giây trước lần thử đăng nhập tiếp theo trong cùng phiên trình duyệt. Nếu phát sinh OTP/CAPTCHA, cần quản trị xử lý. Chưa xác thực đăng nhập tự động bằng tài khoản thật; kiểm tra luồng bằng `npm run test:agency-login` (Chrome, dữ liệu và website giả lập, không gọi hãng).
+
+**Đăng nhập thủ công:** nếu không cấu hình hai biến tài khoản trên, chạy `npm run dev:agency` để mở Chrome riêng và đăng nhập trực tiếp trên website Vietjet. Chế độ này cần đăng nhập lại khi khởi động backend hoặc phiên hết hạn. Phiên đăng nhập trong trình duyệt của chat độc lập với phiên backend.
 
 `dev:agency` mặc định chạy cổng 3002. Frontend thử cần `VITE_API_URL=http://127.0.0.1:3002` và CORS backend phải cho phép đúng nguồn frontend (ví dụ `http://127.0.0.1:5174`). Chỉ một lượt tìm chạy đồng thời, cache giá tối đa 60 giây. Phiên đại lý nằm trên máy chủ; khách chỉ nhận dữ liệu chuyến/giá, không nhận thông tin đăng nhập. Backend chỉ tìm vé, không tự chọn vé, gửi hành khách, đặt chỗ hoặc thanh toán.
 
-Chạy backend và frontend như bên dưới, mở `/flights`, chọn **Một chiều**, chọn hai sân bay từ gợi ý, ngày đi, 1 người lớn và bấm **Tìm chuyến bay**. API `POST /api/flights/search` nhận `{ origin: "HAN", destination: "SGN", departureDate: "YYYY-MM-DD", tripType: "oneway", adults: 1, children: 0, infants: 0 }`. Backend cuộn hết danh sách trước khi trả chuyến và 4 hạng giá. Các giá là giá ở bảng kết quả, chưa phải tổng thanh toán sau chọn vé; giao diện ghi rõ thời điểm lấy giá.
+Chạy backend và frontend như bên dưới, mở `/flights`, chọn **Một chiều**, chọn hai sân bay từ gợi ý, ngày đi, số khách và bấm **Tìm chuyến bay**. API `POST /api/flights/search` nhận `{ origin: "HAN", destination: "SGN", departureDate: "YYYY-MM-DD", tripType: "oneway", adults: 1, children: 0, infants: 0 }`. Backend cuộn hết danh sách trước khi trả chuyến và 4 hạng giá. Các giá là giá ở bảng kết quả, chưa phải tổng thanh toán sau chọn vé; giao diện ghi rõ thời điểm lấy giá.
 
 Chọn **Khứ hồi** và thêm ngày về để tra hai chiều. App gọi lần lượt hai lượt tìm một chiều, đảo sân bay và dùng ngày về cho lượt thứ hai. Hai tab hiển thị đầy đủ kết quả từng chiều, chưa phải giá xác nhận của một vé khứ hồi và không cộng thành tổng thanh toán. Nếu chiều về lỗi, giữ danh sách chiều đi và báo lỗi riêng. Sửa hành trình hoặc ngày sẽ hủy lượt đang chờ và xóa kết quả cũ. Kiểm tra giao diện bằng `node backend/flight-results-ui.mjs` khi app đang chạy; kiểm tra giá thật bằng `FLIGHT_TEST_RETURN_DATE` cùng các biến `FLIGHT_TEST_ORIGIN`, `FLIGHT_TEST_DESTINATION`, `FLIGHT_TEST_DATE` với script `test:flight-live`.
 
-Trang nguồn có thể lỗi tải, thay đổi giao diện hoặc yêu cầu xác minh. Kết quả trống chưa được xác thực được trả lỗi 502, không kết luận hết chuyến. Nếu chưa có phiên backend hoặc phiên hết hạn, API trả 503 với mã `VIETJET_AGENT_LOGIN_REQUIRED`; khách không được yêu cầu đăng nhập vào tài khoản đại lý. Không có dữ liệu mẫu thay thế giá thật. Chưa hỗ trợ giá xác nhận khứ hồi, trẻ em, em bé hoặc nhiều người lớn trong bản thử; các form gửi yêu cầu tư vấn vẫn sử dụng được. Triển khai trên Zalo thật cần backend HTTPS, cơ chế quản lý phiên đại lý trên máy chủ và cấu hình `VITE_API_URL`, tên miền API, CORS. Bản thử phiên tương tác local chưa phải thiết lập vận hành production.
+Trang nguồn có thể lỗi tải, thay đổi giao diện hoặc yêu cầu xác minh. Kết quả trống chưa được xác thực được trả lỗi 502, không kết luận hết chuyến. Nếu chưa cấu hình tài khoản tự động và chưa có phiên thủ công, hoặc đăng nhập tự động thất bại, API trả 503 với mã `VIETJET_AGENT_LOGIN_REQUIRED`; khách không được yêu cầu đăng nhập vào tài khoản đại lý. Không có dữ liệu mẫu thay thế giá thật. Hỗ trợ tổng người lớn và trẻ em tối đa 10 (ít nhất 1 người lớn), em bé tối đa 2. Backend đặt lại đúng số khách trong bộ chọn Vietjet trước mỗi lần tìm. Nếu hãng từ chối tổ hợp hành khách (ví dụ 1 người lớn + 2 em bé), trả lỗi rõ ràng, không tự đổi số khách. Giá vẫn là giá tại bảng, chưa phải tổng thanh toán cho toàn bộ hành khách. Chưa hỗ trợ giá xác nhận khứ hồi trong bản thử; các form gửi yêu cầu tư vấn vẫn sử dụng được. Triển khai trên Zalo thật cần backend HTTPS, cơ chế quản lý phiên đại lý trên máy chủ và cấu hình `VITE_API_URL`, tên miền API, CORS. Bản thử phiên tương tác local chưa phải thiết lập vận hành production.
 
 Adapter website công khai cũ vẫn có trong mã để chẩn đoán, không còn là nguồn mặc định. Nguồn cũ đã trả HTTP 403 trong thử nghiệm, nên không tự chuyển về nguồn đó khi phiên đại lý lỗi.
 
@@ -290,6 +296,24 @@ APP_PUBLIC_URL=https://your-app.example.com
 Token ngẫu nhiên chỉ lưu dạng băm, gắn với tài khoản/mục đích/phiên bản mật khẩu; xác minh hết hạn sau 60 phút, khôi phục sau 15 phút. Token trong fragment URL được xóa khỏi thanh địa chỉ khi mở trang, cần bấm xác nhận và chỉ dùng một lần. Tải lại trang cần mở lại liên kết email. Đổi/đặt lại mật khẩu hoặc khôi phục backup thu hồi các token cũ. Khôi phục không tự đăng nhập.
 
 Yêu cầu quên mật khẩu trả cùng thông báo cho email tồn tại/không tồn tại, Admin và tài khoản khóa; chỉ khách hàng đang hoạt động được gửi. Gửi khôi phục chạy trong tiến trình backend, chưa có hàng đợi email bền vững; máy chủ/SMTP lỗi có thể cần yêu cầu lại. Lỗi gửi được ghi thông báo chung, không ghi token hoặc nội dung SMTP. Các API tài khoản nhạy cảm giới hạn 5 lần trong 15 phút theo nhóm/IP, thao tác có phiên còn giới hạn theo tài khoản. Giao diện chỉ biết cấu hình có đủ hay chưa; việc nhà cung cấp chuyển mail tới hộp thư cần kiểm tra sau khi bạn có SMTP.
+
+## Tìm và xử lý yêu cầu trong Admin
+
+Trong **Yêu cầu & giao dịch** và **Yêu cầu tour/eSIM**, nhập mã yêu cầu, tên khách, số điện thoại hoặc email, chọn trạng thái và khoảng ngày tạo rồi bấm **Áp dụng**. Bộ lọc tìm trên toàn bộ dữ liệu, trả 20 mục/trang và tổng số kết quả phù hợp. **Xóa bộ lọc** trở về danh sách đầy đủ. Ngày bắt đầu và ngày kết thúc đều được tính theo giờ Việt Nam, bao gồm toàn bộ ngày kết thúc. Tìm tên hiện phân biệt dấu tiếng Việt.
+
+API quản trị `GET /api/admin/bookings` và `GET /api/admin/service-requests` nhận `q`, `status`, `from`, `to`, `page`; ngày theo dạng `YYYY-MM-DD`. Bộ lọc áp dụng đồng nhất cho danh sách và tổng số, vẫn yêu cầu phiên quản trị.
+
+Mỗi mục dùng nút làm mới của chính mục đó. Khi đổi mục, đóng/hủy hoặc chuyển sang bản ghi khác, form có thay đổi chưa lưu sẽ yêu cầu xác nhận trước khi bỏ nội dung. Tải lại/đóng trang dùng cảnh báo của trình duyệt nếu trình duyệt hỗ trợ. Đây là cảnh báo bảo vệ thao tác, chưa phải tự động lưu bản nháp.
+
+Kiểm tra giao diện Admin bằng `node --test backend/admin-usability.test.mjs` (Chrome, cổng thử 5199, API giả lập, không sửa dữ liệu thật). Có thể chọn browser channel bằng `TEST_BROWSER_CHANNEL`. Kiểm tra backend bằng `npm run test:backend`.
+
+## Kiểm tra chất lượng giao diện và dữ liệu liên hệ
+
+`npm run test:ui` kiểm tra trang quản trị, cảnh báo chưa lưu, tải lại tin tức khi API lỗi và các trang chính trên màn hình 390 px, bằng Chrome và API giả lập trên cổng 5199. Không gọi tài khoản đại lý hay thay đổi dữ liệu thật.
+
+Số điện thoại phải có 7–15 chữ số; có thể dùng dấu `+` ở đầu, khoảng trắng, ngoặc, dấu chấm hoặc gạch để định dạng. Backend và form vé/tour/eSIM dùng chung kiểm tra này, không chấp nhận chuỗi chỉ có dấu câu. Đây là kiểm tra định dạng, chưa xác minh số điện thoại thuộc về người gửi.
+
+Tin tức trên trang chủ, danh sách và tìm kiếm có thông báo lỗi và nút tải lại khi API không khả dụng. SDK Zalo chỉ được tải khi cần chức năng Zalo, tránh tự đăng nhập SDK khi mở app bằng trình duyệt web. Bảng chọn ngôn ngữ hiện chỉ lưu ưu tiên trên thiết bị và có thông báo rõ chưa dịch nội dung.
 
 ## Nguồn gốc template
 

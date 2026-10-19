@@ -1,3 +1,4 @@
+import { validPhone, createRequestKey } from "@/utils/contact.mjs";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import AccountPanel from "./account-panel";
@@ -18,11 +19,11 @@ export default function ServiceRequestForm({ service, id }: { service: "tour" | 
   const input = "w-full bg-white border border-gray-200 rounded-xl px-3 py-3 mt-1";
   async function submit(event: FormEvent) {
     event.preventDefault(); if (busy) return; setError("");
-    if (!/^\+?[\d\s().-]{7,30}$/.test(phone.trim())) { setError("Số điện thoại không hợp lệ."); showNotice("error", "Chưa gửi được yêu cầu", "Vui lòng kiểm tra số điện thoại."); return; }
+    if (!validPhone(phone.trim())) { setError("Số điện thoại không hợp lệ."); showNotice("error", "Chưa gửi được yêu cầu", "Vui lòng kiểm tra số điện thoại."); return; }
     if (!account) { setShowAuth(true); return; }
     const body = { service, itemId: id, fullName, phone, quantity: Number(quantity), desiredDate, note };
     const fingerprint = JSON.stringify({ account: account.id, ...body });
-    if (retryKey.current.fingerprint !== fingerprint) retryKey.current = { fingerprint, key: crypto.randomUUID() };
+    if (retryKey.current.fingerprint !== fingerprint) retryKey.current = { fingerprint, key: createRequestKey() };
     setBusy(true);
     try { const result = await serviceApi<{ request: ServiceRequest }>("", { ...body, requestKey: retryKey.current.key }); setSent(result.request); retryKey.current = { fingerprint: "", key: "" }; }
     catch (e) { setError(e instanceof Error ? e.message : "Chưa gửi được yêu cầu."); if (e instanceof BookingApiError && e.status === 401) { setAccount(null); setShowAuth(true); } }

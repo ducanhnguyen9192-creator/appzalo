@@ -1,3 +1,5 @@
+import { validPhone } from "../src/utils/contact.mjs";
+import { adminRequestFilters } from "./admin-request-filters.mjs";
 import { createServer } from "node:http";
 import { DatabaseSync } from "node:sqlite";
 import { mkdirSync, readFileSync, writeFileSync, existsSync, createReadStream } from "node:fs";
@@ -11,6 +13,7 @@ import { createAccountMailer } from "./mail.mjs";
 import { customerAccountRoutes } from "./customer-account.mjs";
 import { createFlightSearch, FlightSearchError } from "./flight-search.mjs";
 import { selectedFlightData } from "./selected-flight-data.mjs";
+import { validPassengers } from "../src/utils/passengers.mjs";
 
 const deriveKey = promisify(scrypt);
 const SESSION_SECONDS = 7 * 24 * 60 * 60;
@@ -175,8 +178,8 @@ function bookingData(body) {
   const todayParts = new Intl.DateTimeFormat("en", { timeZone: "Asia/Ho_Chi_Minh", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date());
   const today = ["year", "month", "day"].map((part) => todayParts.find((value) => value.type === part).value).join("-");
   if (body.departureDate < today) throw new HttpError(400, "Ngày đi phải từ hôm nay trở đi.");
-  if (!["Phổ thông", "Phổ thông đặc biệt", "Thương gia", "Hạng nhất"].includes(body.cabin) || ![body.adults, body.children, body.infants].every((count) => Number.isInteger(count) && count >= 0 && count <= 20) || body.adults < 1 || body.infants > body.adults || body.adults + body.children + body.infants > 20) throw new HttpError(400, "Số hành khách hoặc hạng ghế không hợp lệ (tối đa 20 người, mỗi em bé cần một người lớn).");
-  if (body.fullName.trim().length < 2 || !/^\+?[\d\s().-]{7,30}$/.test(body.phone.trim())) throw new HttpError(400, "Họ tên hoặc số điện thoại không hợp lệ.");
+  if (!["Phổ thông", "Phổ thông đặc biệt", "Thương gia", "Hạng nhất"].includes(body.cabin) || !validPassengers(body)) throw new HttpError(400, "Hạng ghế hoặc số khách không hợp lệ: người lớn và trẻ em tối đa 10, ít nhất 1 người lớn; em bé tối đa 2.");
+  if (body.fullName.trim().length < 2 || !validPhone(body.phone.trim())) throw new HttpError(400, "Họ tên hoặc số điện thoại không hợp lệ.");
   const selectedFlights = selectedFlightData(body.selectedFlights, body);
   return { ...Object.fromEntries(Object.keys(limits).map((key) => [key, body[key].trim()])), tripType: body.tripType, ...(segments ? { segments } : {}), ...(selectedFlights ? { selectedFlights } : {}), departureDate: body.departureDate, returnDate: body.tripType === "roundtrip" ? body.returnDate : "", adults: body.adults, children: body.children, infants: body.infants, cabin: body.cabin };
 }
@@ -267,7 +270,7 @@ export function createAuthServer(options = {}) {
         if (req.method === "POST") {
           const body = await readJson(req, 16384);
           if (typeof body.requestKey !== "string" || !/^[a-f0-9-]{36}$/.test(body.requestKey) || !["tour", "esim"].includes(body.service) || !Number.isSafeInteger(body.itemId) || body.itemId <= 0 || !Number.isInteger(body.quantity) || body.quantity < 1 || body.quantity > 20) throw new HttpError(400, "Vui lòng kiểm tra dịch vụ và số lượng (1–20).");
-          if (typeof body.fullName !== "string" || body.fullName.trim().length < 2 || body.fullName.length > 100 || typeof body.phone !== "string" || !/^\+?[\d\s().-]{7,30}$/.test(body.phone.trim()) || typeof body.note !== "string" || body.note.length > 2000 || typeof body.desiredDate !== "string" || (body.desiredDate && !validDate(body.desiredDate))) throw new HttpError(400, "Vui lòng kiểm tra họ tên, số điện thoại và ngày sử dụng.");
+          if (typeof body.fullName !== "string" || body.fullName.trim().length < 2 || body.fullName.length > 100 || typeof body.phone !== "string" || !validPhone(body.phone.trim()) || typeof body.note !== "string" || body.note.length > 2000 || typeof body.desiredDate !== "string" || (body.desiredDate && !validDate(body.desiredDate))) throw new HttpError(400, "Vui lòng kiểm tra họ tên, số điện thoại và ngày sử dụng.");
           const request = { service: body.service, itemId: body.itemId, quantity: body.quantity, fullName: body.fullName.trim(), phone: body.phone.trim(), note: body.note.trim(), desiredDate: body.desiredDate };
           const previous = db.prepare("SELECT * FROM service_requests WHERE user_id = ? AND request_key = ?").get(customer.id, body.requestKey);
           if (previous) {
@@ -356,7 +359,10 @@ export function createAuthServer(options = {}) {
         if (admin.role !== "admin") throw new HttpError(403, "Bạn không có quyền quản trị.");
         if (req.method === "GET" && path === "/api/admin/service-requests") {
           const page = Math.max(1, Math.min(100000, Math.floor(Number(requestUrl.searchParams.get("page")) || 1)));
-          return send(200, { requests: db.prepare("SELECT service_requests.*, users.email AS customer_email FROM service_requests JOIN users ON users.id = service_requests.user_id ORDER BY created_at DESC, id DESC LIMIT 20 OFFSET ?").all((page - 1) * 20).map((row) => ({ ...bookingRow(row), customerEmail: row.customer_email })), total: db.prepare("SELECT COUNT(*) AS count FROM service_requests").get().count });
+          const { where, args } = adminRequestFilters(requestUrl.searchParams, "service_requests");
+          const from = `FROM service_requests JOIN users ON users.id = service_requests.user_id${where}`;
+          const rows = db.prepare(`SELECT service_requests.*, users.email AS customer_email ${from} ORDER BY service_requests.created_at DESC, service_requests.id DESC LIMIT 20 OFFSET ?`).all(...args, (page - 1) * 20);
+          return send(200, { requests: rows.map(row => ({ ...bookingRow(row), customerEmail: row.customer_email,  })), total: db.prepare(`SELECT COUNT(*) AS count ${from}`).get(...args).count });
         }
         if (req.method === "GET" && path === "/api/admin/audit") {
           const page = Math.max(1, Math.min(100000, Math.floor(Number(requestUrl.searchParams.get("page")) || 1)));
@@ -367,8 +373,10 @@ export function createAuthServer(options = {}) {
         }
         if (req.method === "GET" && path === "/api/admin/bookings") {
           const page = Math.max(1, Math.min(100000, Math.floor(Number(requestUrl.searchParams.get("page")) || 1)));
-          const rows = db.prepare("SELECT bookings.*, users.email AS customer_email FROM bookings JOIN users ON users.id = bookings.user_id ORDER BY created_at DESC, id DESC LIMIT 20 OFFSET ?").all((page - 1) * 20);
-          return send(200, { bookings: rows.map((row) => ({ ...bookingRow(row), customerEmail: row.customer_email, transactions: db.prepare("SELECT id, amount, reference, note, paid_at AS paidAt FROM transactions WHERE booking_id = ? ORDER BY created_at DESC").all(row.id) })), total: db.prepare("SELECT COUNT(*) AS count FROM bookings").get().count });
+          const { where, args } = adminRequestFilters(requestUrl.searchParams, "bookings");
+          const from = `FROM bookings JOIN users ON users.id = bookings.user_id${where}`;
+          const rows = db.prepare(`SELECT bookings.*, users.email AS customer_email ${from} ORDER BY bookings.created_at DESC, bookings.id DESC LIMIT 20 OFFSET ?`).all(...args, (page - 1) * 20);
+          return send(200, { bookings: rows.map(row => ({ ...bookingRow(row), customerEmail: row.customer_email, transactions: db.prepare("SELECT id, amount, reference, note, paid_at AS paidAt FROM transactions WHERE booking_id = ? ORDER BY created_at DESC").all(row.id), })), total: db.prepare(`SELECT COUNT(*) AS count ${from}`).get(...args).count });
         }
         if (req.method === "POST" && path === "/api/admin/uploads") {
           rateLimit(req, res, "upload", admin.id);

@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { openChat } from "zmp-sdk";
 import { getConfig } from "@/utils/template";
 import { Tour, tourPrice, useContentData } from "@/utils/tours";
 import { Esim } from "@/utils/esims";
@@ -40,7 +39,7 @@ export default function SupportPage() {
   const inZalo = /Zalo/i.test(navigator.userAgent);
   async function chat() {
     setBusy(true); setError("");
-    try { await openChat({ type: "oa", id: oaId }); }
+    try { const { openChat } = await import("zmp-sdk"); await openChat({ type: "oa", id: oaId }); }
     catch { setError("Không mở được chat trong ứng dụng. Bạn có thể mở trang Zalo của FirstClass bên dưới."); }
     finally { setBusy(false); }
   }

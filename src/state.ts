@@ -1,15 +1,13 @@
 import { atom } from "jotai";
 import { atomFamily, unwrap } from "jotai/utils";
 import { Cart, Category, Color, Product } from "@/types";
-import { requestWithFallback } from "@/utils/request";
-import { getUserInfo } from "zmp-sdk";
+import { request, requestWithFallback } from "@/utils/request";
 import { contentImage } from "@/utils/content-image";
 
-export const userState = atom(() =>
-  getUserInfo({
-    avatarType: "normal",
-  })
-);
+export const userState = atom(async () => {
+  const { getUserInfo } = await import("zmp-sdk");
+  return getUserInfo({ avatarType: "normal" });
+});
 
 export const bannersState = atom(async () => (await requestWithFallback<string[]>("/banners", [])).map(contentImage));
 
@@ -26,19 +24,18 @@ export const categoriesStateUpwrapped = unwrap(
   (prev) => prev ?? []
 );
 
-export const productsState = atom(async (get) => {
+export const articlesRevisionState = atom(0);
+export const articlesResultState = atom(async (get) => {
+  get(articlesRevisionState);
   const categories = await get(categoriesState);
-  const products = await requestWithFallback<
-    (Product & { categoryId: number })[]
-  >("/products", []);
-  return products.map((product) => ({
-    ...product,
-    image: contentImage(product.image),
-    category: categories.find(
-      (category) => category.id === product.categoryId
-    )!,
-  }));
+  try {
+    const products = await request<(Product & { categoryId: number })[]>("/products");
+    return { products: products.map(product => ({ ...product, image: contentImage(product.image), category: categories.find(category => category.id === product.categoryId)! })), error: false };
+  } catch {
+    return { products: [] as Product[], error: true };
+  }
 });
+export const productsState = atom(async get => (await get(articlesResultState)).products);
 
 export const flashSaleProductsState = atom((get) => get(productsState));
 

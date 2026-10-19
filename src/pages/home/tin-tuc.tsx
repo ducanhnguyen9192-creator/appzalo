@@ -1,3 +1,5 @@
+import ArticlesError from "@/components/articles-error";
+import { articlesResultState } from "@/state";
 import ContentImage from "@/components/content-image";
 import Section from "../../components/section";
 import { useAtomValue } from "jotai";
@@ -5,10 +7,12 @@ import { flashSaleProductsState } from "../../state";
 import { Link } from "react-router-dom";
 
 export default function Tintuc() {
+  const { error: articlesError } = useAtomValue(articlesResultState);
   const products = useAtomValue(flashSaleProductsState);
 
   return (
     <Section title="Tin tức" viewMoreTo="/tin-tuc">
+      {articlesError && <ArticlesError />}
       <div className="news-grid grid grid-cols-2 gap-x-4 gap-y-5 px-4 pb-4">
         {products.map((product) => {
           const image = product.image;

@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useHref } from "react-router-dom";
 import { Product } from "@/types";
-import { openShareSheet } from "zmp-sdk";
 import CopyButton from "@/components/copy-button";
 
 export default function ShareButton({ product }: { product: Product }) {
@@ -13,7 +12,7 @@ export default function ShareButton({ product }: { product: Product }) {
   async function share() {
     if (busy) return;
     setBusy(true); setFailed(false);
-    try { await openShareSheet({ type: "zmp_deep_link", data: { title: product.name, thumbnail: product.image, path: `/product/${product.id}` } }); }
+    try { const { openShareSheet } = await import("zmp-sdk"); await openShareSheet({ type: "zmp_deep_link", data: { title: product.name, thumbnail: product.image, path: `/product/${product.id}` } }); }
     catch { setFailed(true); }
     finally { setBusy(false); }
   }

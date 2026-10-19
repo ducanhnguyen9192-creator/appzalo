@@ -1,3 +1,4 @@
+import { validPhone } from "../src/utils/contact.mjs";
 import { randomBytes, createHash, timingSafeEqual } from "node:crypto";
 const digest = value => createHash("sha256").update(value).digest("hex");
 const generic = { message: "Nếu email thuộc tài khoản khách hàng đang hoạt động, liên kết khôi phục sẽ được gửi. Kiểm tra hộp thư và thư rác; nếu chưa nhận được, hãy thử lại hoặc liên hệ hỗ trợ." };
@@ -68,7 +69,7 @@ export function customerAccountRoutes({ db, getSessionUser, createSession, passw
     if (path === 'profile') {
       const name = typeof body.name === 'string' ? body.name.trim() : '';
       const phone = typeof body.phone === 'string' ? body.phone.trim() : '';
-      if (typeof body.phone !== 'string' || name.length < 2 || name.length > 100 || (phone && !/^\+?[\d\s().-]{7,30}$/.test(phone))) throw new HttpError(400, 'Họ tên hoặc số điện thoại không hợp lệ.');
+      if (typeof body.phone !== 'string' || name.length < 2 || name.length > 100 || (phone && !validPhone(phone))) throw new HttpError(400, 'Họ tên hoặc số điện thoại không hợp lệ.');
       db.prepare('UPDATE users SET name=?,phone=? WHERE id=?').run(name, phone, user.id);
       return { user: db.prepare('SELECT * FROM users WHERE id=?').get(user.id), message: 'Thông tin tài khoản đã được lưu.' };
     }

@@ -36,7 +36,7 @@ test("access denial reaches the app as 503 with an explicit code, not an empty f
 });
 
 test("search rejects invalid routes, impossible dates and unsupported passengers", () => {
-  for (const change of [{ origin: "XXX" }, { destination: "HAN" }, { departureDate: "2026-02-30" }, { departureDate: "2020-01-01" }, { tripType: "roundtrip" }, { adults: 2 }, { children: 1 }]) {
+  for (const change of [{ origin: "XXX" }, { destination: "HAN" }, { departureDate: "2026-02-30" }, { departureDate: "2020-01-01" }, { tripType: "roundtrip" }, { adults: 11 }, { adults: 6, children: 5 }, { infants: 3 }]) {
     assert.throws(() => validateSearch({ ...query, ...change }), error => error.status === 400);
   }
   assert.equal(validateSearch({ ...query, injectedUrl: "http://localhost" }).origin, "HAN");
