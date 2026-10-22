@@ -1,0 +1,39 @@
+.admin-header { --admin-header-height: 56px; position: sticky; top: 0; z-index: 40; box-sizing: border-box; height: var(--admin-header-height); background: white; }
+.admin-header-inner { box-sizing: border-box; width: 100%; max-width: 1248px; height: 100%; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 8px 16px; }
+.admin-brand { color: var(--brand-gold); font-size: 14px; font-weight: 700; }
+.admin-account { position: relative; }
+.admin-account summary { display: flex; align-items: center; gap: 8px; cursor: pointer; list-style: none; min-height: 44px; padding: 4px 8px; border-radius: 10px; font-size: 14px; }
+.admin-account summary::-webkit-details-marker { display: none; }
+.admin-avatar { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: var(--brand-gold-soft); color: var(--brand-gold); font-weight: 700; }
+.admin-account-panel { position: absolute; right: 0; top: calc(100% + 8px); z-index: 30; width: 240px; max-width: calc(100vw - 40px); padding: 8px; border: 1px solid #e5e7eb; border-radius: 12px; background: white; box-shadow: 0 8px 24px #0f172a1a; }
+.admin-account-panel p { padding: 8px 12px 12px; overflow-wrap: anywhere; font-size: 13px; color: #64748b; border-bottom: 1px solid #f1f5f9; }
+.admin-account-panel a, .admin-account-panel button { display: block; width: 100%; padding: 12px; text-align: left; border-radius: 8px; font-size: 16px; line-height: 1.5; }
+.admin-account-panel a:hover, .admin-account-panel button:hover, .admin-account summary:hover { background: #f8fafc; }
+.admin-layout { display: flex; flex-direction: column; gap: 16px; max-width: 1280px; margin: 0 auto; padding: 16px; }
+.admin-layout > main > div:first-child { flex-wrap: wrap; }
+.admin-layout > main > div:first-child > h2 { font-size: clamp(24px, 3vw, 28px); line-height: 1.4; }
+.admin-layout h3 { font-size: 18px; line-height: 1.5; }
+.admin-mobile-navigation { width: 100%; min-height: 52px; padding: 12px 14px; border: 1px solid var(--brand-gold-border); border-radius: 12px; background: white; color: var(--brand-gold-dark); font-size: 18px; line-height: 1.5; font-weight: 600; }
+.admin-sidebar { display: none; }
+.admin-navigation button:disabled { opacity: .5; }
+.admin-navigation :focus-visible, .admin-account :focus-visible { outline: 2px solid var(--brand-gold); outline-offset: 3px; }
+@media (max-width: 479px) { .admin-account-label { display: none; } }
+@media (min-width: 768px) {
+  .admin-layout { flex-direction: row; align-items: flex-start; gap: 24px; padding: 24px 20px; }
+  .admin-navigation { width: 248px; flex-shrink: 0; position: sticky; top: 72px; max-height: calc(100vh - 88px); overflow-y: auto; }
+  .admin-mobile-navigation { display: none; }
+  .admin-sidebar { display: flex; flex-direction: column; gap: 18px; }
+  .admin-nav-group p { padding: 0 12px 6px; color: #64748b; font-size: 13px; line-height: 1.5; font-weight: 600; text-transform: uppercase; letter-spacing: .07em; }
+  .admin-nav-group button { display: block; width: 100%; min-height: 48px; padding: 12px; border-radius: 9px; text-align: left; color: #475569; font-size: 17px; line-height: 1.5; font-weight: 600; }
+  .admin-nav-group button:hover { background: var(--brand-gold-soft); }
+  .admin-nav-group button[aria-current="page"] { background: var(--brand-gold); color: white; }
+}
+
+.admin-brand-logo { display: block; flex: none; width: auto; height: 40px; object-fit: contain; }
+.admin-login-logo { display: block; width: 200px; max-width: 100%; height: auto; margin-bottom: 20px; }
+@media (min-width: 1024px) {
+  .admin-header { --admin-header-height: 80px; border-bottom: 1px solid #eae3d4; }
+  .admin-header-inner { padding: 16px 24px; }
+  .admin-brand-logo { width: 80px; height: 44px; }
+  .admin-navigation { top: 96px; max-height: calc(100vh - 112px); }
+}

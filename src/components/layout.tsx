@@ -16,7 +16,7 @@ export default function Layout() {
         <div className="desktop-header-inner">
           <NavLink to="/" aria-label="FirstClass Travel - Trang chủ" className="desktop-brand"><img src={headerLogo} alt="" /><span>FirstClass Travel</span></NavLink>
           <nav aria-label="Điều hướng chính" className="desktop-nav">
-            {[["/", "Trang chủ"], ["/flights", "Vé máy bay"], ["/categories", "Du lịch"], ["/history", "Lịch sử"], ["/profile", "Tài khoản"]].map(([path, label]) => (
+            {[["/", "Trang chủ"], ["/flights", "Vé máy bay"], ["/categories", "Danh mục"], ["/history", "Lịch sử"], ["/profile", "Tài khoản"]].map(([path, label]) => (
               <NavLink key={path} to={path} end={path === "/"} className={({ isActive }) => isActive ? "is-active" : ""}>{label}</NavLink>
             ))}
             <LanguageSelector />

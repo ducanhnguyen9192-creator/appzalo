@@ -11,7 +11,7 @@ export default function Category() {
   return (
     <Section title="Dịch vụ du lịch" viewMoreTo="/categories">
       <nav className="home-category-list" aria-label="Dịch vụ du lịch">
-        {categories.map((category) => (
+        {categories.filter((category) => [1, 2, 3, 4].includes(category.id)).map((category) => (
           <TransitionLink
             key={category.id}
             className="home-category-link"

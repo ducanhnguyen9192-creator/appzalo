@@ -1,5 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState } from "react";
-import { createPortal } from "react-dom";
+import { InputHTMLAttributes, useEffect, useId, useMemo, useRef, useState } from "react";
 import AIRPORTS from "@/mock/airports.json";
 import COUNTRIES from "@/mock/airport-countries.json";
 
@@ -18,47 +17,50 @@ const airports = [...AIRPORTS].sort((a, b) => {
   return countryName(a.country).localeCompare(countryName(b.country), "vi") || a.city.localeCompare(b.city, "vi");
 });
 
-export default function AirportSuggestions({ value, title, onSelect, onClose }: { value: string; title: string; onSelect: (value: string) => void; onClose: () => void }) {
-  const dialogRef = useRef<HTMLDialogElement>(null);
-  const titleId = useId();
-  const searchId = useId();
-  const [query, setQuery] = useState(/\([A-Z]{3}\)$/.test(value.trim()) ? "" : value);
-  const [limit, setLimit] = useState(60);
-  const key = normalize(query.trim());
+type Props = {
+  value: string; title: string; open: boolean;
+  inputProps: InputHTMLAttributes<HTMLInputElement>;
+  onOpen: () => void; onChange: (value: string) => void;
+  onSelect: (value: string) => void; onClose: () => void;
+};
+
+export default function AirportSuggestions({ value, title, open, inputProps, onOpen, onChange, onSelect, onClose }: Props) {
+  const root = useRef<HTMLDivElement>(null);
+  const listId = useId();
+  const [active, setActive] = useState(-1);
+  const key = normalize(value.trim().replace(/.*\(([A-Z]{3})\)$/, "$1"));
+  const matches = useMemo(() => airports.filter(airport => !key || normalize(`${airport.code} ${cityName(airport)} ${airport.city} ${airport.airport} ${countryName(airport.country)} ${airport.country}`).includes(key)).slice(0, 40), [key]);
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
   useEffect(() => {
-    const dialog = dialogRef.current;
-    const trigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    dialog?.showModal();
-    return () => { dialog?.close(); trigger?.focus({ preventScroll: true }); };
-  }, []);
-  useEffect(() => { setLimit(60); }, [key]);
-  const matches = useMemo(() => {
-    if (!key) return airports;
-    return airports.filter(airport => normalize(`${airport.code} ${cityName(airport)} ${airport.city} ${airport.airport} ${countryName(airport.country)} ${airport.country}`).includes(key));
-  }, [key]);
-  const visible = matches.slice(0, limit);
-  return createPortal(<dialog ref={dialogRef} className="airport-dialog" aria-labelledby={titleId} onCancel={(event) => { event.preventDefault(); onClose(); }}>
-    <div className="airport-dialog-panel">
-    <div className="flex items-center justify-between gap-3 px-4 py-3 border-b">
-      <h2 id={titleId} className="font-semibold">{title}</h2>
-      <button type="button" onClick={onClose} className="min-h-11 px-3 rounded-lg text-blue-600" aria-label="Đóng bộ chọn sân bay">Đóng ✕</button>
-    </div>
-    <div className="p-4 border-b">
-      <label htmlFor={searchId} className="text-sm font-medium">Tìm sân bay</label>
-      <input id={searchId} type="search" autoComplete="off" maxLength={200} value={query} onChange={(event) => { setQuery(event.target.value); dialogRef.current?.querySelector(".airport-results")?.scrollTo(0, 0); }} placeholder="Thành phố, quốc gia hoặc mã sân bay" className="w-full mt-2 border border-gray-200 rounded-xl px-3 py-3 text-base" />
-      <p className="mt-2 text-xs text-gray-500">Việt Nam ưu tiên hiển thị trước.</p>
-    </div>
-    <div className="airport-results" aria-label="Gợi ý sân bay">
-    {visible.map((airport, index) => <div key={`${airport.code}-${airport.airport}`}>
-      {(index === 0 || visible[index - 1].country !== airport.country) && <p className="bg-gray-50 px-3 py-2 text-xs font-semibold text-gray-600">{countryName(airport.country)}</p>}
-      <button type="button" onMouseDown={event => event.preventDefault()} onClick={() => onSelect(`${cityName(airport)} (${airport.code})`)} className="w-full p-3 text-left border-b hover:bg-blue-50">
-        <p className="font-medium text-sm">{cityName(airport)} ({airport.code})</p>
-        <p className="text-xs text-gray-500 mt-1">{airport.airport} · {countryName(airport.country)}</p>
-      </button>
-    </div>)}
-    {!matches.length && <p className="p-3 text-sm text-gray-500">Không tìm thấy sân bay phù hợp.</p>}
-    {matches.length > limit && <button type="button" onMouseDown={event => event.preventDefault()} onClick={() => setLimit(current => current + 60)} className="w-full p-3 text-sm font-medium text-blue-600">Xem thêm sân bay</button>}
-    </div>
-    </div>
-  </dialog>, document.body);
+    if (!open) return;
+    const outside = (event: PointerEvent) => { if (!root.current?.contains(event.target as Node)) closeRef.current(); };
+    document.addEventListener("pointerdown", outside);
+    return () => document.removeEventListener("pointerdown", outside);
+  }, [open]);
+  useEffect(() => { setActive(-1); root.current?.querySelector(".airport-results")?.scrollTo(0, 0); }, [key, open]);
+  useEffect(() => { if (active >= 0) document.getElementById(listId + "-" + active)?.scrollIntoView({ block: "nearest" }); }, [active, listId]);
+  const choose = (index: number) => {
+    const airport = matches[index];
+    if (airport) onSelect(`${cityName(airport)} (${airport.code})`);
+  };
+  return <div ref={root} className="relative" onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget as Node)) onClose(); }}>
+    <input {...inputProps} value={value} type="text" autoComplete="off" maxLength={200} role="combobox" aria-autocomplete="list" aria-expanded={open} aria-controls={open ? listId : undefined} aria-activedescendant={open && active >= 0 ? listId + "-" + active : undefined} style={{ fontSize: 16 }} onFocus={onOpen} onClick={onOpen} onChange={event => { onChange(event.target.value); onOpen(); }} onKeyDown={event => {
+      if (event.nativeEvent.isComposing) return;
+      if (event.key === "Escape") { event.preventDefault(); onClose(); }
+      else if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+        event.preventDefault(); onOpen();
+        setActive(current => event.key === "ArrowDown" ? Math.min(current + 1, matches.length - 1) : Math.max(current - 1, 0));
+      } else if (event.key === "Enter" && open) { event.preventDefault(); if (active >= 0) choose(active); }
+    }} />
+    {open && <div className="airport-dropdown">
+      <div className="airport-results" id={listId} tabIndex={-1} role="listbox" aria-label={title}>
+        {matches.map((airport, index) => <div key={airport.code + airport.airport} id={listId + "-" + index} role="option" aria-selected={active === index} onMouseDown={event => event.preventDefault()} onClick={() => choose(index)} className={`cursor-pointer px-3 py-2 border-b hover:bg-gold-50 ${active === index ? "bg-gold-100" : ""}`}>
+          <p className="font-medium text-sm">{cityName(airport)} ({airport.code})</p>
+          <p className="text-xs text-gray-500 mt-1 truncate">{airport.airport} · {countryName(airport.country)}</p>
+        </div>)}
+        {!matches.length && <p role="status" className="p-3 text-sm text-gray-500">Không tìm thấy sân bay phù hợp.</p>}
+      </div>
+    </div>}
+  </div>;
 }

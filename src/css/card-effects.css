@@ -1,0 +1,38 @@
+/* Keep hover motion on devices with a precise pointer. */
+@media (hover: hover) and (pointer: fine) {
+  .tour-card, .news-card, .home-category-link, .service-grid > a {
+    transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease, background-color .22s ease;
+  }
+  .catalog-card-image img, .news-image img, .home-category-icon, .service-grid > a > div:first-child {
+    transition: transform .35s ease, border-color .22s ease, background-color .22s ease;
+  }
+  .tour-card:hover, .home-boutique .tour-card:hover, .service-grid > a:hover {
+    transform: translateY(-4px);
+    border-color: #cbaa60;
+    box-shadow: 0 12px 26px #60431518;
+  }
+  .news-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 24px #60431512;
+  }
+  .tour-card:hover .catalog-card-image img, .news-card:hover .news-image img { transform: scale(1.045); }
+  .home-boutique .home-category-link:hover { transform: translateY(-3px); background: #f5edda; }
+  .home-category-link:hover .home-category-icon, .service-grid > a:hover > div:first-child {
+    border-color: #cbaa60;
+    background-color: #f5edda;
+    transform: scale(1.04);
+  }
+  .tour-card:hover .catalog-card-title, .news-card:hover .news-title { color: #765314; }
+  .tour-card:active, .home-boutique .tour-card:active, .news-card:active, .home-boutique .home-category-link:active, .service-grid > a:active { transform: translateY(-1px); }
+}
+.tour-card:focus-visible, .news-card:focus-visible, .home-category-link:focus-visible, .service-grid > a:focus-visible {
+  outline: 2px solid #916b19;
+  outline-offset: 3px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .tour-card, .news-card, .home-category-link, .service-grid > a,
+  .catalog-card-image img, .news-image img, .home-category-icon, .service-grid > a > div:first-child { transition: none; }
+  .tour-card:hover, .home-boutique .tour-card:hover, .news-card:hover, .home-boutique .home-category-link:hover, .service-grid > a:hover,
+  .tour-card:hover .catalog-card-image img, .news-card:hover .news-image img,
+  .home-category-link:hover .home-category-icon, .service-grid > a:hover > div:first-child { transform: none; }
+}

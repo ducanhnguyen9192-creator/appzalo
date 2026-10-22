@@ -7,6 +7,7 @@ module.exports = {
   theme: {
     extend: {
       colors: {
+        gold: {"50":"#fcf8ed","100":"#f7edcf","200":"#ecdaa0","300":"#dfc270","400":"#cdaa48","500":"#b58d2d","600":"#916b19","700":"#765314","800":"#604315","900":"#503816"},
         primary: "var(--primary)",
         secondary: "var(--secondary)",
         background: "var(--background)",

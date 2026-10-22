@@ -21,7 +21,7 @@ export default function AccountPanel({ account, loading, error, onChange, onRetr
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const inputClass = "w-full border border-gray-200 rounded-xl px-3 py-3 mt-1 bg-white text-gray-900";
-  const buttonClass = "w-full bg-blue-600 text-white font-medium rounded-xl py-3 disabled:opacity-50";
+  const buttonClass = "w-full bg-gold-600 text-white font-medium rounded-xl py-3 disabled:opacity-50";
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -68,7 +68,7 @@ export default function AccountPanel({ account, loading, error, onChange, onRetr
             {(["login", "register"] as const).map((value) => (
               <button key={value} type="button" disabled={busy} aria-pressed={mode === value}
                 onClick={() => { setMode(value); setFormError(""); setPassword(""); setConfirmPassword(""); }}
-                className={`flex-1 py-2.5 rounded-xl font-medium ${mode === value ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-600"}`}>
+                className={`flex-1 py-2.5 rounded-xl font-medium ${mode === value ? "bg-gold-600 text-white" : "bg-gray-100 text-gray-600"}`}>
                 {value === "login" ? "Đăng nhập" : "Đăng ký"}
               </button>
             ))}
@@ -86,8 +86,8 @@ export default function AccountPanel({ account, loading, error, onChange, onRetr
               <label className="block text-sm font-medium">Mật khẩu
                 <input className={inputClass} type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} autoComplete={mode === "register" ? "new-password" : "current-password"} required minLength={8} maxLength={128} />
               </label>
-              <button type="button" aria-pressed={showPassword} className="text-sm text-blue-600" onClick={() => setShowPassword((value) => !value)}>{showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}</button>
-              {mode === "login" && <Link to="/forgot-password" className="block text-sm text-blue-600">Quên mật khẩu?</Link>}
+              <button type="button" aria-pressed={showPassword} className="text-sm text-gold-600" onClick={() => setShowPassword((value) => !value)}>{showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}</button>
+              {mode === "login" && <Link to="/forgot-password" className="block text-sm text-gold-600">Quên mật khẩu?</Link>}
               {mode === "register" && <>
                 <p className="text-xs text-gray-500">Mật khẩu từ 8 đến 128 ký tự.</p>
                 <label className="block text-sm font-medium">Xác nhận mật khẩu

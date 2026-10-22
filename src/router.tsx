@@ -61,6 +61,7 @@ const router = createBrowserRouter(
           element: <CategoryListPage />,
           handle: {
             title: "Danh mục tiện ích",
+            logo: true,
             back: false,
           },
         },

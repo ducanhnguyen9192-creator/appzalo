@@ -7,11 +7,11 @@ export default function TourCards({ tours }: { tours: Tour[] }) {
     {tours.map((tour) => <Link key={tour.id} to={`/tours/${tour.id}`} className="tour-card bg-white rounded-2xl overflow-hidden border border-gray-100">
       <div className="catalog-card-image"><ContentImage src={tour.image} alt={tour.name} /></div>
       <div className="catalog-card-body p-3">
-        <p className="text-xs leading-4 text-blue-600">{TOUR_KINDS[tour.kind]}</p>
+        <p className="text-xs leading-4 text-gold-600">{TOUR_KINDS[tour.kind]}</p>
         <h3 className="catalog-card-title font-semibold text-sm leading-5 line-clamp-2">{tour.name}</h3>
         <p className="catalog-card-meta text-xs leading-4 text-gray-500 line-clamp-2">{tour.destination} · {tour.duration}</p>
         <p className="catalog-card-meta text-xs leading-4 text-gray-500 line-clamp-2">{tour.departure ? `Khởi hành: ${tour.departure}` : "Liên hệ tư vấn lịch khởi hành"}</p>
-        <p className="catalog-card-price font-semibold text-blue-600 text-sm">{tourPrice(tour.price)}</p>
+        <p className="catalog-card-price font-semibold text-gold-600 text-sm">{tourPrice(tour.price)}</p>
         <span className="inline-block text-xs text-gray-500">Xem chi tiết →</span>
       </div>
     </Link>)}

@@ -25,6 +25,44 @@ const tour = { name: "Tour kiểm thử", kind: "domestic", destination: "Đà N
 const esim = { name: "eSIM kiểm thử", coverage: "Nhật Bản", allowance: "5 GB", validity: "7 ngày", network: "", activation: "", price: null, image: "/images/news/news-2.jpg", summary: "Mẫu", instructions: "Mẫu", notes: "Mẫu", published: true };
 const requestBody = (service, itemId) => ({ service, itemId, requestKey: randomUUID(), fullName: "Khách thử nghiệm", phone: "0901234567", quantity: 2, desiredDate: "", note: "Tư vấn thử nghiệm", price: 1, userId: "forged" });
 
+test("request statistics count all requests by Vietnam creation date, service and current status", async t => {
+  const f = await fixture(t);
+  const path = "admin/request-statistics?from=2026-10-19&to=2026-10-21";
+  assert.equal((await f.api(path)).status, 401);
+  assert.equal((await f.api(path, null, f.cookie)).status, 401);
+  const db = new DatabaseSync(f.databasePath);
+  try {
+    for (const [service, status, date, count] of [
+      ["flight", "ticketed", "2026-10-19T23:59:59.999+07:00", 25],
+      ["tour", "completed", "2026-10-20T00:00:00+07:00", 2],
+      ["esim", "cancelled", "2026-10-20T12:00:00+07:00", 1],
+      ["flight", "received", "2026-10-22T00:00:00+07:00", 1],
+    ]) {
+      const table = service === "flight" ? "bookings" : "service_requests";
+      for (let i = 0; i < count; i++) db.prepare(`INSERT INTO ${table} (id, user_id, request_key, data, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)`).run(randomUUID(), f.customer.id, randomUUID(), JSON.stringify({ request: { service, quantity: 10 } }), status, Date.parse(date), Date.now());
+    }
+  } finally { db.close(); }
+  const response = await f.api(path, null, f.adminCookie);
+  assert.equal(response.status, 200);
+  const stats = await response.json();
+  assert.equal(stats.total, 28);
+  assert.equal(stats.summary[0].statuses.ticketed, 25);
+  assert.equal(stats.summary[1].statuses.completed, 2);
+  assert.deepEqual(stats.daily, [
+    { date: "2026-10-19", flight: 25, tour: 0, esim: 0 },
+    { date: "2026-10-20", flight: 0, tour: 2, esim: 1 },
+    { date: "2026-10-21", flight: 0, tour: 0, esim: 0 },
+  ]);
+  const filtered = await (await f.api(`${path}&service=esim`, null, f.adminCookie)).json();
+  assert.equal(filtered.total, 1);
+  assert.equal(filtered.summary[0].total, 0);
+  const empty = await (await f.api("admin/request-statistics?from=2026-10-21&to=2026-10-21", null, f.adminCookie)).json();
+  assert.equal(empty.total, 0); assert.equal(empty.daily.length, 1);
+  for (const query of ["from=2026-02-30", "from=2026-10-21&to=2026-10-19", "from=2020-01-01&to=2026-10-20", "service=invalid"]) {
+    assert.equal((await f.api(`admin/request-statistics?${query}`, null, f.adminCookie)).status, 400);
+  }
+});
+
 test("admin request filters search all pages, combine status and Vietnam dates, and treat wildcard input literally", async t => {
   const f = await fixture(t);
   const db = new DatabaseSync(f.databasePath);

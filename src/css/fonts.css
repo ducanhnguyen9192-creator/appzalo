@@ -1,0 +1,10 @@
+@font-face {
+  font-family: "Lora";
+  src: url("../assets/fonts/lora/Lora-Variable.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+}
+:root { --app-font: "Lora", Georgia, serif; }
+html, body, .zaui-app { font-family: var(--app-font); }
+button, input, select, textarea { font-family: inherit; }

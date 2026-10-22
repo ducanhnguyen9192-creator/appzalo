@@ -17,7 +17,7 @@ export default function ShareButton({ product }: { product: Product }) {
     finally { setBusy(false); }
   }
   return <section aria-label="Chia sẻ bài viết" className="space-y-3">
-    {inZalo && <button type="button" disabled={busy} onClick={share} className="rounded-xl bg-blue-600 text-white px-5 py-3 font-medium disabled:opacity-50">{busy ? "Đang mở chia sẻ…" : "Chia sẻ bài viết trên Zalo"}</button>}
+    {inZalo && <button type="button" disabled={busy} onClick={share} className="rounded-xl bg-gold-600 text-white px-5 py-3 font-medium disabled:opacity-50">{busy ? "Đang mở chia sẻ…" : "Chia sẻ bài viết trên Zalo"}</button>}
     {failed && <p role="status" className="text-sm text-gray-600">Chưa mở được chia sẻ. Bạn có thể sao chép đường dẫn bên dưới.</p>}
     {(!inZalo || failed) && <CopyButton key={link} text={link} label="Sao chép link bài viết" />}
   </section>;

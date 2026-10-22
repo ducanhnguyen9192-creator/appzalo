@@ -11,6 +11,7 @@ test("admin filters, scoped refresh and unsaved forms work in the browser", { ti
     browser = await chromium.launch({ headless: true, channel: process.env.TEST_BROWSER_CHANNEL || "chrome" });
     const page = await browser.newPage();
     page.setDefaultTimeout(10000);
+    page.setDefaultNavigationTimeout(30000);
     const calls = [];
     await page.route("**/api/**", async route => {
       const url = new URL(route.request().url()); calls.push(url);
@@ -21,13 +22,13 @@ test("admin filters, scoped refresh and unsaved forms work in the browser", { ti
       else if (path.endsWith("/users")) body = { users: [], total: 0 };
       else if (path.endsWith("/bookings")) body = { bookings: [], total: 0 };
       else if (path.endsWith("/service-requests")) body = { requests: [], total: 0 };
-      else if (path.endsWith("/tours")) body = { tours: [] };
-      else if (path.endsWith("/esims")) body = { esims: [] };
-      else if (path.endsWith("/articles")) body = { articles: [] };
-      else if (path.endsWith("/banners")) body = { banners: [] };
+      else if (path.endsWith("/tours")) body = { tours: [{ id: 1, name: "Tour mẫu", kind: "domestic", destination: "Đà Nẵng", duration: "3 ngày", departure: "", price: null, image: "", summary: "", itinerary: "", included: "", excluded: "", published: false }] };
+      else if (path.endsWith("/esims")) body = { esims: [{ id: 1, name: "eSIM mẫu", coverage: "Việt Nam", allowance: "5GB", validity: "7 ngày", network: "", activation: "", price: null, image: "", summary: "", instructions: "", notes: "", published: false }] };
+      else if (path.endsWith("/articles")) body = { articles: [{ id: 1, name: "Tin mẫu", image: "", summary: "", content: "", publishedAt: "20/10/2026", categoryId: 1, type: "news", published: false }] };
+      else if (path.endsWith("/banners")) body = { banners: [{ id: 1, title: "Banner mẫu", image: "", active: true }] };
       await route.fulfill({ json: body });
     });
-    await page.goto(`http://127.0.0.1:${server.httpServer.address().port}/admin`);
+    await page.goto(`http://127.0.0.1:${server.httpServer.address().port}/admin`, { waitUntil: "domcontentloaded" });
     const nav = page.getByRole("navigation", { name: "Quản trị" });
     await nav.getByRole("button", { name: "Yêu cầu & giao dịch", exact: true }).click();
     await page.getByLabel("Tìm yêu cầu").fill("0909999999");
@@ -55,6 +56,29 @@ test("admin filters, scoped refresh and unsaved forms work in the browser", { ti
       await nav.getByRole("button", { name: "Tổng quan", exact: true }).click();
       await page.getByRole("heading", { name: "Tổng quan", exact: true }).waitFor();
     }
+    for (const [tab, label, save] of [["Tour du lịch", "Tên tour", "Lưu tour"], ["eSIM", "Tên gói eSIM", "Lưu gói eSIM"], ["Tin tức & ưu đãi", "Tiêu đề", "Lưu bài viết"], ["Banner", "Tên banner", "Lưu banner"]]) {
+      await nav.getByRole("button", { name: tab, exact: true }).click();
+      const edit = page.getByRole("button", { name: "Sửa", exact: true });
+      await edit.click();
+      const editor = page.getByRole("dialog");
+      await editor.waitFor();
+      assert.equal(await page.evaluate(() => document.body.style.overflow), "hidden");
+      await editor.getByLabel(label, { exact: true }).fill("Nội dung đã sửa");
+      page.once("dialog", dialog => dialog.dismiss());
+      await page.keyboard.press("Escape");
+      assert.equal(await editor.getByLabel(label, { exact: true }).inputValue(), "Nội dung đã sửa");
+      page.once("dialog", dialog => dialog.accept());
+      await editor.getByRole("button", { name: "Đóng cửa sổ chỉnh sửa" }).click();
+      await editor.waitFor({ state: "detached" });
+      assert.equal(await edit.evaluate(el => el === document.activeElement), true);
+      await edit.click();
+      await editor.getByLabel(label, { exact: true }).fill("Nội dung đã lưu");
+      const saved = page.waitForRequest(r => r.url().includes("/save") && r.method() === "POST");
+      await editor.getByRole("button", { name: save, exact: true }).click();
+      assert.equal((await saved).postDataJSON()[tab === "Banner" ? "title" : "name"], "Nội dung đã lưu");
+      await editor.waitFor({ state: "detached" });
+    }
+    await nav.getByRole("button", { name: "Tổng quan", exact: true }).click();
     const before = calls.length;
     await page.getByRole("button", { name: "Làm mới", exact: true }).click();
     await page.getByRole("button", { name: "Làm mới", exact: true }).waitFor();

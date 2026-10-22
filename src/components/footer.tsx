@@ -1,4 +1,4 @@
-import { HomeIcon, PlaneIcon, TravelIcon, ProfileIcon } from "./vectors";
+import { HomeIcon, PlaneIcon, CategoryIcon, ProfileIcon } from "./vectors";
 import HorizontalDivider from "./horizontal-divider";
 import TransitionLink from "./transition-link";
 
@@ -23,9 +23,9 @@ const NAV_ITEMS = [
     icon: PlaneIcon,
   },
   {
-    name: "Du lịch",
+    name: "Danh mục",
     path: "/categories",
-    icon: TravelIcon,
+    icon: CategoryIcon,
   },
   {
     name: "Lịch sử",

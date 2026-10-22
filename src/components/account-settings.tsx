@@ -29,7 +29,7 @@ export default function AccountSettings({ account, onChange }: { account: Accoun
     finally { setBusy(false); }
   }
   const input = "block w-full mt-1 border rounded-xl p-3 bg-white";
-  const button = "rounded-xl bg-blue-600 text-white px-4 py-3 disabled:opacity-50";
+  const button = "rounded-xl bg-gold-600 text-white px-4 py-3 disabled:opacity-50";
   return <section className="account-settings mx-4 my-4 bg-white rounded-2xl border p-4 space-y-5">
     <h2 className="font-semibold text-lg">Cài đặt tài khoản</h2>
     <form onSubmit={(event: FormEvent) => { event.preventDefault(); run("profile", { name, phone }); }}>
@@ -47,7 +47,7 @@ export default function AccountSettings({ account, onChange }: { account: Accoun
         {emailEnabled === false && <p className="text-sm text-gray-500">Dịch vụ gửi email chưa được thiết lập. Bạn vẫn có thể sử dụng tài khoản.</p>}
         {capabilityError && <p role="alert" className="text-sm text-red-600">{capabilityError} <button type="button" className="underline" onClick={loadCapabilities}>Thử lại</button></p>}
         <button type="button" className={button} disabled={busy || emailEnabled !== true} onClick={() => run("send-verification", {})}>Gửi email xác minh</button>
-        {emailEnabled && <button type="button" className="block text-sm text-blue-600" onClick={async () => { try { const result = await accountAction("me"); if (result.user) onChange(result.user); } catch { setError("Không tải được trạng thái xác minh."); } }}>Tôi đã xác minh — cập nhật trạng thái</button>}
+        {emailEnabled && <button type="button" className="block text-sm text-gold-600" onClick={async () => { try { const result = await accountAction("me"); if (result.user) onChange(result.user); } catch { setError("Không tải được trạng thái xác minh."); } }}>Tôi đã xác minh — cập nhật trạng thái</button>}
       </>}
     </div>
     <form className="account-password border-t pt-4" onSubmit={event => {

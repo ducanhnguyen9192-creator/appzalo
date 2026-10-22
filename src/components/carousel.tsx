@@ -90,7 +90,7 @@ export default function Carousel(props: CarouselProps) {
             className={`carousel-dot ${index === selectedIndex ? "is-active" : ""}`}
           ><span /></button>
         ))}
-        <button type="button" className="carousel-pause text-sm text-blue-600 rounded-lg px-3" aria-pressed={paused} onClick={() => setPaused((value) => !value)}>{paused ? "Tiếp tục" : "Tạm dừng"}</button>
+        <button type="button" className="carousel-pause text-sm text-gold-600 rounded-lg px-3" aria-pressed={paused} onClick={() => setPaused((value) => !value)}>{paused ? "Tiếp tục" : "Tạm dừng"}</button>
       </div>}
     </section>
   );

@@ -40,11 +40,11 @@ export default function AccountRecovery() {
             <label className="block text-sm">Nhập lại mật khẩu mới<input className={input} type="password" autoComplete="new-password" required minLength={8} maxLength={128} value={confirm} onChange={e => setConfirm(e.target.value)} /></label>
             <p className="text-xs text-gray-500">Từ 8 đến 128 ký tự. Các phiên đăng nhập cũ sẽ kết thúc.</p>
           </>}
-          <button disabled={forgot && enabled !== true} className="w-full rounded-xl bg-blue-600 text-white p-3 disabled:opacity-50">{busy ? "Đang xử lý…" : forgot ? "Gửi liên kết khôi phục" : verify ? "Xác nhận email" : "Lưu mật khẩu mới"}</button>
+          <button disabled={forgot && enabled !== true} className="w-full rounded-xl bg-gold-600 text-white p-3 disabled:opacity-50">{busy ? "Đang xử lý…" : forgot ? "Gửi liên kết khôi phục" : verify ? "Xác nhận email" : "Lưu mật khẩu mới"}</button>
         </fieldset>
       </form>}
       {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
-      <div className="flex flex-wrap gap-4 text-sm text-blue-600"><Link to="/profile">Về tài khoản</Link><Link to="/support">Liên hệ hỗ trợ</Link>{!forgot && <Link to="/forgot-password">Yêu cầu liên kết khôi phục mới</Link>}</div>
+      <div className="flex flex-wrap gap-4 text-sm text-gold-600"><Link to="/profile">Về tài khoản</Link><Link to="/support">Liên hệ hỗ trợ</Link>{!forgot && <Link to="/forgot-password">Yêu cầu liên kết khôi phục mới</Link>}</div>
     </div>
   </section>;
 }

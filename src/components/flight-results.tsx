@@ -13,7 +13,7 @@ export function airportCode(value: string) {
   const code = value.trim().toUpperCase().match(/(?:^|\()([A-Z]{3})\)?$/)?.[1];
   return code && AIRPORTS.some(a => a.code === code) ? code : null;
 }
-export default function FlightResults({ form, tripType, selectedFlights = [], onSelectionChange, disabled = false }: { form: FlightForm; tripType: TripType; selectedFlights?: SelectedFlight[]; onSelectionChange?: (value: SelectedFlight[]) => void; disabled?: boolean }) {
+export default function FlightResults({ form, tripType, selectedFlights = [], onSelectionChange, disabled = false, autoSearch = false, searchRequest = 0 }: { form: FlightForm; tripType: TripType; selectedFlights?: SelectedFlight[]; onSelectionChange?: (value: SelectedFlight[]) => void; disabled?: boolean; autoSearch?: boolean; searchRequest?: number }) {
   const [results, setResults] = useState<{ result: SearchResult; origin: string; destination: string; date: string }[]>([]);
   const [activeLeg, setActiveLeg] = useState(0);
   const [sortMode, setSortMode] = useState<FlightSortMode>("price");
@@ -29,6 +29,7 @@ export default function FlightResults({ form, tripType, selectedFlights = [], on
     return () => { revision.current++; controller.current?.abort(); };
   }, [key]);
   useEffect(() => { onSelectionChange?.([]); setActiveLeg(0); }, [form.cabin]);
+  useEffect(() => { if ((autoSearch || searchRequest > 0) && tripType !== "multicity") void search(); }, [autoSearch, searchRequest]);
   if (tripType === "multicity") return null;
   const roundtrip = tripType === "roundtrip";
   const title = `Tìm vé Vietjet ${roundtrip ? "hai chiều" : "một chiều"}`;
@@ -78,13 +79,13 @@ export default function FlightResults({ form, tripType, selectedFlights = [], on
   }
   return <section className="flight-note border rounded-xl p-4 space-y-3" aria-label={title}>
     <h2 className="font-semibold">{title}</h2>
-    <p className="text-sm font-medium text-blue-700">Hạng đang chọn: {form.cabin} · {requestedFare}</p>
-    <button type="button" onClick={search} disabled={loading || disabled} className="w-full rounded-xl bg-blue-600 text-white font-semibold py-3 disabled:opacity-50">{loading ? "Đang tìm trên Vietjet…" : "Tìm chuyến bay"}</button>
+    <p className="text-sm font-medium text-gold-700">Hạng đang chọn: {form.cabin} · {requestedFare}</p>
+    <button type="button" onClick={search} disabled={loading || disabled} className="w-full rounded-xl bg-gold-600 text-white font-semibold py-3 disabled:opacity-50">{loading ? "Đang tìm trên Vietjet…" : "Tìm chuyến bay"}</button>
     <p className="text-xs text-gray-500">Giá tham khảo{roundtrip ? " từng chiều" : ""}, chưa xác nhận tổng thuế, phí. Chọn chuyến chưa giữ chỗ với hãng.</p>
-    {loading && <p role="status" className="text-sm text-blue-700">{roundtrip ? `Đang tra ${searchLeg === 0 ? "chiều đi (1/2)" : "chiều về (2/2)"}. ` : ""}Đang tải đầy đủ danh sách, có thể mất đến 2 phút mỗi chiều.</p>}
+    {loading && <p role="status" className="text-sm text-gold-700">{roundtrip ? `Đang tra ${searchLeg === 0 ? "chiều đi (1/2)" : "chiều về (2/2)"}. ` : ""}Đang tải đầy đủ danh sách, có thể mất đến 2 phút mỗi chiều.</p>}
     {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
-    {accessDenied && <div className="space-y-2"><p className="text-sm">{airportCode(form.origin)} → {airportCode(form.destination)} · {form.departureDate.split("-").reverse().join("/")} · {form.adults} người lớn, {form.children} trẻ em, {form.infants} em bé</p><a href="https://www.vietjetair.com/vi" target="_blank" rel="noopener noreferrer" className="inline-block rounded-xl border border-blue-200 px-4 py-3 text-blue-600 font-medium">Mở website Vietjet</a><p className="text-xs text-gray-500">Nhập hành trình trên website hãng để xem giá hiện tại.</p></div>}
-    {roundtrip && results.length > 0 && <div className="flex gap-2" aria-label="Kết quả từng chiều">{results.map((leg, index) => <button key={index} type="button" aria-pressed={activeLeg === index} onClick={() => setActiveLeg(index)} className={`flex-1 rounded-lg border p-2 text-sm ${activeLeg === index ? "bg-blue-50 border-blue-500 text-blue-700" : "border-gray-200"}`}>{index === 0 ? "Chiều đi" : "Chiều về"}: {leg.result.flights.length} chuyến<br />{leg.origin} → {leg.destination}</button>)}</div>}
+    {accessDenied && <div className="space-y-2"><p className="text-sm">{airportCode(form.origin)} → {airportCode(form.destination)} · {form.departureDate.split("-").reverse().join("/")} · {form.adults} người lớn, {form.children} trẻ em, {form.infants} em bé</p><a href="https://www.vietjetair.com/vi" target="_blank" rel="noopener noreferrer" className="inline-block rounded-xl border border-gold-200 px-4 py-3 text-gold-600 font-medium">Mở website Vietjet</a><p className="text-xs text-gray-500">Nhập hành trình trên website hãng để xem giá hiện tại.</p></div>}
+    {roundtrip && results.length > 0 && <div className="flex gap-2" aria-label="Kết quả từng chiều">{results.map((leg, index) => <button key={index} type="button" aria-pressed={activeLeg === index} onClick={() => setActiveLeg(index)} className={`flex-1 rounded-lg border p-2 text-sm ${activeLeg === index ? "bg-gold-50 border-gold-500 text-gold-700" : "border-gray-200"}`}>{index === 0 ? "Chiều đi" : "Chiều về"}: {leg.result.flights.length} chuyến<br />{leg.origin} → {leg.destination}</button>)}</div>}
     {result && selected && <div className="space-y-3" aria-live="polite">
       <h3 className="font-semibold">{result.flights.length} chuyến · {selected.origin} → {selected.destination} · {selected.date.split("-").reverse().join("/")}</h3>
       <p className="text-xs text-gray-500">Nguồn: {result.source} · Cập nhật {new Date(result.searchedAt).toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" })}.</p>
@@ -97,7 +98,7 @@ export default function FlightResults({ form, tripType, selectedFlights = [], on
         <p className="text-sm text-gray-500 mt-1">{flight.number} · {flight.aircraft} · Bay thẳng</p>
         <div className="mt-3">{flight.fares.filter(fare => fareLabel(fare.name) === requestedFare).map(fare => {
           const chosen = selectedFlights.some(item => item.leg === (activeLeg === 0 ? "outbound" : "inbound") && item.number === flight.number && item.fareName === fare.name);
-          return <button type="button" key={fare.name} aria-label={`Chọn ${flight.number} ${fareLabel(fare.name)}`} aria-pressed={chosen} disabled={fare.amount === null || disabled || loading || !onSelectionChange} onClick={() => selectFare(flight, fare)} className={`flight-result-fare ${chosen ? "is-selected" : ""}`}><span className="text-sm text-gray-600">{fareLabel(fare.name)}</span><span className={fare.amount === null ? "text-sm text-gray-500 font-medium" : "flight-result-price"}>{fare.amount === null ? "Hết chỗ" : formatMoney(fare.amount)}</span>{fare.amount !== null && <span className="text-xs text-blue-700">{chosen ? "✓ Đã chọn" : "Chọn giá này →"}</span>}</button>;
+          return <button type="button" key={fare.name} aria-label={`Chọn ${flight.number} ${fareLabel(fare.name)}`} aria-pressed={chosen} disabled={fare.amount === null || disabled || loading || !onSelectionChange} onClick={() => selectFare(flight, fare)} className={`flight-result-fare ${chosen ? "is-selected" : ""}`}><span className="text-sm text-gray-600">{fareLabel(fare.name)}</span><span className={fare.amount === null ? "text-sm text-gray-500 font-medium" : "flight-result-price"}>{fare.amount === null ? "Hết chỗ" : formatMoney(fare.amount)}</span>{fare.amount !== null && <span className="text-xs text-gold-700">{chosen ? "✓ Đã chọn" : "Chọn giá này →"}</span>}</button>;
         })}</div>
         {!flight.fares.some(fare => fareLabel(fare.name) === requestedFare) && <p className="mt-3 text-sm text-gray-500">Chưa có giá {requestedFare} cho chuyến này.</p>}
       </article>)}

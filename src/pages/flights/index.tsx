@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import AccountPanel from "@/components/account-panel";
 import { Account, authRequest } from "@/utils/auth";
 import { Booking, BookingApiError, bookingApi } from "@/utils/bookings";
@@ -15,11 +15,14 @@ const FLIGHT_STEPS = ["Hành trình", "Chọn chuyến", "Thông tin liên hệ"
 type FlightStep = 1 | 2 | 3;
 
 export default function FlightSearchPage() {
-  const [step, setStep] = useState<FlightStep>(1);
+  const location = useLocation();
+  const [homeSearch] = useState<{ form: FlightForm; tripType: TripType } | undefined>(() => location.state?.searchJourney);
+  const [step, setStep] = useState<FlightStep>(homeSearch ? 2 : 1);
+  const [searchRequest, setSearchRequest] = useState(homeSearch ? 1 : 0);
   const [draft] = useState(readFlightDraft);
-  const [form, setForm] = useState<FlightForm>(draft?.form ?? EMPTY_FLIGHT());
-  const [tripType, setTripType] = useState<TripType>(draft?.tripType ?? "oneway");
-  const [restored, setRestored] = useState(Boolean(draft));
+  const [form, setForm] = useState<FlightForm>(homeSearch?.form ?? draft?.form ?? EMPTY_FLIGHT());
+  const [tripType, setTripType] = useState<TripType>(homeSearch?.tripType ?? draft?.tripType ?? "oneway");
+  const [restored, setRestored] = useState(!homeSearch && Boolean(draft));
   const [account, setAccount] = useState<Account | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [authError, setAuthError] = useState("");
@@ -86,6 +89,7 @@ export default function FlightSearchPage() {
     const firstError = Object.keys(nextErrors)[0];
     if (firstError) { focusField(firstError); return; }
     goToStep(2);
+    if (!consultationOnly) setSearchRequest(current => current + 1);
   }
 
   function update<K extends keyof FlightForm>(field: K, value: FlightForm[K]) {
@@ -149,20 +153,20 @@ export default function FlightSearchPage() {
       setSubmitError(e instanceof Error ? e.message : "Không gửi được yêu cầu. Dữ liệu của bạn được giữ lại, hãy thử lại.");
     } finally { sending.current = false; setIsSubmitting(false); }
   }
-  const inputClass = "w-full mt-1 border border-gray-200 rounded-xl px-3 py-3 bg-white outline-none focus:border-blue-600 disabled:bg-gray-50";
+  const inputClass = "w-full mt-1 border border-gray-200 rounded-xl px-3 py-3 bg-white outline-none focus:border-gold-600 disabled:bg-gray-50";
   function fieldProps(field: FlightField) { return { id: `flight-${field}`, name: field, "aria-invalid": Boolean(errors[field]), "aria-describedby": errors[field] ? `error-${field}` : undefined, disabled: isSubmitting, className: `${inputClass} ${errors[field] ? "border-red-500" : ""}` }; }
   function errorText(field: keyof FlightForm) { return errors[field] ? <p id={`error-${field}`} className="mt-1 text-sm text-red-600">{errors[field]}</p> : null; }
 
   return <div ref={formRef} className="flight-page p-4 pb-8 space-y-4">
     <div className="bg-white rounded-2xl p-4 shadow-sm">
       <div className="mb-5"><h1 className="text-xl font-semibold">Yêu cầu đặt vé máy bay</h1><p className="text-sm text-gray-500 mt-2">Chọn hành trình và chuyến bay, FirstClass sẽ liên hệ tư vấn.</p></div>
-      {lastBooking && <div role="status" className="mb-5 rounded-xl bg-green-50 border border-green-200 p-4 break-words"><h2 className="font-semibold text-green-800">Đã lưu yêu cầu trong app</h2><p className="mt-2 text-sm">Mã yêu cầu: {lastBooking.id}. Chưa đặt vé hay giữ chỗ với Vietjet.</p><SelectedFlightInfo flights={lastBooking.selectedFlights ?? []} /><Link to="/history" className="inline-block mt-3 text-blue-600 text-sm font-medium">Theo dõi yêu cầu trong lịch sử →</Link></div>}
-      {restored && <p role="status" className="mb-4 rounded-xl bg-blue-50 p-3 text-sm text-blue-700">Đã khôi phục bản nháp trong phiên này. Bạn có thể tiếp tục nhập hoặc xóa bản nháp.</p>}
+      {lastBooking && <div role="status" className="mb-5 rounded-xl bg-green-50 border border-green-200 p-4 break-words"><h2 className="font-semibold text-green-800">Đã lưu yêu cầu trong app</h2><p className="mt-2 text-sm">Mã yêu cầu: {lastBooking.id}. Chưa đặt vé hay giữ chỗ với Vietjet.</p><SelectedFlightInfo flights={lastBooking.selectedFlights ?? []} /><Link to="/history" className="inline-block mt-3 text-gold-600 text-sm font-medium">Theo dõi yêu cầu trong lịch sử →</Link></div>}
+      {restored && <p role="status" className="mb-4 rounded-xl bg-gold-50 p-3 text-sm text-gold-700">Đã khôi phục bản nháp trong phiên này. Bạn có thể tiếp tục nhập hoặc xóa bản nháp.</p>}
       <nav aria-label="Các bước đặt vé" className="flight-steps"><ol>{FLIGHT_STEPS.map((label, index) => <li key={label}><button type="button" aria-current={step === index + 1 ? "step" : undefined} disabled={isSubmitting || index + 1 > step} onClick={() => goToStep((index + 1) as FlightStep)} className={index + 1 < step ? "is-complete" : ""}><span aria-hidden="true">{index + 1 < step ? "✓" : index + 1}</span><span>{label}</span></button></li>)}</ol></nav>
       <div className="mb-5"><h2 ref={stepHeadingRef} tabIndex={-1} className="flight-step-heading font-semibold">Bước {step}/3 · {FLIGHT_STEPS[step - 1]}</h2><p className="text-sm text-gray-500 mt-2">{step === 1 ? "Chọn điểm đi, điểm đến, ngày bay và số hành khách." : step === 2 ? consultationOnly ? "Kiểm tra các chặng trước khi yêu cầu FirstClass tư vấn chuyến bay." : tripType === "roundtrip" ? "Tìm và chọn chuyến cho cả chiều đi và chiều về." : "Tìm chuyến và chọn giá phù hợp để tiếp tục." : "Để lại họ tên và số điện thoại để FirstClass liên hệ."}</p></div>
       {Object.values(errors).some(Boolean) && <div role="alert" className="mb-4 rounded-xl bg-red-50 text-red-700 p-3 text-sm">Vui lòng sửa các ô được đánh dấu bên dưới trước khi tiếp tục.</div>}
       <section hidden={step !== 1} aria-label="Hành trình" className="flight-step">
-      <div className="flex gap-2 mb-5">{([ ["roundtrip", "Khứ hồi"], ["oneway", "Một chiều"], ["multicity", "Đa chặng"] ] as const).map(([value, label]) => <button key={value} type="button" aria-pressed={tripType === value} disabled={isSubmitting} onClick={() => changeTripType(value)} className={`flex-1 py-3 rounded-xl text-sm font-medium ${tripType === value ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-600"}`}>{label}</button>)}</div>
+      <div className="flex gap-2 mb-5">{([ ["roundtrip", "Khứ hồi"], ["oneway", "Một chiều"], ["multicity", "Đa chặng"] ] as const).map(([value, label]) => <button key={value} type="button" aria-pressed={tripType === value} disabled={isSubmitting} onClick={() => changeTripType(value)} className={`flex-1 py-3 rounded-xl text-sm font-medium ${tripType === value ? "bg-gold-600 text-white" : "bg-gray-100 text-gray-600"}`}>{label}</button>)}</div>
       <div className="flight-fields space-y-4">
         {tripType === "multicity" ? <div className="flight-segments space-y-4">
           <p className="text-sm text-gray-500">Nhập từ 2 đến 6 chặng theo thứ tự bay. Mỗi chặng có thể khởi hành từ một sân bay khác.</p>
@@ -174,37 +178,37 @@ export default function FlightSearchPage() {
                 const name: FlightField = `segments.${index}.${field}`;
                 return <div key={field} className="relative" style={{ zIndex: field === "origin" ? 2 : 1 }}>
                   <label htmlFor={`flight-${name}`} className="text-sm font-medium">{label} <span className="text-red-600">*</span></label>
-                  <button {...fieldProps(name)} type="button" aria-haspopup="dialog" aria-expanded={activeAirport === name} onClick={() => setActiveAirport(name)} className={`${fieldProps(name).className} text-left`}><span className={segment[field] ? "" : "text-gray-400"}>{segment[field] || placeholder}</span></button>
+                  
                   {errorText(name)}
-                  {activeAirport === name && <AirportSuggestions value={segment[field]} title={`Chọn ${label.toLowerCase()} · Chặng ${index + 1}`} onClose={() => setActiveAirport(null)} onSelect={(value) => { updateSegment(index, field, value); setActiveAirport(null); }} />}
+                  {<AirportSuggestions open={activeAirport === name} onOpen={() => setActiveAirport(name)} inputProps={{ ...fieldProps(name), placeholder }} onChange={(value) => updateSegment(index, field, value)} value={segment[field]} title={`Chọn ${label.toLowerCase()} · Chặng ${index + 1}`} onClose={() => setActiveAirport(null)} onSelect={(value) => { updateSegment(index, field, value); setActiveAirport(null); }} />}
                 </div>;
               })}
               <div><label htmlFor={`flight-segments.${index}.departureDate`} className="text-sm font-medium">Ngày bay <span className="text-red-600">*</span></label><input {...fieldProps(`segments.${index}.departureDate`)} type="date" min={index > 0 && form.segments[index - 1].departureDate > today ? form.segments[index - 1].departureDate : today} value={segment.departureDate} onChange={(e) => updateSegment(index, "departureDate", e.target.value)} />{errorText(`segments.${index}.departureDate`)}</div>
             </div>
             {form.segments.length > 2 && <button type="button" disabled={isSubmitting} aria-label={`Xóa chặng ${index + 1}`} className="text-sm text-red-600 underline" onClick={() => { update("segments", form.segments.filter((_, i) => i !== index)); setErrors({}); setActiveAirport(null); }}>Xóa chặng</button>}
           </fieldset>)}
-          <button type="button" disabled={isSubmitting || form.segments.length >= MAX_FLIGHT_SEGMENTS} className="rounded-xl border border-blue-200 px-4 py-2 text-sm text-blue-600 disabled:opacity-50" onClick={() => { const last = form.segments[form.segments.length - 1]; update("segments", [...form.segments, { ...EMPTY_SEGMENT(), origin: last.destination, departureDate: last.departureDate }]); setActiveAirport(null); }}>+ Thêm chặng</button>
+          <button type="button" disabled={isSubmitting || form.segments.length >= MAX_FLIGHT_SEGMENTS} className="rounded-xl border border-gold-200 px-4 py-2 text-sm text-gold-600 disabled:opacity-50" onClick={() => { const last = form.segments[form.segments.length - 1]; update("segments", [...form.segments, { ...EMPTY_SEGMENT(), origin: last.destination, departureDate: last.departureDate }]); setActiveAirport(null); }}>+ Thêm chặng</button>
         </div> : <>
-        {([ ["origin", "Điểm đi", "Ví dụ: HAN hoặc Hà Nội"], ["destination", "Điểm đến", "Ví dụ: SGN hoặc Hồ Chí Minh"] ] as const).map(([field, label, placeholder]) => <div key={field} className={`relative ${field === "origin" ? "z-30" : "z-20"}`}><label htmlFor={`flight-${field}`} className="text-sm font-medium">{label} <span className="text-red-600">*</span></label><button {...fieldProps(field)} type="button" aria-haspopup="dialog" aria-expanded={activeAirport === field} onClick={() => setActiveAirport(field)} className={`${fieldProps(field).className} text-left`}><span className={form[field] ? "" : "text-gray-400"}>{form[field] || placeholder}</span></button>{errorText(field)}
-          {activeAirport === field && <AirportSuggestions value={form[field]} title={`Chọn ${label.toLowerCase()}`} onClose={() => setActiveAirport(null)} onSelect={(value) => { update(field, value); setActiveAirport(null); }} />}
+        {([ ["origin", "Điểm đi", "Ví dụ: HAN hoặc Hà Nội"], ["destination", "Điểm đến", "Ví dụ: SGN hoặc Hồ Chí Minh"] ] as const).map(([field, label, placeholder]) => <div key={field} className={`relative ${field === "origin" ? "z-30" : "z-20"}`}><label htmlFor={`flight-${field}`} className="text-sm font-medium">{label} <span className="text-red-600">*</span></label>{errorText(field)}
+          {<AirportSuggestions open={activeAirport === field} onOpen={() => setActiveAirport(field)} inputProps={{ ...fieldProps(field), placeholder }} onChange={(value) => update(field, value)} value={form[field]} title={`Chọn ${label.toLowerCase()}`} onClose={() => setActiveAirport(null)} onSelect={(value) => { update(field, value); setActiveAirport(null); }} />}
         </div>)}
-        <div className="flight-swap"><button type="button" disabled={isSubmitting} className="rounded-xl border border-blue-200 px-4 py-2 text-sm text-blue-600" onClick={swapAirports}>⇄ Đảo điểm đi / điểm đến</button></div>
+        <div className="flight-swap"><button type="button" disabled={isSubmitting} className="rounded-xl border border-gold-200 px-4 py-2 text-sm text-gold-600" onClick={swapAirports}>⇄ Đảo điểm đi / điểm đến</button></div>
         <div className="grid grid-cols-2 gap-3"><div><label htmlFor="flight-departureDate" className="text-sm font-medium">Ngày đi <span className="text-red-600">*</span></label><input {...fieldProps("departureDate")} type="date" min={today} value={form.departureDate} onChange={(e) => update("departureDate", e.target.value)} />{errorText("departureDate")}</div>{tripType === "roundtrip" && <div><label htmlFor="flight-returnDate" className="text-sm font-medium">Ngày về <span className="text-red-600">*</span></label><input {...fieldProps("returnDate")} type="date" min={form.departureDate > today ? form.departureDate : today} value={form.returnDate} onChange={(e) => update("returnDate", e.target.value)} />{errorText("returnDate")}</div>}</div>
         </>}
         <fieldset><legend className="text-sm font-medium">Hành khách</legend><div className="grid grid-cols-3 gap-2 mt-2">{([ ["adults", "Người lớn", "Từ 12 tuổi", 1], ["children", "Trẻ em", "2–11 tuổi", 0], ["infants", "Em bé", "Dưới 2 tuổi", 0] ] as const).map(([field, label, age, min]) => <div key={field}><label htmlFor={`flight-${field}`} className="text-xs font-medium">{label}</label><p className="text-xs text-gray-500 mt-1">{age}</p><input {...fieldProps(field)} type="number" min={min} max={field === "infants" ? 2 : field === "adults" ? 10 - form.children : 10 - form.adults} step={1} value={Number.isFinite(form[field]) ? form[field] : ""} onChange={(e) => { const max = field === "infants" ? 2 : field === "adults" ? 10 - form.children : 10 - form.adults; update(field, Math.min(max, Math.max(min, Math.floor(Number(e.target.value) || min)))); }} />{errorText(field)}</div>)}</div><p className="text-xs text-gray-500 mt-2">Có thể chọn cả 3 nhóm: người lớn + trẻ em tối đa 10, em bé tối đa 2. Cần ít nhất 1 người lớn.</p></fieldset>
         <div><label htmlFor="flight-cabin" className="text-sm font-medium">Hạng ghế</label><select {...fieldProps("cabin")} value={form.cabin} onChange={(e) => update("cabin", e.target.value)}>{["Phổ thông", "Phổ thông đặc biệt", "Thương gia", "Hạng nhất"].map((cabin) => <option key={cabin} value={cabin}>{cabin} ({VIETJET_CABIN_FARES[cabin]})</option>)}</select>{errorText("cabin")}</div>
       </div>
-      <div className="flight-step-actions"><button type="button" onClick={continueJourney} className="flight-next">Tiếp tục: Chọn chuyến →</button></div>
+      <div className="flight-step-actions"><button type="button" onClick={continueJourney} className="flight-next">{consultationOnly ? "Tiếp tục: Kiểm tra hành trình →" : "Tìm chuyến bay →"}</button></div>
       </section>
       <section hidden={step !== 2} aria-label="Chọn chuyến" className="flight-step space-y-4">
         <div className="rounded-xl bg-gray-50 p-3 text-sm space-y-2">
           {(consultationOnly ? form.segments : [{ origin: form.origin, destination: form.destination, departureDate: form.departureDate }]).map((segment, index) => <p key={index}>{consultationOnly && `Chặng ${index + 1}: `}{segment.origin} → {segment.destination} · {segment.departureDate.split("-").reverse().join("/")}</p>)}
           {tripType === "roundtrip" && <p>Ngày về: {form.returnDate.split("-").reverse().join("/")}</p>}
           <p>{form.adults} người lớn · {form.children} trẻ em · {form.infants} em bé · {form.cabin}</p>
-          <button type="button" onClick={() => goToStep(1)} className="text-blue-600 underline py-2">Sửa hành trình</button>
+          <button type="button" onClick={() => goToStep(1)} className="text-gold-600 underline py-2">Sửa hành trình</button>
         </div>
-        {consultationOnly && <p className="rounded-xl bg-blue-50 p-4 text-sm text-blue-800">Hành trình đa chặng cần tư vấn riêng. FirstClass sẽ tìm chuyến và báo giá sau khi nhận yêu cầu.</p>}
-        <FlightResults form={form} tripType={tripType} selectedFlights={selectedFlights} onSelectionChange={selectFlights} disabled={isSubmitting || step !== 2} />
+        {consultationOnly && <p className="rounded-xl bg-gold-50 p-4 text-sm text-gold-800">Hành trình đa chặng cần tư vấn riêng. FirstClass sẽ tìm chuyến và báo giá sau khi nhận yêu cầu.</p>}
+        <FlightResults form={form} tripType={tripType} selectedFlights={selectedFlights} onSelectionChange={selectFlights} disabled={isSubmitting || step !== 2} searchRequest={searchRequest} />
         <SelectedFlightInfo flights={selectedFlights} onClear={() => setSelectedFlights([])} disabled={isSubmitting} compact />
         {!showContact && <p className="text-sm text-gray-500" role="status">{tripType === "roundtrip" ? "Chọn đủ chuyến chiều đi và chiều về để tiếp tục." : "Chọn một chuyến bay để tiếp tục."}</p>}
         <div className="flight-step-actions"><button type="button" onClick={() => goToStep(1)} className="flight-back">← Hành trình</button><button type="button" onClick={() => { if (showContact) goToStep(3); }} disabled={!showContact} className="flight-next">Tiếp tục: Thông tin liên hệ →</button></div>
@@ -217,7 +221,7 @@ export default function FlightSearchPage() {
         </div></div>
         <SelectedFlightInfo flights={selectedFlights} compact />
         <div className="flight-auth" ref={authRef}>
-          {showAuth && !account && <div className="mb-4 rounded-xl bg-blue-50 border border-blue-100 p-3"><h2 className="font-semibold">Đăng nhập để gửi và theo dõi yêu cầu</h2><p className="text-sm text-gray-600 mt-2">Hành trình và thông tin vừa nhập được giữ nguyên. Đăng nhập xong, bấm Gửi yêu cầu để xác nhận.</p><AccountPanel account={account} loading={authLoading} error={authError} onRetry={loadAccount} onChange={setAccount} /><button type="button" className="text-sm text-blue-600 underline" onClick={() => setShowAuth(false)}>Tiếp tục chỉnh sửa hành trình</button></div>}
+          {showAuth && !account && <div className="mb-4 rounded-xl bg-gold-50 border border-gold-100 p-3"><h2 className="font-semibold">Đăng nhập để gửi và theo dõi yêu cầu</h2><p className="text-sm text-gray-600 mt-2">Hành trình và thông tin vừa nhập được giữ nguyên. Đăng nhập xong, bấm Gửi yêu cầu để xác nhận.</p><AccountPanel account={account} loading={authLoading} error={authError} onRetry={loadAccount} onChange={setAccount} /><button type="button" className="text-sm text-gold-600 underline" onClick={() => setShowAuth(false)}>Tiếp tục chỉnh sửa hành trình</button></div>}
           {account && <p className="text-sm text-gray-500 break-all">Yêu cầu được lưu cho tài khoản {account.email}.</p>}
           {submitError && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700 mt-3">{submitError}</p>}
         </div>
@@ -225,7 +229,7 @@ export default function FlightSearchPage() {
         <div className="flight-step-actions"><button type="button" onClick={() => goToStep(2)} disabled={isSubmitting} className="flight-back">← Chọn chuyến</button><button type="button" onClick={submitRequest} disabled={isSubmitting || authLoading || !showContact} className="flight-next">{isSubmitting ? "Đang gửi…" : authLoading ? "Đang kiểm tra tài khoản…" : account ? "Gửi yêu cầu đặt vé" : "Tiếp tục gửi yêu cầu"}</button></div>
       </section>
       <div className="mt-6 space-y-3">
-        <div className="flight-note text-sm flex flex-wrap gap-4 justify-center"><Link to="/history" className="text-blue-600">Xem lịch sử yêu cầu</Link><Link to="/support" className="text-blue-600">Cần hỗ trợ?</Link><button type="button" disabled={isSubmitting} className="text-gray-500 underline" onClick={clearDraft}>Xóa bản nháp</button></div>
+        <div className="flight-note text-sm flex flex-wrap gap-4 justify-center"><Link to="/history" className="text-gold-600">Xem lịch sử yêu cầu</Link><Link to="/support" className="text-gold-600">Cần hỗ trợ?</Link><button type="button" disabled={isSubmitting} className="text-gray-500 underline" onClick={clearDraft}>Xóa bản nháp</button></div>
         <p className="flight-note text-xs text-gray-500 text-center">Bản nháp tự lưu trong phiên, tối đa 24 giờ.</p>
       </div>
     </div>

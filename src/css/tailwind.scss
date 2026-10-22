@@ -3,13 +3,20 @@
 @tailwind utilities;
 
 :root {
-  --primary: #3459a7;
-  --secondary: #ebedef;
+  --brand-gold: #916b19;
+  --brand-gold-dark: #765314;
+  --brand-gold-soft: #fcf8ed;
+  --brand-gold-border: #ecdaa0;
+  --brand-canvas: #faf8f2;
+  --zaui-light-color-primary: var(--brand-gold);
+  --zaui-light-button-primary-background-pressed: var(--brand-gold-dark);
+  --primary: var(--brand-gold);
+  --secondary: #f7edcf;
   --background: #ffffff;
   --foreground: #0d0d0d;
-  --section: #f7f7f8;
+  --section: #faf8f2;
   --inactive: #a9adb2;
-  --tabIndicator: #212121;
+  --tabIndicator: #916b19;
   --subtitle: #6f7071;
   --danger: #f50000;
   --skeleton: #ebedef;

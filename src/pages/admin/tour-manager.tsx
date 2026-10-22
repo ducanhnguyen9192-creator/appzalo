@@ -1,3 +1,4 @@
+import EditorDialog from "./editor-dialog";
 import { confirmDiscardChanges, useUnsavedChanges } from "./unsaved-changes";
 import { FormEvent, useEffect, useState } from "react";
 import { adminApi, uploadAdminImage } from "@/utils/admin-api";
@@ -7,7 +8,7 @@ import DeleteConfirmDialog from "./delete-confirm-dialog";
 
 const initialTour = (): Tour => ({ name: "", kind: "domestic", destination: "", duration: "", departure: "", price: null, image: "/images/news/news-3.jpg", summary: "", itinerary: "", included: "", excluded: "", published: false });
 const input = "w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-gray-900 mt-1";
-const primary = "rounded-xl bg-blue-600 text-white px-4 py-2.5 font-medium disabled:opacity-50";
+const primary = "rounded-xl bg-gold-600 text-white px-4 py-2.5 font-medium disabled:opacity-50";
 const secondary = "rounded-xl border border-gray-200 bg-white px-4 py-2.5 font-medium disabled:opacity-50";
 
 export default function TourManager() {
@@ -52,7 +53,7 @@ export default function TourManager() {
     <p className="text-sm text-gray-500">Quản lý tour trong nước, quốc tế và combo. Bật hiển thị để đưa tour lên trang chủ và danh sách tương ứng.</p>
     {error && <p role="alert" className="rounded-xl bg-red-50 text-red-700 p-4">{error}</p>}
     {notice && <p role="status" className="rounded-xl bg-green-50 text-green-700 p-4">{notice}</p>}
-    {tour && <form onSubmit={save} className="bg-white border border-gray-100 rounded-2xl p-5 space-y-4">
+    {tour && <EditorDialog enabled={Boolean(tour.id)} title="Chỉnh sửa tour" busy={busy} error={error} notice={notice} onClose={() => { if (confirmDiscardChanges()) setTour(null); }}><form onSubmit={save} className="bg-white border border-gray-100 rounded-2xl p-5 space-y-4">
       <h3 className="font-semibold">{tour.id ? "Chỉnh sửa tour" : "Thêm tour mới"}</h3>
       <fieldset disabled={busy} className="space-y-4">
         <label className="block text-sm">Tên tour<input required minLength={3} maxLength={200} className={input} value={tour.name} onChange={(e) => setTour({ ...tour, name: e.target.value })} /></label>
@@ -68,7 +69,7 @@ export default function TourManager() {
         <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={tour.published} onChange={(e) => setTour({ ...tour, published: e.target.checked })} />Hiển thị tour trong ứng dụng</label>
         <div className="flex gap-2"><button className={primary}>Lưu tour</button><button type="button" className={secondary} onClick={() => { if (confirmDiscardChanges()) setTour(null); }}>Hủy</button></div>
       </fieldset>
-    </form>}
+    </form></EditorDialog>}
     {loading ? <p role="status">Đang tải tour…</p> : tours.length === 0 ? <p className="bg-white border rounded-xl p-6 text-gray-500">Chưa có tour. Bấm “Thêm tour” để tạo tour đầu tiên.</p> : tours.map((item) => <div key={item.id} className="bg-white border border-gray-100 rounded-xl p-4 flex justify-between gap-4 items-center"><div className="min-w-0"><p className="font-medium break-words">{item.name}</p><p className="text-sm text-gray-500">{TOUR_KINDS[item.kind]} · {item.destination} · {tourPrice(item.price)}</p><p className={`text-sm mt-1 ${item.published ? "text-green-700" : "text-gray-500"}`}>{item.published ? "Đang hiển thị" : "Bản nháp / đã ẩn"}</p></div><div className="flex flex-wrap shrink-0 gap-2"><button disabled={busy} className={secondary} onClick={() => { if (!confirmDiscardChanges()) return; setTour({ ...item }); setNotice(""); }}>Sửa</button><button disabled={busy} className="rounded-xl border border-red-200 bg-white text-red-700 px-4 py-2.5 font-medium disabled:opacity-50" onClick={() => setDeleteTarget(item)}>Xoá</button></div></div>)}
   </div>;
 }

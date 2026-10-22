@@ -703,7 +703,7 @@ export function PlaneIcon(props: { active?: boolean }) {
       xmlns="http://www.w3.org/2000/svg"
     >
       <path
-        d="M21.5 16.5L13.5 13V8.5L16 6.5V5L12 6.5L8 5V6.5L10.5 8.5V13L2.5 16.5V18L10.5 16V19L8.5 20.5V22L12 21L15.5 22V20.5L13.5 19V16L21.5 18V16.5Z"
+        d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5Z"
         fill={color}
       />
     </svg>

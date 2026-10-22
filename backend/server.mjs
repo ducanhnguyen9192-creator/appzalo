@@ -1,5 +1,6 @@
 import { validPhone } from "../src/utils/contact.mjs";
 import { adminRequestFilters } from "./admin-request-filters.mjs";
+import { requestStatistics } from "./request-statistics.mjs";
 import { createServer } from "node:http";
 import { DatabaseSync } from "node:sqlite";
 import { mkdirSync, readFileSync, writeFileSync, existsSync, createReadStream } from "node:fs";
@@ -357,6 +358,7 @@ export function createAuthServer(options = {}) {
         const admin = getSessionUser(req, "admin");
         if (!admin) throw new HttpError(401, "Vui lòng đăng nhập quản trị.");
         if (admin.role !== "admin") throw new HttpError(403, "Bạn không có quyền quản trị.");
+        if (req.method === "GET" && path === "/api/admin/request-statistics") return send(200, requestStatistics(db, requestUrl.searchParams));
         if (req.method === "GET" && path === "/api/admin/service-requests") {
           const page = Math.max(1, Math.min(100000, Math.floor(Number(requestUrl.searchParams.get("page")) || 1)));
           const { where, args } = adminRequestFilters(requestUrl.searchParams, "service_requests");

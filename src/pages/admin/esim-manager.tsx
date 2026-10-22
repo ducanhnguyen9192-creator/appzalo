@@ -1,3 +1,4 @@
+import EditorDialog from "./editor-dialog";
 import { confirmDiscardChanges, useUnsavedChanges } from "./unsaved-changes";
 import { FormEvent, useEffect, useState } from "react";
 import { adminApi, uploadAdminImage } from "@/utils/admin-api";
@@ -7,7 +8,7 @@ import ImagePicker from "./image-picker";
 import DeleteConfirmDialog from "./delete-confirm-dialog";
 
 const input = "w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-gray-900 mt-1";
-const primary = "rounded-xl bg-blue-600 text-white px-4 py-2.5 font-medium disabled:opacity-50";
+const primary = "rounded-xl bg-gold-600 text-white px-4 py-2.5 font-medium disabled:opacity-50";
 const secondary = "rounded-xl border border-gray-200 bg-white px-4 py-2.5 font-medium disabled:opacity-50";
 
 export default function EsimManager() {
@@ -52,7 +53,7 @@ export default function EsimManager() {
     <p className="text-sm text-gray-500">Nhập thông tin gói dữ liệu và bật hiển thị để đưa gói lên trang chủ và danh sách eSIM.</p>
     {error && <p role="alert" className="rounded-xl bg-red-50 text-red-700 p-4">{error}</p>}
     {notice && <p role="status" className="rounded-xl bg-green-50 text-green-700 p-4">{notice}</p>}
-    {item && <form onSubmit={save} className="bg-white border border-gray-100 rounded-2xl p-5 space-y-4">
+    {item && <EditorDialog enabled={Boolean(item.id)} title="Chỉnh sửa gói eSIM" busy={busy} error={error} notice={notice} onClose={() => { if (confirmDiscardChanges()) setItem(null); }}><form onSubmit={save} className="bg-white border border-gray-100 rounded-2xl p-5 space-y-4">
       <h3 className="font-semibold">{item.id ? "Chỉnh sửa gói eSIM" : "Thêm gói eSIM mới"}</h3>
       <fieldset disabled={busy} className="space-y-4">
         <div className="grid md:grid-cols-2 gap-4">{esimTextFields.map(([field, label, max, required]) => <label key={field} className="block text-sm">{label}<input required={required} minLength={field === "name" ? 3 : undefined} maxLength={max} className={input} value={item[field]} onChange={(e) => setItem({ ...item, [field]: e.target.value })} /></label>)}
@@ -63,7 +64,7 @@ export default function EsimManager() {
         <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={item.published} onChange={(e) => setItem({ ...item, published: e.target.checked })} />Hiển thị gói eSIM trong ứng dụng</label>
         <div className="flex gap-2"><button className={primary}>Lưu gói eSIM</button><button type="button" className={secondary} onClick={() => { if (confirmDiscardChanges()) setItem(null); }}>Hủy</button></div>
       </fieldset>
-    </form>}
+    </form></EditorDialog>}
     {loading ? <p role="status">Đang tải eSIM…</p> : items.length === 0 ? <p className="bg-white border rounded-xl p-6 text-gray-500">Chưa có gói eSIM. Bấm “Thêm gói eSIM” để tạo gói đầu tiên.</p> : items.map((entry) => <div key={entry.id} className="bg-white border border-gray-100 rounded-xl p-4 flex justify-between gap-4 items-center"><div className="min-w-0 break-words"><p className="font-medium">{entry.name}</p><p className="text-sm text-gray-500">{entry.coverage} · {entry.allowance} · {entry.validity} · {tourPrice(entry.price)}</p><p className={`text-sm mt-1 ${entry.published ? "text-green-700" : "text-gray-500"}`}>{entry.published ? "Đang hiển thị" : "Bản nháp / đã ẩn"}</p></div><div className="flex flex-wrap shrink-0 gap-2"><button disabled={busy} className={secondary} onClick={() => { if (!confirmDiscardChanges()) return; setItem({ ...entry }); setNotice(""); }}>Sửa</button><button disabled={busy} className="rounded-xl border border-red-200 bg-white text-red-700 px-4 py-2.5 font-medium disabled:opacity-50" onClick={() => setDeleteTarget(entry)}>Xoá</button></div></div>)}
   </div>;
 }

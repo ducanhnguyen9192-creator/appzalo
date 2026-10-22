@@ -96,7 +96,7 @@ export default function ProfilePage() {
               onClick={item.action}
               className="bg-white rounded-2xl p-4 text-left border border-gray-100 shadow-sm active:scale-[0.99]"
             >
-              <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-xl">
+              <div className="w-10 h-10 rounded-xl bg-gold-50 flex items-center justify-center text-xl">
                 {item.icon}
               </div>
 
@@ -125,7 +125,7 @@ export default function ProfilePage() {
           <button
             type="button"
             onClick={() => navigate("/support")}
-            className="w-full mt-4 border border-blue-600 text-blue-600 font-medium rounded-xl py-3 active:bg-blue-50"
+            className="w-full mt-4 border border-gold-600 text-gold-600 font-medium rounded-xl py-3 active:bg-gold-50"
           >
             Liên hệ hỗ trợ
           </button>
