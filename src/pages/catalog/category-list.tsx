@@ -46,6 +46,10 @@ export default function CategoryListPage() {
           );
         })}
       </nav>
+      <TransitionLink to="/gioi-thieu" className="category-company-link block rounded-2xl border border-gold-200 bg-gold-50 p-5 text-gold-800">
+        <strong>Giới thiệu công ty →</strong>
+        <span className="block mt-2 text-sm">Tìm hiểu về FirstClass Travel, năng lực, dịch vụ và đội ngũ.</span>
+      </TransitionLink>
     </section>
   );
 }

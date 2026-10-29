@@ -6,6 +6,7 @@ import { confirmDiscardChanges, useUnsavedChanges } from "./unsaved-changes";
 import { FormEvent, useEffect, useState } from "react";
 import { Account, adminAuthRequest as authRequest } from "@/utils/auth";
 import ImagePicker from "./image-picker";
+import HomeHeroEditor from "./home-hero-editor";
 import DeleteConfirmDialog from "./delete-confirm-dialog";
 import TourManager from "./tour-manager";
 import EsimManager from "./esim-manager";
@@ -40,6 +41,7 @@ export default function AdminPage() {
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [users, setUsers] = useState<Customer[]>([]);
+  const userRole = tab === "admins" ? "admin" : "customer";
   const [overview, setOverview] = useState<Overview | null>(null);
   const [articles, setArticles] = useState<Article[]>([]);
   const [banners, setBanners] = useState<Banner[]>([]);
@@ -51,21 +53,21 @@ export default function AdminPage() {
 
   useUnsavedChanges(Boolean((article && JSON.stringify(article) !== JSON.stringify(articles.find(item => item.id === article.id) ?? initialArticle())) || (banner && JSON.stringify(banner) !== JSON.stringify(banners.find(item => item.id === banner.id) ?? initialBanner())) || currentPassword || newPassword || confirmation));
 
-  async function loadUsers(search = query, currentPage = page) {
-    const result = await adminApi<{ users: Customer[]; total: number }>(`users?q=${encodeURIComponent(search)}&page=${currentPage}`);
+  async function loadUsers(search = query, currentPage = page, role: "admin" | "customer" = userRole) {
+    const result = await adminApi<{ users: Customer[]; total: number }>(`users?role=${role}&q=${encodeURIComponent(search)}&page=${currentPage}`);
     setUsers(result.users); setTotal(result.total);
   }
   async function refresh() {
     const [stats, people, content, images] = await Promise.all([
       adminApi<Overview>("overview"),
-      adminApi<{ users: Customer[]; total: number }>(`users?q=${encodeURIComponent(query)}&page=${page}`),
+      adminApi<{ users: Customer[]; total: number }>(`users?role=${userRole}&q=${encodeURIComponent(query)}&page=${page}`),
       adminApi<{ articles: Article[] }>("articles"), adminApi<{ banners: Banner[] }>("banners"),
     ]);
     setOverview(stats); setUsers(people.users); setTotal(people.total); setArticles(content.articles); setBanners(images.banners);
   }
   async function refreshCurrent() {
     if (tab === "overview") setOverview(await adminApi<Overview>("overview"));
-    else if (tab === "users") await loadUsers();
+    else if (tab === "users" || tab === "admins") await loadUsers();
     else if (tab === "articles") setArticles((await adminApi<{ articles: Article[] }>("articles")).articles);
     else if (tab === "banners") setBanners((await adminApi<{ banners: Banner[] }>("banners")).banners);
   }
@@ -138,6 +140,10 @@ export default function AdminPage() {
     if (tab === id || !confirmDiscardChanges()) return;
     setArticle(null); setBanner(null); setCurrentPassword(""); setNewPassword(""); setConfirmation("");
     setTab(id); setError(""); setNotice("");
+    if (id === "admins" || id === "users") {
+      setQuery(""); setPage(1); setUsers([]); setTotal(0);
+      act(() => loadUsers("", 1, id === "admins" ? "admin" : "customer"));
+    }
   }
   return (
     <div className="min-h-screen bg-gold-50 text-gray-900">
@@ -145,7 +151,7 @@ export default function AdminPage() {
       <div className="admin-layout">
         <AdminNavigation tab={tab} busy={busy} onSelect={selectTab} />
         <main className="flex-1 min-w-0 space-y-4">
-          <div className="flex justify-between gap-3 items-center"><h2 className="text-xl font-bold">{tabs.find((item) => item.id === tab)?.label}</h2>{["overview", "users", "articles", "banners"].includes(tab) && <button className={secondary} disabled={busy} onClick={() => act(refreshCurrent)}>{busy ? "Đang cập nhật…" : "Làm mới"}</button>}</div>
+          <div className="flex justify-between gap-3 items-center"><h2 className="text-xl font-bold">{tabs.find((item) => item.id === tab)?.label}</h2>{["overview", "admins", "users", "articles", "banners"].includes(tab) && <button className={secondary} disabled={busy} onClick={() => act(refreshCurrent)}>{busy ? "Đang cập nhật…" : "Làm mới"}</button>}</div>
           {error && <div role="alert" className="rounded-xl bg-red-50 text-red-700 p-4">{error}</div>}
           {deleteTarget && <DeleteConfirmDialog label="Banner" name={deleteTarget.title} onCancel={() => setDeleteTarget(null)} onConfirm={() => removeBanner(deleteTarget)} />}
           {notice && <div role="status" className="rounded-xl bg-green-50 text-green-700 p-4">{notice}</div>}
@@ -161,7 +167,7 @@ export default function AdminPage() {
             </div>
             <div className="bg-white border border-gray-100 rounded-2xl p-5"><h3 className="font-semibold">Quản lý nội dung FirstClass</h3><p className="text-gray-500 text-sm mt-2">Bài viết và banner đã bật sẽ xuất hiện trong ứng dụng khi tải lại trang. Dùng bản nháp để chuẩn bị nội dung trước khi hiển thị.</p></div>
           </>}
-          {tab === "users" && <>
+          {(tab === "users" || tab === "admins") && <>
             <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); setPage(1); act(() => loadUsers(query, 1)); }}><input className={input} aria-label="Tìm tài khoản" placeholder="Tìm theo tên hoặc email" value={query} onChange={(e) => setQuery(e.target.value)} /><button className={primary} disabled={busy}>Tìm</button></form>
             <div className="overflow-x-auto bg-white rounded-2xl border border-gray-100"><table className="w-full text-sm text-left"><thead className="bg-gray-100"><tr>{["Họ tên / email", "Vai trò", "Ngày tạo", "Trạng thái", "Thao tác"].map((label) => <th key={label} className="p-4">{label}</th>)}</tr></thead><tbody>{users.map((user) => <tr key={user.id} className="border-t border-gray-100"><td className="p-4"><p className="font-medium">{user.name}</p><p className="text-gray-500 break-all">{user.email}</p>{user.phone && <p className="text-gray-500">{user.phone}</p>}{user.role === "customer" && <p className="text-xs text-gray-500">{user.emailVerified ? "Email đã xác minh" : "Email chưa xác minh"}</p>}</td><td className="p-4">{user.role === "admin" ? "Quản trị" : "Khách hàng"}</td><td className="p-4 whitespace-nowrap">{new Date(user.created_at).toLocaleDateString("vi-VN")}</td><td className="p-4">{user.disabled ? "Đã khóa" : "Hoạt động"}</td><td className="p-4">{user.role === "customer" && <button className={secondary} disabled={busy} onClick={() => act(async () => { await adminApi("users/status", { id: user.id, disabled: !user.disabled }); await refresh(); setNotice(user.disabled ? "Đã mở khóa tài khoản." : "Đã khóa tài khoản và đăng xuất các phiên của khách hàng."); })}>{user.disabled ? "Mở khóa" : "Khóa tài khoản"}</button>}</td></tr>)}</tbody></table>{users.length === 0 && <p className="p-6 text-gray-500">Không có tài khoản phù hợp.</p>}</div>
             <div className="flex justify-between items-center text-sm"><span>{total} tài khoản · Trang {page}</span><div className="flex gap-2"><button className={secondary} disabled={busy || page === 1} onClick={() => { const next = page - 1; setPage(next); act(() => loadUsers(query, next)); }}>Trước</button><button className={secondary} disabled={busy || page * 50 >= total} onClick={() => { const next = page + 1; setPage(next); act(() => loadUsers(query, next)); }}>Sau</button></div></div>
@@ -182,6 +188,7 @@ export default function AdminPage() {
             <div className="space-y-3">{articles.map((item) => <div key={item.id} className="bg-white border border-gray-100 rounded-xl p-4 flex items-center justify-between gap-4"><div><p className="font-medium">{item.name}</p><p className="text-sm text-gray-500 mt-1">{item.type === "offer" ? "Ưu đãi" : "Tin tức"} · {item.published ? "Đang hiển thị" : "Bản nháp / đã ẩn"} · {item.publishedAt}</p></div><button className={secondary} disabled={busy} onClick={() => { if (confirmDiscardChanges()) setArticle({ ...item }); }}>Sửa</button></div>)}</div>
           </>}
           {tab === "banners" && <>
+            <HomeHeroEditor />
             <button className={primary} disabled={busy} onClick={() => { if (confirmDiscardChanges()) setBanner(initialBanner()); }}>+ Thêm banner</button>
             {banner && <EditorDialog enabled={Boolean(banner.id)} title="Chỉnh sửa banner" busy={busy} error={error} notice={notice} onClose={() => { if (confirmDiscardChanges()) setBanner(null); }}><form className="bg-white rounded-2xl border border-gray-100 p-5 space-y-4" onSubmit={(e) => { e.preventDefault(); act(async () => { await adminApi("banners/save", banner); setBanner(null); await refresh(); setNotice("Đã lưu banner. Tải lại ứng dụng để xem thay đổi."); }); }}>
               <fieldset disabled={busy} className="space-y-4">

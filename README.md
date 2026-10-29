@@ -11,7 +11,7 @@ Zalo Mini App của FirstClass Travel, hỗ trợ khách hàng gửi yêu cầu 
 - Xem tin tức, danh mục dịch vụ và trang tài khoản khách hàng.
 - Đăng ký, đăng nhập bằng email và mật khẩu; duy trì phiên đăng nhập và đăng xuất.
 
-Form gửi yêu cầu đặt vé cần đăng nhập và lưu yêu cầu vào backend theo tài khoản khách hàng. Nhân viên FirstClass Travel xem và xử lý trong admin. Mục **Một chiều → Tìm chuyến bay** có bản thử tra giá Vietjet theo số khách đã chọn bằng trình duyệt trên máy chủ; không cần nhập thông tin liên hệ hoặc đăng nhập để tìm. Ứng dụng chưa xuất vé tự động. Form không còn gửi tới Google Apps Script.
+Form gửi yêu cầu đặt vé cần đăng nhập và lưu yêu cầu vào backend theo tài khoản khách hàng. Nhân viên FirstClass Travel xem và xử lý trong admin. Mục **Một chiều → Tìm chuyến bay** có bản thử tra giá Vietjet theo số khách đã chọn bằng trình duyệt trên máy chủ; không cần nhập thông tin liên hệ hoặc đăng nhập để tìm. Ứng dụng chưa xuất vé tự động. Backend có hàng đợi gửi yêu cầu hợp lệ sang Google Sheets cho nhân viên gọi xác nhận; cần kích hoạt theo [hướng dẫn Google Sheets](backend/google-sheets/README.md). Form không gửi trực tiếp tới Apps Script.
 
 ### Bản thử tìm vé Vietjet một chiều và hai chiều
 
@@ -23,7 +23,7 @@ Chỉ cấu hình tài khoản trên máy chủ hoặc secret manager, không đ
 
 **Đăng nhập thủ công:** nếu không cấu hình hai biến tài khoản trên, chạy `npm run dev:agency` để mở Chrome riêng và đăng nhập trực tiếp trên website Vietjet. Chế độ này cần đăng nhập lại khi khởi động backend hoặc phiên hết hạn. Phiên đăng nhập trong trình duyệt của chat độc lập với phiên backend.
 
-`dev:agency` mặc định chạy cổng 3002. Frontend thử cần `VITE_API_URL=http://127.0.0.1:3002` và CORS backend phải cho phép đúng nguồn frontend (ví dụ `http://127.0.0.1:5174`). Chỉ một lượt tìm chạy đồng thời, cache giá tối đa 60 giây. Phiên đại lý nằm trên máy chủ; khách chỉ nhận dữ liệu chuyến/giá, không nhận thông tin đăng nhập. Backend chỉ tìm vé, không tự chọn vé, gửi hành khách, đặt chỗ hoặc thanh toán.
+`dev:agency` mặc định chạy cổng 3002. Frontend thử cần `VITE_API_URL=http://127.0.0.1:3002` và CORS backend phải cho phép đúng nguồn frontend (ví dụ `http://127.0.0.1:5174`). Chỉ một lượt tìm chạy đồng thời, cache giá tối đa 60 giây. Phiên đại lý nằm trên máy chủ; khách chỉ nhận dữ liệu chuyến/giá, không nhận thông tin đăng nhập. Tìm chuyến và giữ chỗ dùng chung phiên đại lý, chạy tuần tự. Với lựa chọn chuyến, thông tin hành khách hợp lệ và đồng ý điều khoản, backend tự chọn đúng giờ/hạng/giá, nhập hành khách và giữ chỗ Pay Later; không thanh toán hay xuất vé.
 
 Chạy backend và frontend như bên dưới, mở `/flights`, chọn **Một chiều**, chọn hai sân bay từ gợi ý, ngày đi, số khách và bấm **Tìm chuyến bay**. API `POST /api/flights/search` nhận `{ origin: "HAN", destination: "SGN", departureDate: "YYYY-MM-DD", tripType: "oneway", adults: 1, children: 0, infants: 0 }`. Backend cuộn hết danh sách trước khi trả chuyến và 4 hạng giá. Các giá là giá ở bảng kết quả, chưa phải tổng thanh toán sau chọn vé; giao diện ghi rõ thời điểm lấy giá.
 
@@ -35,7 +35,9 @@ Adapter website công khai cũ vẫn có trong mã để chẩn đoán, không c
 
 Trong danh sách kết quả, bấm **Chọn giá này** để chọn chuyến và hạng giá cho yêu cầu nội bộ. Khứ hồi cần đủ hai chiều nếu có chọn chuyến; có thể bỏ toàn bộ lựa chọn để gửi yêu cầu tư vấn thông thường. Hạng hết chỗ không chọn được. Tìm lại hoặc sửa hành trình/ngày/số khách sẽ xóa lựa chọn cũ. Lựa chọn chưa gửi chỉ ở bộ nhớ trang, không khôi phục cùng bản nháp; thông tin liên hệ vẫn được giữ khi đăng nhập.
 
-**Gửi yêu cầu đặt vé** chỉ ghi vào SQLite của app (`bookings.data.selectedFlights`), trạng thái ban đầu `received`. Lưu mã chuyến, hành trình, ngày/giờ bay, loại máy bay, hạng giá, giá VND tham khảo và thời điểm tra. Backend kiểm tra lựa chọn khớp hành trình và số khách, không nhận mã đặt chỗ hoặc trạng thái xuất vé từ khách. Không gọi API đặt chỗ hãng, không chọn giá trong trình duyệt Vietjet. Giá do khách gửi là ảnh chụp tham khảo, không phải báo giá được hãng xác nhận. Lịch sử khách và trang quản trị cùng hiển thị các chuyến đã chọn; không tự tạo giao dịch thanh toán.
+**Giữ chỗ Pay Later:** app lưu yêu cầu vào SQLite rồi tự theo dõi kết quả Vietjet. Backend đối chiếu lại chuyến, giờ bay và giá trên hãng trước khi gửi. Chỉ màn hình thành công có mã đặt chỗ và hạn thanh toán mới được ghi nhận là `held`; app, lịch sử và quản trị hiển thị cùng kết quả. Google Sheets nhận mã đặt chỗ, hạn thanh toán và tổng tiền trong cột **Ghi chú khách** sau khi hãng xác nhận, không nhận ngày sinh hoặc số giấy tờ.
+
+Yêu cầu đang xử lý hoặc đã có mã không gửi lại. Lỗi xác định trước khi gửi có nút thử lại; mất kết nối sau khi gửi được đánh dấu `unknown` và cần đối soát trên hãng trước khi thao tác tiếp. Mã yêu cầu app khác mã đặt chỗ hãng. Giá tìm kiếm là giá tham khảo; tổng tiền hãng được hiển thị riêng khi thành công. Khởi động lại backend không tự gửi lại yêu cầu đang dở. Các yêu cầu tư vấn không bật giữ chỗ vẫn hoạt động như trước.
 
 Để cập nhật backend của app mà giữ phiên Chrome đại lý, giữ `dev:agency` tại cổng 3002, chạy thêm `npm run dev:app-api` tại cổng 3003 và cấu hình frontend `VITE_API_URL=http://127.0.0.1:3003`. Backend app dùng cùng SQLite và chỉ chuyển tiếp `/api/flights/search` sang worker local 3002; mọi thao tác lưu yêu cầu ở backend app. Cho phép nguồn frontend trong `AUTH_ALLOWED_ORIGINS` trên cả hai tiến trình. Có thể đặt `FLIGHT_SEARCH_WORKER` tới endpoint tìm kiếm local khác. Chạy `node backend/flight-selection-ui.mjs` với frontend đang chạy để kiểm tra chọn vé, gửi vào SQLite riêng cho test và xem lại lịch sử, không ghi yêu cầu thử vào dữ liệu khách. Script giá thật `test:flight-live` hỗ trợ `FLIGHT_TEST_SELECT=1` để thử chọn nội bộ, không gửi yêu cầu.
 
@@ -76,6 +78,12 @@ npm run dev:web
 ```
 
 Trong demo, mở **Tài khoản** để đăng ký hoặc đăng nhập. Vite chuyển các yêu cầu `/api` sang backend. Dữ liệu được lưu ở `backend/data/firstclass.sqlite`, tồn tại sau khi khởi động lại và không được đưa lên GitHub.
+
+### Mở demo trên điện thoại cùng Wi-Fi
+
+`npm run dev:web` cho phép truy cập qua mạng LAN tại cổng 5173. Trên điện thoại, mở `http://<IPv4 Wi-Fi của máy tính>:5173` (xem IPv4 bằng `ipconfig`); không dùng `localhost` hoặc `127.0.0.1`. Giữ `VITE_API_URL` trống để yêu cầu API đi qua Vite.
+
+Thêm đúng địa chỉ này vào danh sách `AUTH_ALLOWED_ORIGINS` trong `backend/.env`, phân cách bằng dấu phẩy, rồi khởi động lại backend. Nếu IP Wi-Fi thay đổi, cập nhật lại địa chỉ. Backend vẫn dùng `HOST=127.0.0.1` vì Vite chuyển tiếp API. Nếu điện thoại vẫn không kết nối, kiểm tra Windows Firewall cho phép TCP 5173 trên mạng Wi-Fi tin cậy và hai thiết bị không dùng mạng khách có cách ly thiết bị.
 
 | API | Chức năng |
 | --- | --- |

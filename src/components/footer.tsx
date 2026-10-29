@@ -1,6 +1,15 @@
-import { HomeIcon, PlaneIcon, CategoryIcon, ProfileIcon } from "./vectors";
+import { HomeIcon, PlaneIcon, ProfileIcon } from "./vectors";
 import HorizontalDivider from "./horizontal-divider";
 import TransitionLink from "./transition-link";
+
+function CompanyIcon({ active }: { active?: boolean }) {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={active ? "var(--primary)" : "currentColor"} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 11v6M12 7h.01" />
+    </svg>
+  );
+}
 
 function HistoryIcon({ active }: { active?: boolean }) {
   return (
@@ -13,24 +22,24 @@ function HistoryIcon({ active }: { active?: boolean }) {
 
 const NAV_ITEMS = [
   {
-    name: "Trang chủ",
-    path: "/",
-    icon: HomeIcon,
-  },
-  {
     name: "Vé máy bay",
     path: "/flights",
     icon: PlaneIcon,
   },
   {
-    name: "Danh mục",
-    path: "/categories",
-    icon: CategoryIcon,
-  },
-  {
     name: "Lịch sử",
     path: "/history",
     icon: HistoryIcon,
+  },
+  {
+    name: "Trang chủ",
+    path: "/",
+    icon: HomeIcon,
+  },
+  {
+    name: "Giới thiệu",
+    path: "/gioi-thieu",
+    icon: CompanyIcon,
   },
   {
     name: "Tài khoản",
@@ -45,9 +54,9 @@ export default function Footer() {
       <HorizontalDivider />
       <nav
         aria-label="Điều hướng chính"
-        className="w-full px-4 pt-2 grid"
+        className="mobile-bottom-nav"
         style={{
-          gridTemplateColumns: `repeat(${NAV_ITEMS.length}, 1fr)`,
+          gridTemplateColumns: `repeat(${NAV_ITEMS.length}, minmax(0, 1fr))`,
           paddingBottom: `max(16px, env(safe-area-inset-bottom))`,
         }}
       >
@@ -56,14 +65,14 @@ export default function Footer() {
             <TransitionLink
               to={item.path}
               key={item.path}
-              className="flex flex-col items-center space-y-0.5 p-1 pb-0.5 cursor-pointer active:scale-105"
+              className="mobile-bottom-nav-item cursor-pointer active:scale-105"
             >
               {({ isActive }) => (
                 <>
                   <div className="w-6 h-6 flex justify-center items-center">
                     <item.icon active={isActive} />
                   </div>
-                  <div className={`text-2xs ${isActive ? "text-primary" : ""}`}>
+                  <div className={`mobile-bottom-nav-label ${isActive ? "text-primary" : ""}`}>
                     {item.name}
                   </div>
                 </>

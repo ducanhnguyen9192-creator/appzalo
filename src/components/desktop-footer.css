@@ -1,0 +1,16 @@
+.desktop-footer { display: none; }
+@media (min-width: 1024px) {
+  .app-content { display: flex; flex-direction: column; }
+  .app-route { flex: 1 0 auto; min-height: 0; }
+  .desktop-footer { display: block; flex-shrink: 0; width: 100%; background: #06131f; color: #c6cfd9; font-family: Arial, sans-serif; font-size: 14px; line-height: 2; }
+  .desktop-footer-main { display: grid; grid-template-columns: 1.4fr 1fr 1.1fr; gap: 64px; max-width: 1248px; margin: 0 auto; padding: 56px 24px 60px; }
+  .desktop-footer-intro img { display: block; width: 190px; height: 76px; object-fit: cover; margin-bottom: 20px; }
+  .desktop-footer-intro p { max-width: 440px; }
+  .desktop-footer h2 { margin: 6px 0 20px; color: #e4c56a; font-family: var(--app-font); font-size: 16px; font-weight: 700; line-height: 1.5; }
+  .desktop-footer nav a, .desktop-footer address a { display: block; width: fit-content; margin-bottom: 4px; }
+  .desktop-footer address { font-style: normal; overflow-wrap: anywhere; }
+  .desktop-footer a:hover { color: #e4c56a; }
+  .desktop-footer a:focus-visible { outline: 2px solid #e4c56a; outline-offset: 4px; border-radius: 2px; }
+  .desktop-footer-bottom { border-top: 1px solid #ffffff1a; color: #9aaec2; font-size: 12px; }
+  .desktop-footer-bottom > div { display: flex; justify-content: space-between; gap: 24px; max-width: 1248px; margin: 0 auto; padding: 18px 24px; }
+}

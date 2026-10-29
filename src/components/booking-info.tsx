@@ -1,8 +1,10 @@
 import { Booking, BOOKING_STATUS, formatBookingRoute, formatDateTime, formatFlightDate } from "@/utils/bookings";
 import SelectedFlightInfo from "@/components/selected-flight-info";
+import AirlineHoldInfo from "@/components/airline-hold-info";
 
 export default function BookingInfo({ booking }: { booking: Booking }) {
   return <div className="space-y-3 break-words">
+    <AirlineHoldInfo hold={booking.airlineHold} />
     <div className="flex flex-wrap justify-between gap-2"><h3 className="font-semibold">{formatBookingRoute(booking)}</h3><span className="text-sm rounded-lg bg-gold-50 text-gold-700 px-3 py-1">{BOOKING_STATUS[booking.status]}</span></div>
     <p className="text-xs text-gray-500">Mã yêu cầu: {booking.id}</p>
     <dl className="grid sm:grid-cols-2 gap-3 text-sm">

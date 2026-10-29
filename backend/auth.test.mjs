@@ -135,6 +135,31 @@ async function adminFixture(t) {
   return { ...fixture, admin, cookie: login.headers.get("set-cookie"), databasePath };
 }
 
+test("home hero image is admin-only, persistent, validated and independent of banners", async (t) => {
+  const { api, request, cookie, databasePath } = await adminFixture(t);
+  const original = { image: "/images/tours/phu-quoc.jpg" };
+  assert.deepEqual(await (await api("content/home-hero")).json(), original);
+  const banners = await (await api("content/banners")).json();
+  const image = "/api/media/11111111-1111-1111-1111-111111111111.webp";
+  assert.equal((await api("admin/home-hero/save", { image })).status, 401);
+  const customer = (await request("register", account)).headers.get("set-cookie");
+  assert.equal((await api("admin/home-hero/save", { image }, customer)).status, 401);
+  for (const value of [null, "", "javascript:alert(1)", "http://example.test/image.jpg"]) {
+    assert.equal((await api("admin/home-hero/save", { image: value }, cookie)).status, 400);
+  }
+  assert.equal((await api("admin/home-hero/save", { image }, cookie)).status, 200);
+  assert.deepEqual(await (await api("content/home-hero")).json(), { image });
+  assert.deepEqual(await (await api("content/banners")).json(), banners);
+  const db = new DatabaseSync(databasePath);
+  try {
+    assert.equal(db.prepare("SELECT value FROM settings WHERE key = 'home_hero_image'").get().value, image);
+    const audit = db.prepare("SELECT details FROM admin_audit WHERE action = 'home_hero.update'").get();
+    assert.deepEqual(JSON.parse(audit.details), { before: original, after: { image } });
+  } finally { db.close(); }
+  assert.equal((await api("admin/home-hero/save", original, cookie)).status, 200);
+  assert.deepEqual(await (await api("content/home-hero")).json(), original);
+});
+
 test("customers cannot self-promote or access admin reads or writes", async (t) => {
   const { api, request } = await start(t);
   assert.equal((await api("admin/users")).status, 401);
@@ -154,6 +179,19 @@ test("admin can list customers, disable sessions and re-enable login", async (t)
   const list = await (await api("admin/users", null, cookie)).json();
   assert.equal(list.total, 2);
   assert.ok(list.users.every((user) => !user.password_hash));
+  for (const role of ["admin", "customer"]) {
+    const filtered = await (await api(`admin/users?role=${role}&q=example.test`, null, cookie)).json();
+    assert.equal(filtered.total, 1);
+    assert.equal(filtered.users.length, 1);
+    assert.equal(filtered.users[0].role, role);
+    const nextPage = await (await api(`admin/users?role=${role}&page=2`, null, cookie)).json();
+    assert.equal(nextPage.total, 1);
+    assert.deepEqual(nextPage.users, []);
+  }
+  const noMatch = await (await api(`admin/users?role=admin&q=${encodeURIComponent(account.name)}`, null, cookie)).json();
+  assert.equal(noMatch.total, 0);
+  assert.deepEqual(noMatch.users, []);
+  assert.equal((await api("admin/users?role=invalid", null, cookie)).status, 400);
   assert.equal((await api("admin/users/status", { id: customer.id, disabled: true }, cookie)).status, 200);
   assert.equal((await request("me", null, customerCookie)).status, 401);
   assert.equal((await request("login", account)).status, 401);

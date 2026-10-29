@@ -1,4 +1,5 @@
 import { useState } from "react";
+import CooperationContact from "./cooperation-contact";
 import { Link, useSearchParams } from "react-router-dom";
 import { getConfig } from "@/utils/template";
 import { Tour, tourPrice, useContentData } from "@/utils/tours";
@@ -43,6 +44,7 @@ export default function SupportPage() {
     catch { setError("Không mở được chat trong ứng dụng. Bạn có thể mở trang Zalo của FirstClass bên dưới."); }
     finally { setBusy(false); }
   }
+  if (service !== "tour" && service !== "esim") return <CooperationContact />;
   return <div className="bg-white border border-gray-100 rounded-2xl p-5 lg:p-8 max-w-3xl mx-auto space-y-5">
     <p className="text-sm font-semibold text-gold-600">FIRSTCLASS TRAVEL</p><h1 className="text-2xl font-bold">Hỗ trợ & tư vấn</h1>
     <p className="text-gray-600">Trao đổi với FirstClass qua Zalo để hỏi về vé máy bay, tour, eSIM hoặc yêu cầu đã gửi.</p>

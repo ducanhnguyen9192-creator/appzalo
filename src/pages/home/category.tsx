@@ -9,9 +9,9 @@ export default function Category() {
   const categories = useAtomValue(categoriesState);
 
   return (
-    <Section title="Dịch vụ du lịch" viewMoreTo="/categories">
+    <Section title="Dịch vụ du lịch">
       <nav className="home-category-list" aria-label="Dịch vụ du lịch">
-        {categories.filter((category) => [1, 2, 3, 4].includes(category.id)).map((category) => (
+        {categories.map((category) => (
           <TransitionLink
             key={category.id}
             className="home-category-link"

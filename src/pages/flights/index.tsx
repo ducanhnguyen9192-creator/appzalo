@@ -10,6 +10,9 @@ import FlightResults from "@/components/flight-results";
 import SelectedFlightInfo from "@/components/selected-flight-info";
 import type { SelectedFlight } from "@/utils/flight-selection";
 import { VIETJET_CABIN_FARES } from "@/utils/flight-selection";
+import AirlinePassengers, { AirlinePassenger } from "@/components/airline-passengers";
+import AirlineHoldInfo from "@/components/airline-hold-info";
+import { airlinePassengerError } from "@/utils/airline-passengers.mjs";
 
 const FLIGHT_STEPS = ["Hành trình", "Chọn chuyến", "Thông tin liên hệ"] as const;
 type FlightStep = 1 | 2 | 3;
@@ -30,8 +33,14 @@ export default function FlightSearchPage() {
   const [errors, setErrors] = useState<FlightErrors>({});
   const [submitError, setSubmitError] = useState("");
   const [lastBooking, setLastBooking] = useState<Booking | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitting, setIsSubmitting] = useState(false);
+  const isSubmitting = submitting || ['processing', 'submitting'].includes(lastBooking?.airlineHold?.status ?? '');
   const [selectedFlights, setSelectedFlights] = useState<SelectedFlight[]>([]);
+  const [passengers, setPassengers] = useState<AirlinePassenger[]>([]);
+  const [contactEmail, setContactEmail] = useState('');
+  const [airlineTermsAccepted, setAirlineTermsAccepted] = useState(false);
+  const [inputCompleted, setInputCompleted] = useState(0);
+  const autoAttempt = useRef('');
   const [activeAirport, setActiveAirport] = useState<FlightField | null>(null);
   const sending = useRef(false);
   const requestIdentity = useRef<{ payload: string; key: string } | null>(null);
@@ -50,7 +59,47 @@ export default function FlightSearchPage() {
   }
   useEffect(() => { loadAccount(); }, []);
   useEffect(() => {
+    const types = [...Array(Math.max(0, Math.min(10, form.adults || 0))).fill('adult'), ...Array(Math.max(0, Math.min(10, form.children || 0))).fill('child'), ...Array(Math.max(0, Math.min(2, form.infants || 0))).fill('infant')];
+    setPassengers(previous => types.map((type, index) => previous[index]?.type === type ? previous[index] : { type, title: '', lastName: '', firstName: '', dateOfBirth: '', documentNumber: '', country: 'Vietnam' }));
+  }, [form.adults, form.children, form.infants, account?.id]);
+  useEffect(() => {
+    if (consultationOnly || step !== 3 || !showContact || lastBooking || sending.current || authLoading) return;
+    if (Object.keys(validateFlight(form, tripType)).length || airlinePassengerError({ ...form, tripType, passengers, contactEmail, airlineTermsAccepted })) return;
+    const signature = JSON.stringify([account?.id, form, tripType, selectedFlights, passengers, contactEmail, airlineTermsAccepted]);
+    if (autoAttempt.current === signature) return;
+    autoAttempt.current = signature;
+    void submitRequest();
+  }, [inputCompleted, step, account?.id, authLoading, selectedFlights]);
+  useEffect(() => {
+    if (!account) return;
+    let activeId: string | null = null;
+    try { activeId = sessionStorage.getItem(`firstclass.active-hold.${account.id}`); } catch {}
+    if (activeId) void bookingApi<{ booking: Booking }>(`bookings/${activeId}`).then(({ booking }) => setLastBooking(booking)).catch(() => {});
+  }, [account?.id]);
+  useEffect(() => {
+    if (!lastBooking || !['processing', 'submitting'].includes(lastBooking.airlineHold?.status ?? '')) return;
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout>;
+    const started = Date.now();
+    const poll = async () => {
+      try {
+        const result = await bookingApi<{ booking: Booking }>(`bookings/${lastBooking.id}`);
+        if (cancelled) return;
+        if (!['processing', 'submitting'].includes(result.booking.airlineHold?.status ?? '')) { setLastBooking(result.booking); return; }
+      } catch { /* A lost response must not trigger a second airline submission. */ }
+      if (cancelled) return;
+      if (Date.now() - started > 300000) {
+        setLastBooking(previous => previous ? { ...previous, airlineHold: { status: 'unknown', message: 'Chưa nhận được kết quả. Kiểm tra trong Lịch sử hoặc trên Vietjet; không tạo lại đặt chỗ.' } } : previous);
+        return;
+      }
+      timer = setTimeout(poll, 2500);
+    };
+    timer = setTimeout(poll, 1500);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [lastBooking?.id, lastBooking?.airlineHold?.status]);
+  useEffect(() => {
     if (previousAccount.current && previousAccount.current !== account?.id) {
+      setPassengers([{ type: 'adult', title: '', lastName: '', firstName: '', dateOfBirth: '', documentNumber: '', country: 'Vietnam' }]); setContactEmail(''); setAirlineTermsAccepted(false); autoAttempt.current = '';
       setForm(EMPTY_FLIGHT()); setSelectedFlights([]); setRestored(false); setErrors({}); requestIdentity.current = null;
       setStep(1);
       try { sessionStorage.removeItem(DRAFT_KEY); } catch {}
@@ -79,6 +128,8 @@ export default function FlightSearchPage() {
     setActiveAirport(null); setErrors({}); setSubmitError(""); setShowAuth(false); setStep(next);
   }
   function selectFlights(flights: SelectedFlight[]) {
+    if (isSubmitting) return;
+    if (flights.length) setLastBooking(null);
     setSelectedFlights(flights);
     const complete = flights.some(flight => flight.leg === "outbound") && (tripType !== "roundtrip" || flights.some(flight => flight.leg === "inbound"));
     if (step === 2 && !consultationOnly && complete) goToStep(3);
@@ -134,10 +185,14 @@ export default function FlightSearchPage() {
     }
     if (authLoading) { setSubmitError("Đang kiểm tra tài khoản. Vui lòng thử gửi lại sau giây lát."); return; }
     if (!account) { setShowAuth(true); return; }
+    if (!consultationOnly) {
+      const passengerError = airlinePassengerError({ ...form, tripType, passengers, contactEmail, airlineTermsAccepted });
+      if (passengerError) { setSubmitError(passengerError); return; }
+    }
     const { segments, ...details } = form;
     const payload = tripType === "multicity"
       ? { ...details, tripType, segments, origin: segments[0].origin, destination: segments[segments.length - 1].destination, departureDate: segments[0].departureDate, returnDate: "" }
-      : { ...details, tripType, returnDate: tripType === "roundtrip" ? form.returnDate : "", ...(selectedFlights.length ? { selectedFlights } : {}) };
+      : { ...details, tripType, returnDate: tripType === "roundtrip" ? form.returnDate : "", selectedFlights, autoHold: true, passengers, contactEmail, airlineTermsAccepted };
     const serialized = JSON.stringify({ ...payload, accountId: account.id });
     if (requestIdentity.current?.payload !== serialized) {
       const bytes = Array.from(crypto.getRandomValues(new Uint8Array(16)), (value) => value.toString(16).padStart(2,"0")).join("");
@@ -145,22 +200,36 @@ export default function FlightSearchPage() {
     }
     sending.current = true; setIsSubmitting(true);
     try {
+      if (!consultationOnly) {
+        const capabilities = await bookingApi<{ version: number }>('flights/hold-capabilities');
+        if (capabilities.version !== 1) throw new Error('Máy chủ chưa cập nhật chức năng giữ chỗ. Vui lòng khởi động lại backend.');
+      }
       const result = await bookingApi<{ booking: Booking }>("bookings", { ...payload, requestKey: requestIdentity.current.key });
+      if (result.booking.airlineHold) { try { sessionStorage.setItem(`firstclass.active-hold.${account.id}`, result.booking.id); } catch {} }
       clearDraft(); setLastBooking(result.booking);
+      setPassengers(previous => previous.map(person => ({ ...person, title: '', lastName: '', firstName: '', dateOfBirth: '', documentNumber: '' }))); setContactEmail(''); setAirlineTermsAccepted(false);
       formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     } catch (e) {
       if (e instanceof BookingApiError && e.status === 401) { previousAccount.current = null; setAccount(null); setShowAuth(true); }
       setSubmitError(e instanceof Error ? e.message : "Không gửi được yêu cầu. Dữ liệu của bạn được giữ lại, hãy thử lại.");
     } finally { sending.current = false; setIsSubmitting(false); }
   }
+  async function retryHold() {
+    if (!lastBooking || lastBooking.airlineHold?.status !== 'failed' || sending.current) return;
+    sending.current = true; setIsSubmitting(true);
+    try { const result = await bookingApi<{ booking: Booking }>(`bookings/${lastBooking.id}/retry`, {}); setLastBooking(result.booking); }
+    catch (error) { setSubmitError(error instanceof Error ? error.message : 'Chưa thử lại được.'); }
+    finally { sending.current = false; setIsSubmitting(false); }
+  }
   const inputClass = "w-full mt-1 border border-gray-200 rounded-xl px-3 py-3 bg-white outline-none focus:border-gold-600 disabled:bg-gray-50";
   function fieldProps(field: FlightField) { return { id: `flight-${field}`, name: field, "aria-invalid": Boolean(errors[field]), "aria-describedby": errors[field] ? `error-${field}` : undefined, disabled: isSubmitting, className: `${inputClass} ${errors[field] ? "border-red-500" : ""}` }; }
   function errorText(field: keyof FlightForm) { return errors[field] ? <p id={`error-${field}`} className="mt-1 text-sm text-red-600">{errors[field]}</p> : null; }
 
   return <div ref={formRef} className="flight-page p-4 pb-8 space-y-4">
+    {lastBooking?.airlineHold?.status === 'failed' && <div><button type="button" disabled={isSubmitting} onClick={retryHold} className="rounded-xl bg-gold-600 text-white px-4 py-3">Thử lại giữ chỗ chưa gửi</button>{submitError && <p role="alert">{submitError}</p>}</div>}
     <div className="bg-white rounded-2xl p-4 shadow-sm">
-      <div className="mb-5"><h1 className="text-xl font-semibold">Yêu cầu đặt vé máy bay</h1><p className="text-sm text-gray-500 mt-2">Chọn hành trình và chuyến bay, FirstClass sẽ liên hệ tư vấn.</p></div>
-      {lastBooking && <div role="status" className="mb-5 rounded-xl bg-green-50 border border-green-200 p-4 break-words"><h2 className="font-semibold text-green-800">Đã lưu yêu cầu trong app</h2><p className="mt-2 text-sm">Mã yêu cầu: {lastBooking.id}. Chưa đặt vé hay giữ chỗ với Vietjet.</p><SelectedFlightInfo flights={lastBooking.selectedFlights ?? []} /><Link to="/history" className="inline-block mt-3 text-gold-600 text-sm font-medium">Theo dõi yêu cầu trong lịch sử →</Link></div>}
+      <div className="mb-5"><h1 className="text-xl font-semibold">Yêu cầu đặt vé máy bay</h1><p className="text-sm text-gray-500 mt-2">Chọn chuyến, nhập đủ thông tin khách để tự động giữ chỗ Vietjet bằng Pay Later.</p></div>
+      {lastBooking && <div role="status" className="mb-5 rounded-xl bg-green-50 border border-green-200 p-4 break-words"><AirlineHoldInfo hold={lastBooking.airlineHold} /><p className="mt-2 text-sm">Mã yêu cầu trong app: {lastBooking.id}</p><SelectedFlightInfo flights={lastBooking.selectedFlights ?? []} /><Link to="/history" className="inline-block mt-3 text-gold-600 text-sm font-medium">Theo dõi yêu cầu trong lịch sử →</Link></div>}
       {restored && <p role="status" className="mb-4 rounded-xl bg-gold-50 p-3 text-sm text-gold-700">Đã khôi phục bản nháp trong phiên này. Bạn có thể tiếp tục nhập hoặc xóa bản nháp.</p>}
       <nav aria-label="Các bước đặt vé" className="flight-steps"><ol>{FLIGHT_STEPS.map((label, index) => <li key={label}><button type="button" aria-current={step === index + 1 ? "step" : undefined} disabled={isSubmitting || index + 1 > step} onClick={() => goToStep((index + 1) as FlightStep)} className={index + 1 < step ? "is-complete" : ""}><span aria-hidden="true">{index + 1 < step ? "✓" : index + 1}</span><span>{label}</span></button></li>)}</ol></nav>
       <div className="mb-5"><h2 ref={stepHeadingRef} tabIndex={-1} className="flight-step-heading font-semibold">Bước {step}/3 · {FLIGHT_STEPS[step - 1]}</h2><p className="text-sm text-gray-500 mt-2">{step === 1 ? "Chọn điểm đi, điểm đến, ngày bay và số hành khách." : step === 2 ? consultationOnly ? "Kiểm tra các chặng trước khi yêu cầu FirstClass tư vấn chuyến bay." : tripType === "roundtrip" ? "Tìm và chọn chuyến cho cả chiều đi và chiều về." : "Tìm chuyến và chọn giá phù hợp để tiếp tục." : "Để lại họ tên và số điện thoại để FirstClass liên hệ."}</p></div>
@@ -213,20 +282,22 @@ export default function FlightSearchPage() {
         {!showContact && <p className="text-sm text-gray-500" role="status">{tripType === "roundtrip" ? "Chọn đủ chuyến chiều đi và chiều về để tiếp tục." : "Chọn một chuyến bay để tiếp tục."}</p>}
         <div className="flight-step-actions"><button type="button" onClick={() => goToStep(1)} className="flight-back">← Hành trình</button><button type="button" onClick={() => { if (showContact) goToStep(3); }} disabled={!showContact} className="flight-next">Tiếp tục: Thông tin liên hệ →</button></div>
       </section>
-      <section hidden={step !== 3} aria-label="Thông tin liên hệ" className="flight-step space-y-4">
+      <section hidden={step !== 3} aria-label="Thông tin liên hệ" className="flight-step space-y-4" onBlur={() => setInputCompleted(value => value + 1)}>
         <div className="flight-contact"><div className="flight-contact-fields space-y-3">
           <div><label htmlFor="flight-fullName" className="text-sm font-medium">Họ và tên <span className="text-red-600">*</span></label><input {...fieldProps("fullName")} autoComplete="name" maxLength={100} value={form.fullName} placeholder="Nhập họ và tên" onChange={(e) => update("fullName", e.target.value)} />{errorText("fullName")}</div>
           <div><label htmlFor="flight-phone" className="text-sm font-medium">Số điện thoại / Zalo <span className="text-red-600">*</span></label><input {...fieldProps("phone")} type="tel" inputMode="tel" autoComplete="tel" maxLength={30} value={form.phone} placeholder="Ví dụ: 0901234567" onChange={(e) => update("phone", e.target.value)} />{errorText("phone")}</div>
           <div><label htmlFor="flight-note" className="text-sm font-medium">Ghi chú (không bắt buộc)</label><textarea {...fieldProps("note")} rows={3} maxLength={2000} value={form.note} placeholder="Ví dụ: Ưu tiên chuyến sáng, cần hành lý 23 kg…" onChange={(e) => update("note", e.target.value)} />{errorText("note")}</div>
         </div></div>
         <SelectedFlightInfo flights={selectedFlights} compact />
+        {!consultationOnly && <AirlinePassengers people={passengers} onChange={setPassengers} email={contactEmail} onEmailChange={setContactEmail} disabled={isSubmitting} />}
+        {!consultationOnly && <label className="block text-sm"><input type="checkbox" checked={airlineTermsAccepted} disabled={isSubmitting} onChange={e => setAirlineTermsAccepted(e.target.checked)} /> Tôi đồng ý điều kiện vé và <a href="https://www.vietjetair.com/vi/pages/de-co-chuyen-bay-tot-dep-1578323501979/dieu-le-van-chuyen-1601835865384" target="_blank" rel="noopener noreferrer" className="underline">điều lệ vận chuyển Vietjet</a> để tự động giữ chỗ Pay Later.</label>}
         <div className="flight-auth" ref={authRef}>
-          {showAuth && !account && <div className="mb-4 rounded-xl bg-gold-50 border border-gold-100 p-3"><h2 className="font-semibold">Đăng nhập để gửi và theo dõi yêu cầu</h2><p className="text-sm text-gray-600 mt-2">Hành trình và thông tin vừa nhập được giữ nguyên. Đăng nhập xong, bấm Gửi yêu cầu để xác nhận.</p><AccountPanel account={account} loading={authLoading} error={authError} onRetry={loadAccount} onChange={setAccount} /><button type="button" className="text-sm text-gold-600 underline" onClick={() => setShowAuth(false)}>Tiếp tục chỉnh sửa hành trình</button></div>}
+          {showAuth && !account && <div className="mb-4 rounded-xl bg-gold-50 border border-gold-100 p-3"><h2 className="font-semibold">Đăng nhập để gửi và theo dõi yêu cầu</h2><p className="text-sm text-gray-600 mt-2">Hành trình và thông tin vừa nhập được giữ nguyên. Đăng nhập xong, app tự động giữ chỗ nếu đã đủ thông tin khách.</p><AccountPanel account={account} loading={authLoading} error={authError} onRetry={loadAccount} onChange={setAccount} /><button type="button" className="text-sm text-gold-600 underline" onClick={() => setShowAuth(false)}>Tiếp tục chỉnh sửa hành trình</button></div>}
           {account && <p className="text-sm text-gray-500 break-all">Yêu cầu được lưu cho tài khoản {account.email}.</p>}
           {submitError && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700 mt-3">{submitError}</p>}
         </div>
         <p className="text-xs text-gray-500">Gửi yêu cầu chưa phải xác nhận mua vé hay thanh toán.</p>
-        <div className="flight-step-actions"><button type="button" onClick={() => goToStep(2)} disabled={isSubmitting} className="flight-back">← Chọn chuyến</button><button type="button" onClick={submitRequest} disabled={isSubmitting || authLoading || !showContact} className="flight-next">{isSubmitting ? "Đang gửi…" : authLoading ? "Đang kiểm tra tài khoản…" : account ? "Gửi yêu cầu đặt vé" : "Tiếp tục gửi yêu cầu"}</button></div>
+        <div className="flight-step-actions"><button type="button" onClick={() => goToStep(2)} disabled={isSubmitting} className="flight-back">← Chọn chuyến</button><button type="button" onClick={submitRequest} disabled={isSubmitting || authLoading || !showContact} className="flight-next">{isSubmitting ? "Đang gửi…" : authLoading ? "Đang kiểm tra tài khoản…" : account ? consultationOnly ? "Gửi yêu cầu đặt vé" : "Hoàn tất thông tin khách" : "Đăng nhập để giữ chỗ"}</button></div>
       </section>
       <div className="mt-6 space-y-3">
         <div className="flight-note text-sm flex flex-wrap gap-4 justify-center"><Link to="/history" className="text-gold-600">Xem lịch sử yêu cầu</Link><Link to="/support" className="text-gold-600">Cần hỗ trợ?</Link><button type="button" disabled={isSubmitting} className="text-gray-500 underline" onClick={clearDraft}>Xóa bản nháp</button></div>

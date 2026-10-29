@@ -7,13 +7,16 @@ import HomeEsims from "./esims";
 import heroImage from "@/assets/tours/phu-quoc.jpg";
 import "./home.css";
 import HomeFlightSearch from "./flight-search";
+import { useContentData } from "@/utils/tours";
+import { contentImage } from "@/utils/content-image";
 
 
 const HomePage: React.FunctionComponent = () => {
+  const { data: hero } = useContentData<{ image: string }>("home-hero");
   return (
     <div className="home-page home-boutique min-h-full">
       <section className="journey-hero" aria-labelledby="journey-title">
-        <img className="journey-hero-image" src={heroImage} alt="Bờ biển xanh với hàng dừa và bãi cát trắng" fetchPriority="high" />
+        <img className="journey-hero-image" src={hero?.image ? contentImage(hero.image) : heroImage} alt="Cảm hứng hành trình cùng FirstClass Travel" fetchPriority="high" onError={(event) => { if (event.currentTarget.getAttribute("src") !== heroImage) event.currentTarget.src = heroImage; }} />
         <div className="journey-hero-content">
           <p className="journey-eyebrow">FIRSTCLASS TRAVEL · ĐI & CẢM NHẬN</p>
           <h1 id="journey-title">Đi để khám phá.<br /><em>Ở lại trong ký ức.</em></h1>

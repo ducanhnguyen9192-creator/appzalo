@@ -2,6 +2,7 @@ import { NavLink, Outlet } from "react-router-dom";
 import headerLogo from "@/static/header-logo.svg";
 import Header from "./header";
 import Footer from "./footer";
+import DesktopFooter from "./desktop-footer";
 import { Suspense } from "react";
 import { PageSkeleton } from "./skeleton";
 import { Toaster } from "react-hot-toast";
@@ -14,12 +15,13 @@ export default function Layout() {
       <div className="mobile-header"><Header /></div>
       <header className="desktop-header">
         <div className="desktop-header-inner">
-          <NavLink to="/" aria-label="FirstClass Travel - Trang chủ" className="desktop-brand"><img src={headerLogo} alt="" /><span>FirstClass Travel</span></NavLink>
+          <NavLink to="/" aria-label="FirstClass Travel - Trang chủ" className="desktop-brand"><img src={headerLogo} alt="FirstClass" /></NavLink>
           <nav aria-label="Điều hướng chính" className="desktop-nav">
-            {[["/", "Trang chủ"], ["/flights", "Vé máy bay"], ["/categories", "Danh mục"], ["/history", "Lịch sử"], ["/profile", "Tài khoản"]].map(([path, label]) => (
+            {[["/flights", "Vé máy bay"], ["/history", "Lịch sử"], ["/", "Trang chủ"], ["/gioi-thieu", "Giới thiệu công ty"], ["/profile", "Tài khoản"]].map(([path, label]) => (
               <NavLink key={path} to={path} end={path === "/"} className={({ isActive }) => isActive ? "is-active" : ""}>{label}</NavLink>
             ))}
             <LanguageSelector />
+            <NavLink to="/support" className="desktop-contact">Yêu cầu hợp tác</NavLink>
           </nav>
         </div>
       </header>
@@ -29,6 +31,7 @@ export default function Layout() {
           <Outlet />
         </Suspense>
         </main>
+        <DesktopFooter />
       </div>
       <div className="mobile-footer"><Footer /></div>
       <Toaster

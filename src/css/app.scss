@@ -55,6 +55,12 @@
   .language-option { font-size: 12px; }
 }
 .mobile-header, .mobile-footer { flex-shrink: 0; }
+.mobile-bottom-nav { display: grid; width: 100%; padding: 8px max(4px, env(safe-area-inset-right)) 16px max(4px, env(safe-area-inset-left)); }
+.mobile-bottom-nav-item { display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 4px; min-width: 0; min-height: 48px; padding: 4px 0 2px; text-align: center; }
+.mobile-bottom-nav-label { font-size: 12px; line-height: 16px; white-space: nowrap; }
+@media (max-width: 359px) {
+  .mobile-bottom-nav-label { font-size: 11px; }
+}
 .header-search { width: 144px; max-width: 50%; margin-left: auto; }
 .header-search > div { padding-inline: 0; }
 .header-search input { height: 36px; padding-left: 36px; font-size: 14px; }
@@ -106,14 +112,19 @@ input, select, textarea { min-width: 0; }
 @media (min-width: 1024px) {
   .app-shell { background: var(--brand-canvas); }
   .mobile-header, .mobile-footer { display: none; }
-  .desktop-header { display: block; height: 80px; box-sizing: border-box; flex-shrink: 0; background: white; border-bottom: 1px solid #eae3d4; }
-  .desktop-header-inner { max-width: 1248px; height: 100%; margin: auto; padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; gap: 32px; }
-  .desktop-brand { display: flex; align-items: center; gap: 10px; color: #162842; font-size: 18px; font-weight: 700; white-space: nowrap; }
-  .desktop-brand img { width: 80px; height: 44px; object-fit: contain; }
-  .desktop-nav { display: flex; align-items: center; gap: 8px; }
-  .desktop-nav a { padding: 12px 18px; color: #526079; border-radius: 12px; font-size: 15px; font-weight: 500; transition: background .15s; }
-  .desktop-nav a:hover { background: var(--brand-gold-soft); }
-  .desktop-nav a.is-active { color: var(--brand-gold); background: var(--brand-gold-soft); }
+  .desktop-header { display: block; box-sizing: border-box; flex-shrink: 0; padding: 12px 24px 0; background: var(--brand-canvas); }
+  .desktop-header-inner { max-width: 1320px; min-height: 76px; margin: auto; padding: 10px 14px 10px 24px; display: flex; align-items: center; justify-content: space-between; gap: 20px; border: 1px solid #ffffff26; border-radius: 999px; background: #505c62; box-shadow: 0 12px 30px #18242c1a; }
+  .desktop-brand { display: flex; align-items: center; flex-shrink: 0; border-radius: 8px; }
+  .desktop-brand img { display: block; width: 172px; height: 54px; object-fit: cover; }
+  .desktop-nav { display: flex; align-items: center; gap: 4px; }
+  .desktop-nav > a { padding: 12px 10px; color: #e2e5e7; border-radius: 999px; font-family: Arial, sans-serif; font-size: 13px; font-weight: 700; white-space: nowrap; transition: background .15s; }
+  .desktop-nav > a:hover { background: #ffffff14; color: white; }
+  .desktop-nav > a.is-active { color: #f2d585; background: #ffffff0d; }
+  .desktop-nav .language-trigger { color: #e2e5e7; border-radius: 999px; padding-inline: 10px; font-size: 13px; }
+  .desktop-nav .language-trigger:hover { background: #ffffff14; }
+  .desktop-nav > a.desktop-contact { background: #d2a63f; color: #071420; padding: 14px 20px; margin-left: 4px; }
+  .desktop-nav > a.desktop-contact:hover { background: #e4ba54; }
+  .desktop-header a:focus-visible, .desktop-header button:focus-visible { outline: 2px solid #f2d585; outline-offset: 3px; }
   .app-route { width: 100%; max-width: 1248px; margin: auto; padding: 28px 24px 48px; }
   .home-page { background: transparent; }
   .home-tools { display: flex; align-items: center; justify-content: space-between; gap: 24px; background: transparent; padding: 0 0 20px; }
@@ -211,6 +222,15 @@ input, select, textarea { min-width: 0; }
 }
 
 // Shared warm surfaces for the customer app and admin.
+@media (min-width: 1024px) and (max-width: 1199px) {
+  .desktop-header { padding-inline: 16px; }
+  .desktop-header-inner { gap: 10px; padding-left: 18px; }
+  .desktop-brand img { width: 140px; height: 50px; }
+  .desktop-nav { gap: 2px; }
+  .desktop-nav > a { padding-inline: 7px; font-size: 12px; }
+  .desktop-nav .language-trigger { padding-inline: 6px; font-size: 12px; }
+  .desktop-nav > a.desktop-contact { padding-inline: 14px; }
+}
 .app-shell { background: var(--brand-canvas); }
 .desktop-brand, .desktop-home-intro h1 { color: #503816; }
 input[type="checkbox"], input[type="radio"] { accent-color: var(--brand-gold); }

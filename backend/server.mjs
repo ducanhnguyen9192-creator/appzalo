@@ -1,4 +1,8 @@
 import { validPhone } from "../src/utils/contact.mjs";
+import { airlinePassengerData } from "../src/utils/airline-passengers.mjs";
+import { createAirlineHolds } from "./airline-hold.mjs";
+import { holdAgency } from "./vietjet-hold.mjs";
+import { createBookingSheets } from "./booking-sheets.mjs";
 import { adminRequestFilters } from "./admin-request-filters.mjs";
 import { requestStatistics } from "./request-statistics.mjs";
 import { createServer } from "node:http";
@@ -198,6 +202,7 @@ export function createAuthServer(options = {}) {
   const rateLimit = createRateLimiter({ trustedProxies: options.trustedProxies ?? process.env.TRUSTED_PROXY_IPS ?? "", limit: options.rateLimit });
   const databasePath = options.databasePath ?? defaultDatabasePath();
   const db = openDatabase(databasePath);
+  const airlineHolds = createAirlineHolds(db, options.holdAgency ?? holdAgency, { onHeld: syncHeldBooking });
   const uploadsDirectory = options.uploadsDirectory ?? resolve(dirname(databasePath === ":memory:" ? defaultDatabasePath() : databasePath), "uploads");
   const origins = new Set(options.allowedOrigins ?? (process.env.AUTH_ALLOWED_ORIGINS ?? "http://127.0.0.1:5173,http://localhost:5173").split(",").map((x) => x.trim()).filter(Boolean));
   const secure = options.secureCookies ?? (process.env.COOKIE_SECURE === "true" || process.env.NODE_ENV === "production");
@@ -233,6 +238,17 @@ export function createAuthServer(options = {}) {
   }
   const getSessionUser = (req, audience) => db.prepare("SELECT users.* FROM sessions JOIN users ON users.id = sessions.user_id WHERE token_hash = ? AND expires_at > ? AND users.disabled = 0 AND sessions.audience = ? AND users.role = ?").get(hashToken(getToken(req, audience)), Date.now(), audience, audience);
   const accountRoutes = customerAccountRoutes({ db, getSessionUser, createSession, passwordHash, rateLimit, mailer, HttpError });
+  const bookingSheets = createBookingSheets(db, options.bookingSheets);
+  function syncHeldBooking(id) {
+    const row = db.prepare('SELECT bookings.*, users.email AS customer_email FROM bookings JOIN users ON users.id = bookings.user_id WHERE bookings.id = ?').get(id);
+    if (!row || db.prepare('SELECT 1 FROM booking_sheet_outbox WHERE booking_id = ?').get(id)) return;
+    const { passengers, contactEmail, ...details } = JSON.parse(row.data);
+    const hold = details.airlineHold;
+    if (hold?.status !== 'held') return;
+    const deadline = new Date(hold.paymentDeadline).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
+    bookingSheets.enqueue({ ...details, id, createdAt: row.created_at, note: [details.note, `Mã đặt chỗ Vietjet: ${hold.pnr}`, `Pay Later - chưa thanh toán. Hạn thanh toán (VN): ${deadline}`, ...(hold.total ? [`Tổng tiền hãng: ${hold.total} VND`] : [])].filter(Boolean).join('\n') }, row.customer_email);
+    void bookingSheets.flush();
+  }
   const server = createServer(async (req, res) => {
     res.setHeader("Content-Type", "application/json; charset=utf-8");
     res.setHeader("Cache-Control", "no-store");
@@ -258,6 +274,7 @@ export function createAuthServer(options = {}) {
         res.writeHead(204); res.end(); return;
       }
       if (req.method === "GET" && path === "/api/health") return send(200, { ok: true });
+      if (req.method === "GET" && path === "/api/flights/hold-capabilities") return send(200, { version: 1, paymentMethod: 'pay_later' });
       if (req.method === "POST" && path === "/api/flights/search") {
         rateLimit(req, res, "flight-search");
         const body = await readJson(req);
@@ -289,10 +306,29 @@ export function createAuthServer(options = {}) {
           return send(201, { request: bookingRow(db.prepare("SELECT * FROM service_requests WHERE id = ?").get(id)) });
         }
       }
-      if (path === "/api/bookings" || path === "/api/transactions") {
+      if (path === "/api/bookings" || path === "/api/transactions" || /^\/api\/bookings\/[a-f0-9-]{36}(?:\/retry)?$/.test(path)) {
         const customer = getSessionUser(req, "customer");
         if (!customer) throw new HttpError(401, "Vui lòng đăng nhập tài khoản khách hàng để xem lịch sử và gửi yêu cầu.");
         const page = Math.max(1, Math.min(100000, Math.floor(Number(requestUrl.searchParams.get("page")) || 1)));
+        if (req.method === "POST" && path.endsWith('/retry')) {
+          await readJson(req);
+          const id = path.split('/')[3];
+          const row = db.prepare('SELECT * FROM bookings WHERE id = ? AND user_id = ?').get(id, customer.id);
+          if (!row) throw new HttpError(404, 'Không tìm thấy đặt chỗ.');
+          const details = JSON.parse(row.data);
+          if (details.airlineHold?.status !== 'failed') throw new HttpError(409, 'Chỉ được thử lại khi xác nhận lần trước chưa gửi đặt chỗ sang hãng.');
+          if (airlineHolds.previous(customer.id, details)) throw new HttpError(409, 'Đã có yêu cầu giữ chỗ khác cho khách và chuyến này.');
+          rateLimit(req, res, 'booking', customer.id);
+          details.airlineHold = { status: 'processing', message: 'Đang thử lại bước chưa gửi trên Vietjet.' };
+          db.prepare('UPDATE bookings SET data = ?, updated_at = ? WHERE id = ?').run(JSON.stringify(details), Date.now(), id);
+          void airlineHolds.start(id, details).catch(() => {});
+          return send(202, { booking: bookingRow(db.prepare('SELECT * FROM bookings WHERE id = ?').get(id)) });
+        }
+        if (req.method === "GET" && path.startsWith("/api/bookings/")) {
+          const row = db.prepare("SELECT * FROM bookings WHERE id = ? AND user_id = ?").get(path.split("/").at(-1), customer.id);
+          if (!row) throw new HttpError(404, "Không tìm thấy đặt chỗ.");
+          return send(200, { booking: bookingRow(row) });
+        }
         if (req.method === "GET" && path === "/api/bookings") return send(200, {
           bookings: db.prepare("SELECT * FROM bookings WHERE user_id = ? ORDER BY created_at DESC, id DESC LIMIT 20 OFFSET ?").all(customer.id, (page - 1) * 20).map(bookingRow),
           total: db.prepare("SELECT COUNT(*) AS count FROM bookings WHERE user_id = ?").get(customer.id).count,
@@ -304,15 +340,34 @@ export function createAuthServer(options = {}) {
         if (req.method === "POST" && path === "/api/bookings") {
           const body = await readJson(req, 16384);
           if (typeof body.requestKey !== "string" || !/^[a-f0-9-]{36}$/.test(body.requestKey)) throw new HttpError(400, "Mã gửi yêu cầu không hợp lệ.");
-          const data = JSON.stringify(bookingData(body));
+          const details = bookingData(body);
+          if (body.autoHold === true) {
+            if (!details.selectedFlights?.length || details.tripType === "multicity") throw new HttpError(400, "Chọn đủ chuyến trước khi giữ chỗ.");
+            Object.assign(details, airlinePassengerData({ ...body, ...details }));
+          }
+          const data = JSON.stringify(details);
           const previous = db.prepare("SELECT * FROM bookings WHERE user_id = ? AND request_key = ?").get(customer.id, body.requestKey);
           if (previous) {
-            if (previous.data !== data) throw new HttpError(409, "Mã gửi đã được sử dụng cho một yêu cầu khác.");
+            const { airlineHold, ...original } = JSON.parse(previous.data);
+            if (JSON.stringify(original) !== data) throw new HttpError(409, "Mã gửi đã được sử dụng cho một yêu cầu khác.");
             return send(200, { booking: bookingRow(previous) });
+          }
+          if (details.autoHold) {
+            const duplicate = airlineHolds.previous(customer.id, details);
+            if (duplicate) return send(200, { booking: bookingRow(duplicate) });
           }
           rateLimit(req, res, "booking", customer.id);
           const id = randomUUID(), now = Date.now();
-          db.prepare("INSERT INTO bookings (id, user_id, request_key, data, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)").run(id, customer.id, body.requestKey, data, now, now);
+          db.exec("BEGIN IMMEDIATE");
+          try {
+            db.prepare("INSERT INTO bookings (id, user_id, request_key, data, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)").run(id, customer.id, body.requestKey, details.autoHold ? JSON.stringify({ ...details, airlineHold: { status: 'processing', message: 'Đang chọn vé và nhập thông tin trên Vietjet.' } }) : data, now, now);
+            if (details.autoHold) airlineHolds.register(customer.id, id, details);
+            const { passengers, contactEmail, ...sheetDetails } = JSON.parse(data);
+            if (!details.autoHold) bookingSheets.enqueue({ ...sheetDetails, id, createdAt: now }, customer.email);
+            db.exec("COMMIT");
+          } catch (error) { db.exec("ROLLBACK"); throw error; }
+          void bookingSheets.flush();
+          if (details.autoHold) void airlineHolds.start(id, details).catch(() => {});
           return send(201, { booking: bookingRow(db.prepare("SELECT * FROM bookings WHERE id = ?").get(id)) });
         }
       }
@@ -334,6 +389,7 @@ export function createAuthServer(options = {}) {
           return { ...item, contentType: item.type, details: [{ title: "Nội dung", content: item.content }] };
         }));
       }
+      if (req.method === "GET" && path === "/api/content/home-hero") return send(200, { image: db.prepare("SELECT value FROM settings WHERE key = 'home_hero_image'").get()?.value ?? "/images/tours/phu-quoc.jpg" });
       if (req.method === "GET" && path === "/api/content/banners") return send(200, db.prepare("SELECT image FROM banners WHERE active = 1 ORDER BY id").all().map((row) => row.image));
       if (req.method === "GET" && path === "/api/content/tours") {
         const kind = requestUrl.searchParams.get("type");
@@ -396,12 +452,14 @@ export function createAuthServer(options = {}) {
           banners: db.prepare("SELECT COUNT(*) AS count FROM banners WHERE active = 1").get().count,
         });
         if (req.method === "GET" && path === "/api/admin/users") {
+          const role = requestUrl.searchParams.get("role");
+          if (role !== null && role !== "admin" && role !== "customer") throw new HttpError(400, "Vai trò tài khoản không hợp lệ.");
           const query = (requestUrl.searchParams.get("q") ?? "").slice(0, 100);
           const page = Math.max(1, Math.min(100000, Number(requestUrl.searchParams.get("page")) || 1));
           const search = `%${query}%`;
           return send(200, {
-            users: db.prepare("SELECT id, name, email, role, disabled, created_at, phone, email_verified AS emailVerified FROM users WHERE name LIKE ? OR email LIKE ? ORDER BY created_at DESC LIMIT 50 OFFSET ?").all(search, search, (Math.floor(page) - 1) * 50),
-            total: db.prepare("SELECT COUNT(*) AS count FROM users WHERE name LIKE ? OR email LIKE ?").get(search, search).count,
+            users: db.prepare("SELECT id, name, email, role, disabled, created_at, phone, email_verified AS emailVerified FROM users WHERE (? IS NULL OR role = ?) AND (name LIKE ? OR email LIKE ?) ORDER BY created_at DESC, id DESC LIMIT 50 OFFSET ?").all(role, role, search, search, (Math.floor(page) - 1) * 50),
+            total: db.prepare("SELECT COUNT(*) AS count FROM users WHERE (? IS NULL OR role = ?) AND (name LIKE ? OR email LIKE ?)").get(role, role, search, search).count,
           });
         }
         if (req.method === "GET" && path === "/api/admin/articles") return send(200, { articles: db.prepare("SELECT * FROM articles ORDER BY id DESC").all().map(articleRow) });
@@ -482,6 +540,14 @@ export function createAuthServer(options = {}) {
             const data = JSON.stringify({ name: body.name.trim(), summary: body.summary, content: body.content, image: imageUrl(body.image), categoryId: body.categoryId, publishedAt: body.publishedAt, type: body.type });
             const id = saveCatalog("articles", body, data, admin);
             return send(body.id === undefined ? 201 : 200, { id });
+          }
+          if (path === "/api/admin/home-hero/save") {
+            const image = imageUrl(body.image);
+            const previous = db.prepare("SELECT value FROM settings WHERE key = 'home_hero_image'").get()?.value ?? "/images/tours/phu-quoc.jpg";
+            auditedMutation(db, admin, "home_hero.update", "home_hero_image", { before: { image: previous }, after: { image } }, () => {
+              db.prepare("INSERT INTO settings (key, value) VALUES ('home_hero_image', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").run(image);
+            });
+            return send(200, { image });
           }
           if (path === "/api/admin/banners/save") {
             if (typeof body.title !== "string" || body.title.trim().length < 2 || body.title.length > 200 || typeof body.active !== "boolean") throw new HttpError(400, "Banner không hợp lệ.");
@@ -566,7 +632,11 @@ export function createAuthServer(options = {}) {
       if (!res.headersSent && !res.destroyed) send(error.status ?? 500, { message: error.status ? error.message : "Máy chủ gặp lỗi. Vui lòng thử lại.", ...(error instanceof FlightSearchError && error.code ? { code: error.code } : {}) });
     }
   });
-  server.on("close", () => db.close());
+  server.on("listening", () => {
+    for (const row of db.prepare("SELECT id FROM bookings WHERE json_extract(data, '$.airlineHold.status') = 'held'").all()) syncHeldBooking(row.id);
+    void bookingSheets.flush();
+  });
+  server.on("close", () => { bookingSheets.stop(); db.close(); });
   server.requestTimeout = 15000;
   return server;
 }

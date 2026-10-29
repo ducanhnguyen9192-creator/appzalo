@@ -2,6 +2,13 @@ import { FlightSearchError } from "./flight-search.mjs";
 
 export const AGENCY_URL = "https://agents2.vietjetair.com/booking";
 let activeSession;
+let agencyWork = Promise.resolve();
+export function withAgencySession(work) {
+  const next = agencyWork.then(work);
+  agencyWork = next.catch(() => {});
+  return next;
+}
+export const currentAgencySession = () => activeSession;
 const loginRequired = () => new FlightSearchError(503, "Nguồn giá đại lý chưa sẵn sàng. Vui lòng thử lại sau hoặc liên hệ FirstClass.", "VIETJET_AGENT_LOGIN_REQUIRED");
 
 // Extract rendered fares only. Empty columns mean unavailable, not a zero fare.
@@ -21,7 +28,7 @@ export function readAgencyRows() {
     if (!fares.some(fare => Number.isSafeInteger(fare.amount) && fare.amount > 0)) continue;
     rows.push({ number: flight[1], aircraft: flight[2].trim(), departure: time[1], arrival: time[2], arrivalNextDay: time[2] < time[1], fares });
   }
-  return [...new Map(rows.map(row => [row.number, row])).values()];
+  return [...new Map(rows.map(row => [`${row.number}/${row.departure}`, row])).values()];
 }
 
 export async function startAgencyBrowser({ channel = process.env.VIETJET_BROWSER_CHANNEL ?? "chrome", headless = Boolean(process.env.VIETJET_AGENT_USERNAME && process.env.VIETJET_AGENT_PASSWORD) } = {}) {
@@ -63,10 +70,10 @@ export async function ensureAgencyLogin(session, { username = process.env.VIETJE
   }
 }
 
-export async function chooseAgencyDate(page, date) {
+export async function chooseAgencyDate(page, date, fieldLabel = "Ngày đi") {
   const target = new Date(`${date}T00:00:00Z`);
   const label = target.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
-  await page.getByRole("textbox", { name: "Ngày đi", exact: true }).click();
+  await page.getByRole("textbox", { name: fieldLabel, exact: true }).click();
   for (let step = 0; step < 13; step++) {
     const day = page.getByRole("gridcell", { name: label, exact: true });
     if (await day.count()) { await day.click(); return; }
@@ -131,7 +138,10 @@ export async function chooseAgencyPassengers(page, query) {
   }
 }
 
-export async function searchAgency(query, session = activeSession) {
+export function searchAgency(query, session = activeSession) {
+  return withAgencySession(() => searchAgencyUnlocked(query, session));
+}
+export async function searchAgencyUnlocked(query, session = activeSession) {
   if ((!session || session.page.isClosed()) && process.env.VIETJET_AGENT_USERNAME && process.env.VIETJET_AGENT_PASSWORD) {
     try { session = await startAgencyBrowser(); }
     catch { throw loginRequired(); }
@@ -157,12 +167,12 @@ export async function searchAgency(query, session = activeSession) {
     const rows = new Map();
     let stable = 0;
     for (let step = 0; step < 45; step++) {
-      (await page.evaluate(readAgencyRows)).forEach(row => rows.set(row.number, row));
+      (await page.evaluate(readAgencyRows)).forEach(row => rows.set(`${row.number}/${row.departure}`, row));
       const before = rows.size;
       const bottom = await page.evaluate(() => window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 5);
       await page.mouse.wheel(0, 1400);
       await page.waitForTimeout(600);
-      (await page.evaluate(readAgencyRows)).forEach(row => rows.set(row.number, row));
+      (await page.evaluate(readAgencyRows)).forEach(row => rows.set(`${row.number}/${row.departure}`, row));
       stable = bottom && rows.size === before ? stable + 1 : 0;
       if (stable >= 3 && rows.size) return [...rows.values()].sort((a, b) => a.departure.localeCompare(b.departure));
     }

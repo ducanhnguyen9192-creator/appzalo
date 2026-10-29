@@ -5,7 +5,8 @@ import { notified } from "./notifications";
 
 export const BOOKING_STATUS = { received: "Đã tiếp nhận", reviewing: "Đang xử lý", quoted: "Đã báo giá", ticketed: "Đã xuất vé", cancelled: "Đã hủy" } as const;
 export type BookingStatus = keyof typeof BOOKING_STATUS;
-export type Booking = { id: string; tripType: TripType; segments?: FlightSegment[]; selectedFlights?: SelectedFlight[]; origin: string; destination: string; departureDate: string; returnDate: string; adults: number; children: number; infants: number; cabin: string; fullName: string; phone: string; note: string; status: BookingStatus; response: string; createdAt: number; updatedAt: number };
+export type AirlineHold = { status: 'processing' | 'submitting' | 'held' | 'failed' | 'unknown'; message: string; pnr?: string; paymentDeadline?: string; paymentMethod?: 'pay_later'; total?: number; currency?: string };
+export type Booking = { airlineHold?: AirlineHold; id: string; tripType: TripType; segments?: FlightSegment[]; selectedFlights?: SelectedFlight[]; origin: string; destination: string; departureDate: string; returnDate: string; adults: number; children: number; infants: number; cabin: string; fullName: string; phone: string; note: string; status: BookingStatus; response: string; createdAt: number; updatedAt: number };
 export type Transaction = { id: string; bookingId: string; amount: number; reference: string; note: string; paidAt: string; origin: string; destination: string };
 export class BookingApiError extends Error { constructor(message: string, public status: number) { super(message); } }
 async function requestBooking<T>(path: string, body?: unknown): Promise<T> {
@@ -20,6 +21,8 @@ export function bookingApi<T>(path: string, body?: unknown): Promise<T> {
   const work = () => requestBooking<T>(path, body);
   if (!body) return work();
   return notified(work, (data) => {
+    const hold = (data as { booking?: Booking })?.booking?.airlineHold;
+    if (hold) return { title: hold.status === 'held' ? 'Đã giữ chỗ Vietjet' : 'Đang xử lý giữ chỗ Vietjet', message: hold.pnr ? `Mã đặt chỗ: ${hold.pnr}. Pay Later — chưa thanh toán.` : hold.message };
     const id = (data as { booking?: Booking; request?: { id: string } })?.booking?.id ?? (data as { request?: { id: string } })?.request?.id;
     return { title: "Đã tiếp nhận yêu cầu", message: `${id ? `Mã yêu cầu: ${id}\n` : ""}Bạn có thể theo dõi trong mục Lịch sử. FirstClass sẽ kiểm tra thông tin và liên hệ tư vấn. Đây chưa phải xác nhận mua dịch vụ hay thanh toán.` };
   }, "Chưa gửi được yêu cầu");

@@ -8,7 +8,6 @@ import SupportPage from "@/pages/support";
 import Layout from "@/components/layout";
 import NotFoundPage, { RouteErrorPage } from "@/pages/not-found";
 import ProductListPage from "@/pages/catalog/product-list";
-import CategoryListPage from "@/pages/catalog/category-list";
 import ProductDetailPage from "@/pages/catalog/product-detail";
 import HomePage from "@/pages/home";
 import ProfilePage from "@/pages/profile";
@@ -20,6 +19,7 @@ import { getBasePath } from "@/utils/zma";
 
 const FlightSearchPage = lazy(() => import("@/pages/flights"));
 const AdminPage = lazy(() => import("@/pages/admin"));
+const AboutPage = lazy(() => import("@/pages/about"));
 
 const router = createBrowserRouter(
   [
@@ -29,11 +29,12 @@ const router = createBrowserRouter(
       element: <Layout />,
       errorElement: <RouteErrorPage />,
       children: [
+        { path: "/gioi-thieu", element: <AboutPage />, handle: { title: "Giới thiệu công ty", scrollRestoration: 0 } },
         { path: "/profile/settings", element: <AccountSettingsPage />, handle: { title: "Cài đặt tài khoản", scrollRestoration: 0 } },
         { path: "/forgot-password", element: <AccountRecovery key="forgot" />, handle: { title: "Quên mật khẩu" } },
         { path: "/reset-password", element: <AccountRecovery key="reset" />, handle: { title: "Đặt lại mật khẩu" } },
         { path: "/verify-email", element: <AccountRecovery key="verify" />, handle: { title: "Xác minh email" } },
-        { path: "/support", element: <SupportPage />, handle: { title: "Hỗ trợ & tư vấn" } },
+        { path: "/support", element: <SupportPage />, handle: { title: "Liên hệ FirstClass" } },
         { path: "/history", element: <HistoryPage />, handle: { title: "Lịch sử của bạn" } },
         { path: "/esims", element: <EsimsPage />, handle: { title: "eSIM du lịch" } },
         { path: "/esims/:id", element: <EsimDetail />, handle: { title: "Chi tiết eSIM", scrollRestoration: 0 } },
@@ -58,12 +59,7 @@ const router = createBrowserRouter(
         },
         {
           path: "/categories",
-          element: <CategoryListPage />,
-          handle: {
-            title: "Danh mục tiện ích",
-            logo: true,
-            back: false,
-          },
+          element: <Navigate to="/gioi-thieu" replace />,
         },
         {
           path: "/tin-tuc",

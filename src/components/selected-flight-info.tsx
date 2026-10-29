@@ -13,7 +13,7 @@ export default function SelectedFlightInfo({ flights, onClear, disabled = false,
       {!compact && <p className="text-xs text-gray-500">Giá tra lúc {new Date(flight.searchedAt).toLocaleString("vi-VN")}</p>}
     </div>)}
     <p className="font-semibold">{compact ? "Tổng giá hiển thị" : "Tổng giá tại bảng của các chuyến đã chọn"}: {formatMoney(flights.reduce((sum, flight) => sum + flight.amount, 0))}</p>
-    <p className="text-xs text-gray-600">{compact ? "Giá tham khảo, chưa xác nhận tổng thanh toán cho toàn bộ hành khách. Chưa giữ chỗ với hãng." : "Giá tại bảng tìm kiếm, chưa phải tổng thanh toán cho toàn bộ hành khách; chưa xác nhận tổng thuế, phí hoặc tình trạng chỗ. Yêu cầu được lưu nội bộ trong app; chưa giữ chỗ, đặt vé hoặc thanh toán với hãng."}</p>
+    <p className="text-xs text-gray-600">{compact ? "Giá tham khảo, chưa xác nhận tổng thanh toán cho toàn bộ hành khách. Chưa giữ chỗ với hãng." : "Giá tại bảng tìm kiếm, chưa phải tổng thanh toán. Trạng thái giữ chỗ và hạn thanh toán hiển thị riêng khi hãng xác nhận."}</p>
     {onClear && <button type="button" disabled={disabled} onClick={onClear} className="text-gold-700 underline py-2">Bỏ các chuyến đã chọn</button>}
   </section>;
 }

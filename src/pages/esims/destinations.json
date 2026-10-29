@@ -1,0 +1,267 @@
+[
+  {
+    "countries": [
+      {
+        "code": "kr",
+        "name": "Hàn Quốc"
+      },
+      {
+        "code": "jp",
+        "name": "Nhật Bản"
+      },
+      {
+        "code": "th",
+        "name": "Thái Lan"
+      },
+      {
+        "code": "sa",
+        "name": "Ả Rập Xê-út"
+      },
+      {
+        "code": "af",
+        "name": "Afghanistan"
+      },
+      {
+        "code": "am",
+        "name": "Armenia"
+      },
+      {
+        "code": "az",
+        "name": "Azerbaijan"
+      },
+      {
+        "code": "in",
+        "name": "Ấn Độ"
+      },
+      {
+        "name": "Trung Quốc",
+        "code": "cn"
+      },
+      {
+        "name": "Singapore",
+        "code": "sg"
+      },
+      {
+        "name": "Đài Loan",
+        "code": "tw"
+      },
+      {
+        "name": "Việt Nam",
+        "code": "vn"
+      }
+    ],
+    "name": "Châu Á"
+  },
+  {
+    "countries": [
+      {
+        "code": "al",
+        "name": "Albania"
+      },
+      {
+        "code": "ad",
+        "name": "Andorra"
+      },
+      {
+        "code": "at",
+        "name": "Áo"
+      },
+      {
+        "code": "pl",
+        "name": "Ba Lan"
+      },
+      {
+        "code": "mk",
+        "name": "Bắc Macedonia"
+      },
+      {
+        "code": "by",
+        "name": "Belarus"
+      },
+      {
+        "code": "be",
+        "name": "Bỉ"
+      },
+      {
+        "code": "ba",
+        "name": "Bosnia và Herzegovina"
+      },
+      {
+        "name": "Pháp",
+        "code": "fr"
+      },
+      {
+        "name": "Đức",
+        "code": "de"
+      },
+      {
+        "name": "Ý",
+        "code": "it"
+      },
+      {
+        "name": "Vương quốc Anh",
+        "code": "gb"
+      }
+    ],
+    "name": "Châu Âu"
+  },
+  {
+    "countries": [
+      {
+        "code": "ai",
+        "name": "Anguilla"
+      },
+      {
+        "code": "ag",
+        "name": "Antigua và Barbuda"
+      },
+      {
+        "code": "ar",
+        "name": "Argentina"
+      },
+      {
+        "code": "aw",
+        "name": "Aruba"
+      },
+      {
+        "code": "bs",
+        "name": "Bahamas"
+      },
+      {
+        "code": "bb",
+        "name": "Barbados"
+      },
+      {
+        "code": "bz",
+        "name": "Belize"
+      },
+      {
+        "code": "bm",
+        "name": "Bermuda"
+      },
+      {
+        "name": "Hoa Kỳ",
+        "code": "us"
+      },
+      {
+        "name": "Canada",
+        "code": "ca"
+      },
+      {
+        "name": "Brazil",
+        "code": "br"
+      },
+      {
+        "name": "Mexico",
+        "code": "mx"
+      }
+    ],
+    "name": "Châu Mỹ"
+  },
+  {
+    "countries": [
+      {
+        "code": "eg",
+        "name": "Ai Cập"
+      },
+      {
+        "code": "dz",
+        "name": "Algeria"
+      },
+      {
+        "code": "ao",
+        "name": "Angola"
+      },
+      {
+        "code": "bj",
+        "name": "Benin"
+      },
+      {
+        "code": "bw",
+        "name": "Botswana"
+      },
+      {
+        "code": "bf",
+        "name": "Burkina Faso"
+      },
+      {
+        "code": "bi",
+        "name": "Burundi"
+      },
+      {
+        "code": "cm",
+        "name": "Cameroon"
+      },
+      {
+        "name": "Nam Phi",
+        "code": "za"
+      },
+      {
+        "name": "Ma Rốc",
+        "code": "ma"
+      },
+      {
+        "name": "Kenya",
+        "code": "ke"
+      },
+      {
+        "name": "Tanzania",
+        "code": "tz"
+      }
+    ],
+    "name": "Châu Phi"
+  },
+  {
+    "countries": [
+      {
+        "code": "um",
+        "name": "Các tiểu đảo xa của Hoa Kỳ"
+      },
+      {
+        "code": "cx",
+        "name": "Đảo Giáng Sinh"
+      },
+      {
+        "code": "nf",
+        "name": "Đảo Norfolk"
+      },
+      {
+        "code": "fj",
+        "name": "Fiji"
+      },
+      {
+        "code": "gu",
+        "name": "Guam"
+      },
+      {
+        "code": "ki",
+        "name": "Kiribati"
+      },
+      {
+        "code": "fm",
+        "name": "Micronesia"
+      },
+      {
+        "code": "nr",
+        "name": "Nauru"
+      },
+      {
+        "name": "Úc",
+        "code": "au"
+      },
+      {
+        "name": "New Zealand",
+        "code": "nz"
+      },
+      {
+        "name": "Palau",
+        "code": "pw"
+      },
+      {
+        "name": "Samoa",
+        "code": "ws"
+      }
+    ],
+    "name": "Châu Đại Dương"
+  }
+]

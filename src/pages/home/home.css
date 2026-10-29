@@ -21,10 +21,10 @@
 .journey-flight-button:hover { background: #70541a; }
 .home-boutique .home-services { margin: 26px 0 0; padding: 0; border: 0; background: transparent; }
 .home-boutique .home-services > div, .home-boutique .home-tours, .home-boutique .home-tours > div, .journey-updates > div { background: transparent; border: 0; }
-.home-boutique .home-category-list { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px 4px; padding: 16px 0 0; }
+.home-boutique .home-category-list { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 16px 8px; padding: 16px 0 0; align-items: stretch; }
 .home-boutique .home-category-icon { width: 48px; height: 48px; padding: 5px; border-radius: 15px; background: #fcf8ed; border: 1px solid #e8d9b5; }
-.home-boutique .home-category-name { font-size: 11px; color: #604315; font-weight: 600; }
-.home-boutique .home-category-link { padding: 8px 2px; }
+.home-boutique .home-category-name { font-size: 11px; line-height: 1.5; min-height: 3em; color: #604315; font-weight: 600; }
+.home-boutique .home-category-link { padding: 10px 2px; gap: 10px; }
 .journey-collection { margin-top: 34px; }
 .journey-section-kicker { color: #8a754b; margin-bottom: 8px; }
 .home-boutique .home-tours { margin-top: 0; padding-top: 0; border-radius: 0; }
@@ -54,7 +54,7 @@
 .journey-updates-title { font-family: inherit; font-size: 28px; line-height: 1.25; margin-bottom: 16px; }
 .home-boutique .home-banner { border: 0; border-radius: 16px; overflow: hidden; margin-bottom: 16px; background: transparent; }
 .home-boutique .home-banner .basis-full { padding: 0; }
-.home-boutique .home-banner img { height: auto; max-height: 300px; object-fit: cover; border-radius: 12px; }
+.home-boutique .home-banner img { width: 100%; height: clamp(180px, 56vw, 300px); max-height: none; object-fit: contain; object-position: center; background: #f0ede5; border-radius: 12px; }
 .journey-concierge { display: flex; flex-direction: column; gap: 20px; margin-top: 36px; padding: 28px 24px; background: #293f36; color: #fff; border-radius: 20px; }
 .journey-concierge .journey-eyebrow { color: #e2c998; }
 .journey-concierge h2 { font-family: inherit; font-size: 26px; line-height: 1.3; margin: 12px 0; }
@@ -66,7 +66,8 @@
 }
 @media (min-width: 1024px) {
   .home-boutique { padding: 0; background: transparent; }
-  .journey-hero { min-height: 440px; border-radius: 24px; }
+  .home-boutique .home-banner img { height: clamp(360px, 38vw, 560px); max-height: none; object-fit: contain; background: #f0ede5; }
+  .journey-hero { width: min(1680px, calc(100vw - 24px)); margin-left: 50%; transform: translateX(-50%); min-height: 520px; border-radius: 24px; }
   .journey-hero-content { padding: 54px 56px 72px; }
   .journey-description { font-size: 15px; }
   .journey-image-note { right: 28px; bottom: 44px; }
@@ -74,9 +75,10 @@
   .journey-flight h2 { font-size: 24px; }
   .journey-flight-button { padding-inline: 24px; }
   .home-boutique .home-services { margin-top: 40px; }
-  .home-boutique .home-category-list { gap: 8px; }
-  .home-boutique .home-category-name { font-size: 12px; }
-  .home-boutique .home-category-icon { width: 52px; height: 52px; }
+  .home-boutique .home-category-list { gap: 20px 16px; }
+  .home-boutique .home-category-link { padding: 16px 8px; gap: 12px; }
+  .home-boutique .home-category-name { font-size: 14px; }
+  .home-boutique .home-category-icon { width: 60px; height: 60px; padding: 6px; }
   .journey-collection, .journey-updates { margin-top: 48px; }
   .home-boutique .home-tours > div > div:first-child > div { font-size: 28px; }
   .home-boutique .tour-grid, .home-boutique .news-grid { gap: 22px; }

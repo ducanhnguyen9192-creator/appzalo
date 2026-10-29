@@ -19,7 +19,10 @@ test("admin filters, scoped refresh and unsaved forms work in the browser", { ti
       let body = {};
       if (path === "/api/admin/auth/me") body = { user: { id: "admin", name: "Admin thử", email: "admin@example.test", role: "admin" } };
       else if (path.endsWith("/overview")) body = { customers: 1, disabled: 0, articles: 0, banners: 0 };
-      else if (path.endsWith("/users")) body = { users: [], total: 0 };
+      else if (path.endsWith("/users")) {
+        const role = url.searchParams.get("role");
+        body = { users: [{ id: role, name: role === "admin" ? "Quản trị thử nghiệm" : "Người dùng thử nghiệm", email: `${role}@example.test`, role, disabled: 0, created_at: Date.now() }], total: 1 };
+      }
       else if (path.endsWith("/bookings")) body = { bookings: [], total: 0 };
       else if (path.endsWith("/service-requests")) body = { requests: [], total: 0 };
       else if (path.endsWith("/tours")) body = { tours: [{ id: 1, name: "Tour mẫu", kind: "domestic", destination: "Đà Nẵng", duration: "3 ngày", departure: "", price: null, image: "", summary: "", itinerary: "", included: "", excluded: "", published: false }] };
@@ -30,6 +33,21 @@ test("admin filters, scoped refresh and unsaved forms work in the browser", { ti
     });
     await page.goto(`http://127.0.0.1:${server.httpServer.address().port}/admin`, { waitUntil: "domcontentloaded" });
     const nav = page.getByRole("navigation", { name: "Quản trị" });
+    await nav.getByRole("button", { name: "Tài khoản quản trị", exact: true }).click();
+    await page.getByRole("cell").filter({ hasText: "admin@example.test" }).waitFor();
+    assert.equal(await nav.getByRole("button", { name: "Tài khoản quản trị", exact: true }).getAttribute("aria-current"), "page");
+    assert.equal(await page.getByRole("cell").filter({ hasText: "customer@example.test" }).count(), 0);
+    await page.getByLabel("Tìm tài khoản").fill("admin");
+    const customerResponse = page.waitForResponse(response => response.url().includes("/api/admin/users?role=customer"));
+    await page.getByRole("button", { name: "Tài khoản người dùng", exact: true }).click();
+    await customerResponse;
+    await page.getByRole("cell").filter({ hasText: "customer@example.test" }).waitFor();
+    assert.equal(await page.getByRole("cell").filter({ hasText: "admin@example.test" }).count(), 0);
+    assert.equal(await page.getByLabel("Tìm tài khoản").inputValue(), "");
+    assert.equal(calls.filter(url => url.pathname.endsWith("/users")).at(-1).searchParams.get("role"), "customer");
+    const adminResponse = page.waitForResponse(response => response.url().includes("/api/admin/users?role=admin"));
+    await page.getByRole("button", { name: "Tài khoản quản trị", exact: true }).click();
+    await adminResponse;
     await nav.getByRole("button", { name: "Yêu cầu & giao dịch", exact: true }).click();
     await page.getByLabel("Tìm yêu cầu").fill("0909999999");
     await page.getByRole("combobox", { name: /^Trạng thái/ }).selectOption("received");

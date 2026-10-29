@@ -14,9 +14,9 @@ export default function TourDetail() {
   return <article className="tour-detail bg-white rounded-2xl overflow-hidden">
     <ContentImage src={tour.image} alt={tour.name} className="content-hero w-full object-cover" loading="eager" />
     <div className="p-4 lg:p-8 space-y-6"><div><p className="text-sm text-gold-600">{TOUR_KINDS[tour.kind]}</p><h1 className="text-xl lg:text-3xl font-bold mt-2">{tour.name}</h1><p className="text-gray-500 mt-3 whitespace-pre-wrap">{tour.summary}</p></div>
+      <ServiceConsultation service="tour" id={tour.id} />
       <dl className="grid grid-cols-2 lg:grid-cols-4 gap-4 rounded-xl bg-gold-50 p-4">{[["Điểm đến", tour.destination], ["Thời lượng", tour.duration], ["Khởi hành", tour.departure || "Liên hệ tư vấn"], ["Giá tour", tourPrice(tour.price)]].map(([label, value]) => <div key={label}><dt className="text-xs text-gray-500">{label}</dt><dd className="font-semibold mt-1 text-sm break-words">{value}</dd></div>)}</dl>
       {[["Lịch trình", tour.itinerary], ["Dịch vụ bao gồm", tour.included], ["Dịch vụ chưa bao gồm", tour.excluded]].map(([title, content]) => content && <section key={title}><h2 className="font-semibold text-lg mb-2">{title}</h2><p className="text-sm leading-6 whitespace-pre-wrap text-gray-600">{content}</p></section>)}
-      <ServiceConsultation service="tour" id={tour.id} />
       <Link to={tourPath(tour.kind)} className="inline-block text-gold-600 font-medium">← Xem các tour cùng nhóm</Link>
     </div>
   </article>;
