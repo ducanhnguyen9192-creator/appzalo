@@ -72,10 +72,23 @@ export default function FlightSearchPage() {
   }, [inputCompleted, step, account?.id, authLoading, selectedFlights]);
   useEffect(() => {
     if (!account) return;
+    let cancelled = false;
     let activeId: string | null = null;
     try { activeId = sessionStorage.getItem(`firstclass.active-hold.${account.id}`); } catch {}
-    if (activeId) void bookingApi<{ booking: Booking }>(`bookings/${activeId}`).then(({ booking }) => setLastBooking(booking)).catch(() => {});
+    if (activeId) void bookingApi<{ booking: Booking }>(`bookings/${activeId}`).then(({ booking }) => {
+      if (cancelled) return;
+      if (booking.airlineHold?.status === 'held') {
+        try { sessionStorage.removeItem(`firstclass.active-hold.${account.id}`); } catch {}
+        return;
+      }
+      setLastBooking(booking);
+    }).catch(() => {});
+    return () => { cancelled = true; };
   }, [account?.id]);
+  useEffect(() => {
+    if (!account || lastBooking?.airlineHold?.status !== 'held') return;
+    try { sessionStorage.removeItem(`firstclass.active-hold.${account.id}`); } catch {}
+  }, [account?.id, lastBooking?.id, lastBooking?.airlineHold?.status]);
   useEffect(() => {
     if (!lastBooking || !['processing', 'submitting'].includes(lastBooking.airlineHold?.status ?? '')) return;
     let cancelled = false;
@@ -135,10 +148,12 @@ export default function FlightSearchPage() {
     if (step === 2 && !consultationOnly && complete) goToStep(3);
   }
   function continueJourney() {
+    if (isSubmitting) return;
     const nextErrors = validateFlight(form, tripType, "journey");
     setErrors(nextErrors);
     const firstError = Object.keys(nextErrors)[0];
     if (firstError) { focusField(firstError); return; }
+    setLastBooking(null);
     goToStep(2);
     if (!consultationOnly) setSearchRequest(current => current + 1);
   }
