@@ -1,8 +1,10 @@
+import { useMoney } from "@/components/currency-provider";
 import ContentImage from "@/components/content-image";
 import { Link } from "react-router-dom";
-import { Tour, TOUR_KINDS, tourPrice } from "@/utils/tours";
+import { Tour, TOUR_KINDS } from "@/utils/tours";
 
 export default function TourCards({ tours }: { tours: Tour[] }) {
+  const tourPrice = useMoney();
   return <div className="tour-grid grid grid-cols-2 gap-4 p-4">
     {tours.map((tour) => <Link key={tour.id} to={`/tours/${tour.id}`} className="tour-card bg-white rounded-2xl overflow-hidden border border-gray-100">
       <div className="catalog-card-image"><ContentImage src={tour.image} alt={tour.name} /></div>

@@ -2,7 +2,24 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { chromium } from "playwright";
 import { readFlightRows } from "./flight-search.mjs";
-import { readAgencyRows, chooseAgencyDate, chooseAgencyOneWay, chooseAgencyAirport } from "./vietjet-agency.mjs";
+import { readAgencyRows, chooseAgencyDate, chooseAgencyOneWay, chooseAgencyAirport, waitAgencyResults } from "./vietjet-agency.mjs";
+
+test("agency distinguishes explicit no flights from loading and ignores hidden empty messages", async () => {
+  const browser = await chromium.launch({ headless: true, channel: process.env.VIETJET_BROWSER_CHANNEL || "chrome" });
+  try {
+    const page = await browser.newPage();
+    page.setDefaultTimeout(300);
+    const query = { origin: "PQC", destination: "CXR", departureDate: "2026-11-27" };
+    const heading = '<div>Chuyến đi (PQC-CXR)</div>';
+    const empty = 'Không tìm thấy chuyến bay nào cho lựa chọn của bạn';
+    await page.setContent(`${heading}<p>${empty}</p>`);
+    await assert.rejects(waitAgencyResults(page, query), error => error.status === 422 && error.code === "VIETJET_NO_FLIGHTS" && error.message.includes("27/11/2026"));
+    await page.setContent(`${heading}<p hidden>${empty}</p><div class="list_card"><div class="fare-information_flight">VJ123</div></div>`);
+    await waitAgencyResults(page, query);
+    await page.setContent(`<div>Chuyến đi (HAN-SGN)</div><p>${empty}</p>`);
+    await assert.rejects(waitAgencyResults(page, query), error => error.code !== "VIETJET_NO_FLIGHTS");
+  } finally { await browser.close(); }
+});
 
 test("rendered rows preserve fare columns, midnight arrival and do not include calendar prices", async () => {
   const browser = await chromium.launch({ headless: true, ...(process.env.VIETJET_BROWSER_CHANNEL ? { channel: process.env.VIETJET_BROWSER_CHANNEL } : {}) });

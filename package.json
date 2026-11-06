@@ -22,6 +22,7 @@
     "admin:create": "node --env-file-if-exists=backend/.env backend/create-admin.mjs",
     "test:backend": "node --test backend/airline-hold.test.mjs backend/auth.test.mjs backend/flight-form.test.mjs backend/flight-sort.test.mjs backend/notifications.test.mjs backend/sample-content.test.mjs backend/catalog-filters.test.mjs backend/operations.test.mjs backend/flight-search.test.mjs backend/passengers.test.mjs backend/booking-sheets.test.mjs",
     "test:agency-login": "node --test backend/vietjet-login.test.mjs",
+    "test:currency": "node --test backend/currency.test.mjs backend/currency-ui.test.mjs",
     "test:ui": "node --test --test-concurrency=1 backend/admin-usability.test.mjs backend/request-statistics-ui.test.mjs",
     "test:flight-dom": "node --test backend/flight-search-dom.test.mjs",
     "test:flight-live": "node backend/flight-search-live.mjs",
@@ -31,7 +32,11 @@
     "build:css": "postcss src/css/tailwind.css -o src/css/styles.css",
     "backup:create": "node --env-file-if-exists=backend/.env backend/backup.mjs create",
     "backup:verify": "node --env-file-if-exists=backend/.env backend/backup.mjs verify",
-    "backup:restore": "node --env-file-if-exists=backend/.env backend/backup.mjs restore"
+    "backup:restore": "node --env-file-if-exists=backend/.env backend/backup.mjs restore",
+    "i18n:extract": "node scripts/extract-translations.mjs",
+    "test:i18n": "node --test backend/i18n.test.mjs backend/i18n-ui.test.mjs",
+    "build:web": "node scripts/extract-translations.mjs && vite build .",
+    "test:all": "node scripts/test-all.mjs"
   },
   "engines": {
     "node": ">=24.0.0"
@@ -54,6 +59,8 @@
     "zmp-ui": "^1.11.5"
   },
   "devDependencies": {
+    "@babel/parser": "^7.24.5",
+    "@babel/traverse": "^7.24.5",
     "@types/node": "^22.8.2",
     "@types/react": "^18.3.1",
     "@types/react-dom": "^18.3.0",
@@ -67,6 +74,7 @@
     "sass": "^1.76.0",
     "tailwindcss": "^3.4.3",
     "vite": "^5.2.13",
+    "zmp-cli": "^4.0.5",
     "zmp-vite-plugin": "^1.1.6"
   }
 }

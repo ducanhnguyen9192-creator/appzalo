@@ -141,6 +141,17 @@ export async function chooseAgencyPassengers(page, query) {
 export function searchAgency(query, session = activeSession) {
   return withAgencySession(() => searchAgencyUnlocked(query, session));
 }
+export async function waitAgencyResults(page, query) {
+  const route = new RegExp(`Chuyến đi\\s*\\(${query.origin}-${query.destination}\\)`);
+  await page.getByText(route).waitFor();
+  const empty = page.getByText("Không tìm thấy chuyến bay nào cho lựa chọn của bạn", { exact: true });
+  const flights = page.locator(".list_card .fare-information_flight").first();
+  await flights.or(empty).filter({ visible: true }).first().waitFor({ timeout: 35000 });
+  if (await empty.isVisible() && !(await flights.isVisible())) {
+    const date = query.departureDate.split("-").reverse().join("/");
+    throw new FlightSearchError(422, `Vietjet không tìm thấy chuyến bay ${query.origin} → ${query.destination} ngày ${date}. Vui lòng chọn “Sửa hành trình” để đổi ngày hoặc sân bay.`, "VIETJET_NO_FLIGHTS");
+  }
+}
 export async function searchAgencyUnlocked(query, session = activeSession) {
   if ((!session || session.page.isClosed()) && process.env.VIETJET_AGENT_USERNAME && process.env.VIETJET_AGENT_PASSWORD) {
     try { session = await startAgencyBrowser(); }
@@ -161,9 +172,7 @@ export async function searchAgencyUnlocked(query, session = activeSession) {
     await chooseAgencyPassengers(page, query);
     // Only a search is submitted; no passenger, booking or payment steps run.
     await page.getByRole("button", { name: "Tìm chuyến bay", exact: true }).click();
-    await page.locator(".list_card .fare-information_flight").first().waitFor({ timeout: 35000 });
-    const route = new RegExp(`Chuyến đi\\s*\\(${query.origin}-${query.destination}\\)`);
-    await page.getByText(route).waitFor();
+    await waitAgencyResults(page, query);
     const rows = new Map();
     let stable = 0;
     for (let step = 0; step < 45; step++) {

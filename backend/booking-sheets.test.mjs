@@ -93,7 +93,7 @@ test('Apps Script authenticates, deduplicates, preserves staff notes and refuses
     getValues() { return Array.from({ length: height }, (_, i) => Array.from({ length: width }, (_, j) => rows[row - 1 + i]?.[col - 1 + j] ?? '')); },
     createTextFinder(value) { return { matchEntireCell() { return this; }, useRegularExpression() { return this; }, findNext() { return rows.slice(1).find(r => r[0] === value) || null; } }; },
   });
-  const sheet = { getLastRow: () => rows.length, getMaxRows: () => 1000, getRange: range, setFrozenRows() {} };
+  const sheet = { getLastRow: () => rows.length, getMaxRows: () => 1000, getRange: range, setFrozenRows() {}, autoResizeRows() {} };
   const context = {
     ContentService: { MimeType: { JSON: 'json' }, createTextOutput: value => ({ setMimeType: () => JSON.parse(value) }) },
     PropertiesService: { getScriptProperties: () => ({ getProperty: () => config.secret }) },
@@ -102,12 +102,76 @@ test('Apps Script authenticates, deduplicates, preserves staff notes and refuses
     Utilities: { formatDate: () => '01/01/1970 07:00:01' },
   };
   runInNewContext(readFileSync(new URL('./google-sheets/Code.gs', import.meta.url), 'utf8'), context);
+  context.styleBookingSheet = () => {};
   const send = (secret = config.secret) => context.doPost({ postData: { contents: JSON.stringify({ secret, booking }) } });
   assert.equal(send('wrong').ok, false); assert.equal(rows.length, 0);
   assert.equal(send().ok, true); assert.equal(rows.length, 2);
   assert.equal(rows[1][2], booking.fullName); assert.equal(rows[1][3], '0901234567');
-  assert.equal(rows[1][16], 'Chờ gọi'); rows[1][19] = 'Đã gọi khách';
-  assert.equal(send().ok, true); assert.equal(rows.length, 2); assert.equal(rows[1][19], 'Đã gọi khách');
+  assert.equal(rows[0].length, 19);
+  assert.equal(rows[0].includes('Nhân viên phụ trách'), false);
+  assert.equal(rows[0].includes('Ghi chú xác nhận'), false);
+  assert.equal(rows[1][17], 'Chờ gọi'); rows[1][18] = '04/11/2026 16:00';
+  assert.equal(send().ok, true); assert.equal(rows.length, 2); assert.equal(rows[1][18], '04/11/2026 16:00');
   rows[0][0] = 'Existing column';
   assert.equal(send().error, 'header_mismatch'); assert.equal(rows.length, 2); assert.equal(locked, false);
+});
+
+test('Sheets separates customer notes and formats current and queued legacy hold amounts', () => {
+  const context = { Utilities: { formatDate: () => '28/10/2026 16:56:00' } };
+  runInNewContext(readFileSync(new URL('./google-sheets/Code.gs', import.meta.url), 'utf8'), context);
+  const legacy = 'Mã đặt chỗ Vietjet: YBGRJC\nPay Later - chưa thanh toán. Hạn thanh toán (VN): 16:56:00 28/10/2026\nTổng tiền hãng: 1672381 VND';
+  const notes = context.bookingNotes({ note: 'Cần hành lý 23 kg\n' + legacy });
+  assert.equal(notes.note, 'Cần hành lý 23 kg');
+  assert.match(notes.hold, /1,672,381 VND/);
+  assert.equal(notes.hold, 'Hạn thanh toán: 28/10/2026 16:56:00\nMã: YBGRJC\nTổng tiền: 1,672,381 VND');
+  assert.equal(context.bookingNotes({ note: legacy }).note, '');
+  assert.equal(context.bookingNotes({ note: 'Mã đặt chỗ Vietjet: khách tự ghi' }).note, 'Mã đặt chỗ Vietjet: khách tự ghi');
+  const current = context.bookingNotes({ note: '123123', airlineHold: { status: 'held', pnr: 'ABC123', paymentDeadline: '2026-10-28T09:56:00Z', total: 1542781 } });
+  assert.equal(current.note, '123123');
+  assert.match(current.hold, /ABC123/);
+  assert.match(current.hold, /1,542,781 VND/);
+  assert.equal(current.hold.split('\n').length, 3);
+  assert.equal(context.compactHoldText(notes.hold), notes.hold);
+  assert.equal(context.formatMoneyInText('1,672,381 VND'), '1,672,381 VND');
+  assert.equal(context.formatMoney(0), '0');
+});
+
+test('upgrade backs up old data, removes requested columns and preserves call times on rerun', () => {
+  const context = { Utilities: { formatDate: () => '20261104 160000' } };
+  runInNewContext(readFileSync(new URL('./google-sheets/Code.gs', import.meta.url), 'utf8'), context);
+  const headers = runInNewContext('Array.from(HEADERS)', context);
+  const oldHeaders = headers.filter(h => h !== 'Thông tin giữ chỗ');
+  oldHeaders.splice(17, 0, 'Nhân viên phụ trách'); oldHeaders.push('Ghi chú xác nhận');
+  const legacy = 'Mã đặt chỗ Vietjet: YBGRJC\nPay Later - chưa thanh toán. Hạn thanh toán (VN): 16:56:00 28/10/2026\nTổng tiền hãng: 1672381 VND';
+  const row = oldHeaders.map(() => '');
+  row[0] = id; row[13] = '1672381 VND'; row[14] = 'Cần hành lý\n' + legacy;
+  row[16] = 'Đã gọi'; row[17] = 'Staff'; row[18] = '04/11/2026 16:00'; row[19] = 'Confirmed';
+  const rows = [oldHeaders, row];
+  let backups = 0, styled = 0, released = false;
+  const sheet = {
+    getLastRow: () => rows.length, getLastColumn: () => rows[0].length, getMaxRows: () => 1000,
+    getParent: () => ({}),
+    copyTo() { backups++; assert.equal(rows[1][0], id); return { setName() {}, getSheetId: () => backups }; },
+    deleteColumn(col) { rows.forEach(row => row.splice(col - 1, 1)); },
+    insertColumnAfter(col) { rows.forEach(row => row.splice(col, 0, '')); },
+    getRange(row, col, height = 1, width = 1) { return {
+      getValues: () => rows.slice(row - 1, row - 1 + height).map(r => r.slice(col - 1, col - 1 + width)),
+      getFormulas: () => Array.from({ length: height }, () => Array(width).fill('')),
+      setValue(value) { rows[row - 1][col - 1] = value.startsWith("'") ? value.slice(1) : value; },
+    }; },
+  };
+  context.SpreadsheetApp = { openById: () => ({ getSheetById: () => sheet }), flush() {} };
+  context.LockService = { getScriptLock: () => ({ waitLock() {}, releaseLock() { released = true; } }) };
+  context.styleBookingSheet = () => { styled++; };
+  context.upgradeBookingSheet();
+  assert.equal(backups, 1); assert.equal(styled, 1); assert.equal(released, true);
+  assert.deepEqual(Array.from(rows[0]), Array.from(headers));
+  assert.equal(rows[1][14], 'Cần hành lý'); assert.match(rows[1][15], /1,672,381 VND/);
+  assert.equal(rows[1][13], '1,672,381 VND'); assert.equal(rows[1][17], 'Đã gọi');
+  assert.equal(rows[1][18], '04/11/2026 16:00');
+  const after = JSON.stringify(rows);
+  context.upgradeBookingSheet(); assert.equal(JSON.stringify(rows), after);
+  rows[0][0] = 'Unknown';
+  assert.throws(() => context.upgradeBookingSheet(), /header_mismatch/);
+  assert.equal(backups, 2);
 });

@@ -23,6 +23,8 @@ function checkDatabase(path) {
       if (typeof item.image === "string" && item.image.startsWith("/api/media/")) images.add(item.image.slice(11));
     }
     for (const row of db.prepare("SELECT image FROM banners").all()) if (row.image.startsWith("/api/media/")) images.add(row.image.slice(11));
+    const heroImage = db.prepare("SELECT value FROM settings WHERE key = 'home_hero_image'").get()?.value;
+    if (heroImage?.startsWith("/api/media/")) images.add(heroImage.slice(11));
     return images;
   } finally { db.close(); }
 }

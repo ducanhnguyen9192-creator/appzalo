@@ -3,6 +3,7 @@ import { airlinePassengerData } from "../src/utils/airline-passengers.mjs";
 import { createAirlineHolds } from "./airline-hold.mjs";
 import { holdAgency } from "./vietjet-hold.mjs";
 import { createBookingSheets } from "./booking-sheets.mjs";
+import { createRequestCode } from "./request-code.mjs";
 import { adminRequestFilters } from "./admin-request-filters.mjs";
 import { requestStatistics } from "./request-statistics.mjs";
 import { createServer } from "node:http";
@@ -19,6 +20,7 @@ import { customerAccountRoutes } from "./customer-account.mjs";
 import { createFlightSearch, FlightSearchError } from "./flight-search.mjs";
 import { selectedFlightData } from "./selected-flight-data.mjs";
 import { validPassengers } from "../src/utils/passengers.mjs";
+import { createTranslations, translationLanguages } from "./translations.mjs";
 
 const deriveKey = promisify(scrypt);
 const SESSION_SECONDS = 7 * 24 * 60 * 60;
@@ -239,14 +241,14 @@ export function createAuthServer(options = {}) {
   const getSessionUser = (req, audience) => db.prepare("SELECT users.* FROM sessions JOIN users ON users.id = sessions.user_id WHERE token_hash = ? AND expires_at > ? AND users.disabled = 0 AND sessions.audience = ? AND users.role = ?").get(hashToken(getToken(req, audience)), Date.now(), audience, audience);
   const accountRoutes = customerAccountRoutes({ db, getSessionUser, createSession, passwordHash, rateLimit, mailer, HttpError });
   const bookingSheets = createBookingSheets(db, options.bookingSheets);
+  const translations = createTranslations(db, options.translations);
   function syncHeldBooking(id) {
     const row = db.prepare('SELECT bookings.*, users.email AS customer_email FROM bookings JOIN users ON users.id = bookings.user_id WHERE bookings.id = ?').get(id);
     if (!row || db.prepare('SELECT 1 FROM booking_sheet_outbox WHERE booking_id = ?').get(id)) return;
     const { passengers, contactEmail, ...details } = JSON.parse(row.data);
     const hold = details.airlineHold;
     if (hold?.status !== 'held') return;
-    const deadline = new Date(hold.paymentDeadline).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
-    bookingSheets.enqueue({ ...details, id, createdAt: row.created_at, note: [details.note, `Mã đặt chỗ Vietjet: ${hold.pnr}`, `Pay Later - chưa thanh toán. Hạn thanh toán (VN): ${deadline}`, ...(hold.total ? [`Tổng tiền hãng: ${hold.total} VND`] : [])].filter(Boolean).join('\n') }, row.customer_email);
+    bookingSheets.enqueue({ ...details, id, createdAt: row.created_at }, row.customer_email);
     void bookingSheets.flush();
   }
   const server = createServer(async (req, res) => {
@@ -301,12 +303,12 @@ export function createAuthServer(options = {}) {
           const item = JSON.parse(row.data);
           const snapshot = { name: item.name, price: item.price, ...(body.service === "tour" ? { kind: item.kind, destination: item.destination, duration: item.duration } : { coverage: item.coverage, allowance: item.allowance, validity: item.validity }) };
           rateLimit(req, res, "service", customer.id);
-          const id = randomUUID(), now = Date.now();
+          const id = createRequestCode(db), now = Date.now();
           db.prepare("INSERT INTO service_requests (id, user_id, request_key, data, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)").run(id, customer.id, body.requestKey, JSON.stringify({ request, item: snapshot }), now, now);
           return send(201, { request: bookingRow(db.prepare("SELECT * FROM service_requests WHERE id = ?").get(id)) });
         }
       }
-      if (path === "/api/bookings" || path === "/api/transactions" || /^\/api\/bookings\/[a-f0-9-]{36}(?:\/retry)?$/.test(path)) {
+      if (path === "/api/bookings" || path === "/api/transactions" || /^\/api\/bookings\/(?:[A-Z2-9]{6}|[a-f0-9-]{36})(?:\/retry)?$/.test(path)) {
         const customer = getSessionUser(req, "customer");
         if (!customer) throw new HttpError(401, "Vui lòng đăng nhập tài khoản khách hàng để xem lịch sử và gửi yêu cầu.");
         const page = Math.max(1, Math.min(100000, Math.floor(Number(requestUrl.searchParams.get("page")) || 1)));
@@ -320,7 +322,14 @@ export function createAuthServer(options = {}) {
           if (airlineHolds.previous(customer.id, details)) throw new HttpError(409, 'Đã có yêu cầu giữ chỗ khác cho khách và chuyến này.');
           rateLimit(req, res, 'booking', customer.id);
           details.airlineHold = { status: 'processing', message: 'Đang thử lại bước chưa gửi trên Vietjet.' };
-          db.prepare('UPDATE bookings SET data = ?, updated_at = ? WHERE id = ?').run(JSON.stringify(details), Date.now(), id);
+          db.exec('BEGIN IMMEDIATE');
+          try {
+            // A later failed request may have taken this fingerprint. Reclaim
+            // it while the stored retry is still failed, before starting work.
+            airlineHolds.register(customer.id, id, details);
+            db.prepare('UPDATE bookings SET data = ?, updated_at = ? WHERE id = ?').run(JSON.stringify(details), Date.now(), id);
+            db.exec('COMMIT');
+          } catch (error) { db.exec('ROLLBACK'); throw error; }
           void airlineHolds.start(id, details).catch(() => {});
           return send(202, { booking: bookingRow(db.prepare('SELECT * FROM bookings WHERE id = ?').get(id)) });
         }
@@ -357,7 +366,7 @@ export function createAuthServer(options = {}) {
             if (duplicate) return send(200, { booking: bookingRow(duplicate) });
           }
           rateLimit(req, res, "booking", customer.id);
-          const id = randomUUID(), now = Date.now();
+          const id = createRequestCode(db), now = Date.now();
           db.exec("BEGIN IMMEDIATE");
           try {
             db.prepare("INSERT INTO bookings (id, user_id, request_key, data, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)").run(id, customer.id, body.requestKey, details.autoHold ? JSON.stringify({ ...details, airlineHold: { status: 'processing', message: 'Đang chọn vé và nhập thông tin trên Vietjet.' } }) : data, now, now);
@@ -383,6 +392,12 @@ export function createAuthServer(options = {}) {
         stream.pipe(res);
         return;
       }
+      const language = requestUrl.searchParams.get("lang") ?? "vi";
+      const languageRoute = path.match(/^\/api\/i18n\/([\w-]+)$/);
+      if (req.method === "GET" && languageRoute) {
+        if (!translationLanguages.includes(languageRoute[1])) throw new HttpError(400, "Ngôn ngữ không được hỗ trợ.");
+        return send(200, translations.dictionary(languageRoute[1]));
+      }
       if (req.method === "GET" && path === "/api/content/products") {
         return send(200, db.prepare("SELECT * FROM articles WHERE published = 1 ORDER BY id DESC").all().map((row) => {
           const item = articleRow(row);
@@ -394,21 +409,21 @@ export function createAuthServer(options = {}) {
       if (req.method === "GET" && path === "/api/content/tours") {
         const kind = requestUrl.searchParams.get("type");
         if (kind && !["domestic", "international", "combo"].includes(kind)) throw new HttpError(400, "Nhóm tour không hợp lệ.");
-        const tours = db.prepare("SELECT * FROM tours WHERE published = 1 ORDER BY id DESC").all().map(tourRow);
+        const tours = db.prepare("SELECT * FROM tours WHERE published = 1 ORDER BY id DESC").all().map(row => translations.localize(tourRow(row), "tours", language));
         return send(200, kind ? tours.filter((tour) => tour.kind === kind) : tours);
       }
-      if (req.method === "GET" && path === "/api/content/esims") return send(200, db.prepare("SELECT * FROM esims WHERE published = 1 ORDER BY id DESC").all().map(articleRow));
+      if (req.method === "GET" && path === "/api/content/esims") return send(200, db.prepare("SELECT * FROM esims WHERE published = 1 ORDER BY id DESC").all().map(row => translations.localize(articleRow(row), "esims", language)));
       const esimDetail = path.match(/^\/api\/content\/esims\/(\d+)$/);
       if (req.method === "GET" && esimDetail) {
         const esim = db.prepare("SELECT * FROM esims WHERE id = ? AND published = 1").get(Number(esimDetail[1]));
         if (!esim) throw new HttpError(404, "Gói eSIM không tồn tại hoặc chưa được hiển thị.");
-        return send(200, articleRow(esim));
+        return send(200, translations.localize(articleRow(esim), "esims", language));
       }
       const tourDetail = path.match(/^\/api\/content\/tours\/(\d+)$/);
       if (req.method === "GET" && tourDetail) {
         const tour = db.prepare("SELECT * FROM tours WHERE id = ? AND published = 1").get(Number(tourDetail[1]));
         if (!tour) throw new HttpError(404, "Tour không tồn tại hoặc chưa được hiển thị.");
-        return send(200, tourRow(tour));
+        return send(200, translations.localize(tourRow(tour), "tours", language));
       }
       if (path.startsWith("/api/admin/") && !isAdminAuth) {
         const admin = getSessionUser(req, "admin");
@@ -462,6 +477,7 @@ export function createAuthServer(options = {}) {
             total: db.prepare("SELECT COUNT(*) AS count FROM users WHERE (? IS NULL OR role = ?) AND (name LIKE ? OR email LIKE ?)").get(role, role, search, search).count,
           });
         }
+        if (req.method === "GET" && path === "/api/admin/i18n/status") return send(200, translations.getStatus());
         if (req.method === "GET" && path === "/api/admin/articles") return send(200, { articles: db.prepare("SELECT * FROM articles ORDER BY id DESC").all().map(articleRow) });
         if (req.method === "GET" && path === "/api/admin/banners") return send(200, { banners: db.prepare("SELECT * FROM banners ORDER BY id").all().map((row) => ({ ...row, active: Boolean(row.active) })) });
         if (req.method === "GET" && path === "/api/admin/tours") return send(200, { tours: db.prepare("SELECT * FROM tours ORDER BY id DESC").all().map(tourRow) });
@@ -469,6 +485,7 @@ export function createAuthServer(options = {}) {
         if (req.method === "POST") {
           rateLimit(req, res, "admin", admin.id);
           const body = await readJson(req, 131072);
+
           const deletion = path.match(/^\/api\/admin\/(tours|esims|banners)\/delete$/);
           if (deletion) {
             const table = deletion[1];

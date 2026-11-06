@@ -2,6 +2,7 @@ import { lazy, Suspense } from "react";
 import ToursPage, { CategoryDestination } from "@/pages/tours";
 import TourDetail from "@/pages/tours/detail";
 import EsimsPage from "@/pages/esims";
+import EsimResultsPage from "@/pages/esims/results";
 import EsimDetail from "@/pages/esims/detail";
 import HistoryPage from "@/pages/history";
 import SupportPage from "@/pages/support";
@@ -16,6 +17,10 @@ import AccountRecovery from "@/pages/profile/recovery";
 import SearchPage from "@/pages/search";
 import { createBrowserRouter, Navigate } from "react-router-dom";
 import { getBasePath } from "@/utils/zma";
+import { CurrencyProvider } from "@/components/currency-provider";
+import LanguageSelector from "@/components/language-selector";
+import LanguageNotice from "@/components/language-notice";
+import { setLanguageScope, setTranslatedPageTitle } from "@/i18n/store";
 
 const FlightSearchPage = lazy(() => import("@/pages/flights"));
 const AdminPage = lazy(() => import("@/pages/admin"));
@@ -23,7 +28,7 @@ const AboutPage = lazy(() => import("@/pages/about"));
 
 const router = createBrowserRouter(
   [
-    { path: "/admin", element: <Suspense fallback={<p role="status" className="p-6">Đang tải trang quản trị…</p>}><AdminPage /></Suspense>, errorElement: <RouteErrorPage /> },
+    { path: "/admin", element: <CurrencyProvider><div className="admin-language-bar"><LanguageSelector /></div><LanguageNotice /><Suspense fallback={<p role="status" className="p-6">Đang tải trang quản trị…</p>}><AdminPage /></Suspense></CurrencyProvider>, errorElement: <RouteErrorPage /> },
     {
       path: "/",
       element: <Layout />,
@@ -37,6 +42,8 @@ const router = createBrowserRouter(
         { path: "/support", element: <SupportPage />, handle: { title: "Liên hệ FirstClass" } },
         { path: "/history", element: <HistoryPage />, handle: { title: "Lịch sử của bạn" } },
         { path: "/esims", element: <EsimsPage />, handle: { title: "eSIM du lịch" } },
+        { path: "/esims/country/:countryCode", element: <EsimResultsPage />, handle: { title: "eSIM theo quốc gia", scrollRestoration: 0 } },
+        { path: "/esims/search", element: <EsimResultsPage />, handle: { title: "Tìm gói eSIM", scrollRestoration: 0 } },
         { path: "/esims/:id", element: <EsimDetail />, handle: { title: "Chi tiết eSIM", scrollRestoration: 0 } },
         { path: "/tours", element: <ToursPage />, handle: { title: "Tour du lịch" } },
         { path: "/tours/domestic", element: <ToursPage kind="domestic" />, handle: { title: "Tour trong nước" } },
@@ -117,11 +124,12 @@ const router = createBrowserRouter(
 );
 
 function updatePageTitle(state: typeof router.state) {
+  setLanguageScope(state.matches.some(match => match.route.path === "/admin") ? "admin" : "customer");
   const match = state.matches[state.matches.length - 1];
   const title = (match?.route.handle as { title?: unknown } | undefined)?.title;
   const categoryTitles: Record<string, string> = { "5": "Khách sạn", "6": "Visa", "8": "Dịch vụ sân bay", "9": "Thuê xe", "10": "Bảo hiểm du lịch" };
   const fallback = categoryTitles[match?.params.id ?? ""] && match?.route.path === "/category/:id" ? categoryTitles[match.params.id!] : state.location.pathname.endsWith("/admin") ? "Quản trị" : state.location.pathname.endsWith("/profile") ? "Tài khoản" : "Trang chủ";
-  document.title = `${typeof title === "string" ? title : fallback} | FirstClass Travel`;
+  setTranslatedPageTitle(typeof title === "string" ? title : fallback);
 }
 updatePageTitle(router.state);
 router.subscribe(updatePageTitle);

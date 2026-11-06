@@ -14,6 +14,7 @@ import BookingManager from "./booking-manager";
 import ServiceManager from "./service-manager";
 import RequestStatistics from "./request-statistics";
 import AuditPage from "./audit";
+import TranslationManager from "./translation-manager";
 import { adminApi, uploadAdminImage } from "@/utils/admin-api";
 import { showNotice } from "@/utils/notifications";
 
@@ -161,6 +162,7 @@ export default function AdminPage() {
           {tab === "services" && <ServiceManager />}
           {tab === "statistics" && <RequestStatistics />}
           {tab === "audit" && <AuditPage />}
+          {tab === "translations" && <TranslationManager />}
           {tab === "overview" && <>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               {[ ["Khách hàng", overview?.customers], ["Tài khoản bị khóa", overview?.disabled], ["Bài đang hiển thị", overview?.articles], ["Banner đang bật", overview?.banners] ].map(([label, value]) => <div key={String(label)} className="bg-white border border-gray-100 rounded-2xl p-5"><p className="text-sm text-gray-500">{label}</p><p className="text-3xl font-bold mt-3">{value ?? "—"}</p></div>)}

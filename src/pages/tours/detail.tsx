@@ -1,11 +1,13 @@
+import { useMoney } from "@/components/currency-provider";
 import { DetailSkeleton } from "@/components/catalog-skeleton";
 import { usePageTitle } from "@/utils/page-title";
 import ContentImage from "@/components/content-image";
 import { Link, useParams } from "react-router-dom";
-import { Tour, TOUR_KINDS, tourPrice, useTourData, tourPath } from "@/utils/tours";
+import { Tour, TOUR_KINDS, useTourData, tourPath } from "@/utils/tours";
 import ServiceConsultation from "@/components/service-consultation";
 
 export default function TourDetail() {
+  const tourPrice = useMoney();
   const { id } = useParams();
   const { data: tour, loading, error, retry } = useTourData<Tour>(`tours/${id}`);
   usePageTitle(tour?.name);

@@ -8,7 +8,7 @@ export const adminGroups = [
   { label: "Tổng quan", items: [{ id: "overview", label: "Tổng quan" }, { id: "statistics", label: "Thống kê yêu cầu" }] },
   { label: "Kinh doanh", items: [{ id: "bookings", label: "Yêu cầu & giao dịch" }, { id: "services", label: "Yêu cầu tour/eSIM" }] },
   { label: "Nội dung", items: [{ id: "articles", label: "Tin tức & ưu đãi" }, { id: "tours", label: "Tour du lịch" }, { id: "esims", label: "eSIM" }, { id: "banners", label: "Banner" }] },
-  { label: "Hệ thống", items: [{ id: "admins", label: "Tài khoản quản trị" }, { id: "users", label: "Tài khoản người dùng" }, { id: "audit", label: "Nhật ký thao tác" }] },
+  { label: "Hệ thống", items: [{ id: "admins", label: "Tài khoản quản trị" }, { id: "users", label: "Tài khoản người dùng" }, { id: "audit", label: "Nhật ký thao tác" }, { id: "translations", label: "Bản dịch" }] },
 ];
 
 export function AdminHeader({ name, busy, onLogout, onSecurity }: { name: string; busy: boolean; onLogout: () => void; onSecurity: () => void }) {

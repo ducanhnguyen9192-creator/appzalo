@@ -94,7 +94,7 @@ export default function ProfilePage() {
               key={item.title}
               type="button"
               onClick={item.action}
-              className="bg-white rounded-2xl p-4 text-left border border-gray-100 shadow-sm active:scale-[0.99]"
+              className="profile-quick-card bg-white rounded-2xl p-4 text-left border border-gray-100 shadow-sm active:scale-[0.99]"
             >
               <div className="w-10 h-10 rounded-xl bg-gold-50 flex items-center justify-center text-xl">
                 {item.icon}

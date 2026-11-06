@@ -39,3 +39,6 @@ Thumbs.db
 
 # Production build
 www/
+
+# Local screenshots, generated images, and debugging artifacts
+output/

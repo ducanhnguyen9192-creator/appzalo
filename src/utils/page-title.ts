@@ -1,7 +1,8 @@
 import { useEffect } from "react";
+import { setTranslatedPageTitle } from "@/i18n/store";
 
 export function usePageTitle(title?: string) {
   useEffect(() => {
-    if (title) document.title = `${title} | FirstClass Travel`;
+    if (title) setTranslatedPageTitle(title);
   }, [title]);
 }

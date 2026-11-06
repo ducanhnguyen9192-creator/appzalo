@@ -216,3 +216,20 @@ test("rate limits isolate actions and accounts and only trust explicitly configu
   const accountLimit = createRateLimiter({ limit: 1 }); accountLimit(req, res, "service", "one-account");
   assert.throws(() => accountLimit({ socket: { remoteAddress: "192.0.2.3" }, headers: {} }, res, "service", "one-account"), error => error.status === 429);
 });
+
+test("backup validates uploaded home hero images even when no article references them", async t => {
+  const f = await fixture(t);
+  const image = `${randomUUID()}.png`;
+  const source = new DatabaseSync(f.databasePath);
+  source.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('home_hero_image', ?)").run(`/api/media/${image}`);
+  source.close();
+  await assert.rejects(createBackup(f.databasePath), /Thiếu ảnh/);
+  mkdirSync(join(f.directory, "uploads"), { recursive: true });
+  writeFileSync(join(f.directory, "uploads", image), "home hero fixture");
+  const directory = await createBackup(f.databasePath);
+  const manifest = await verifyBackup(directory);
+  assert.ok(manifest.files.some(file => file.path === `uploads/${image}`));
+  const incomplete = { ...manifest, files: manifest.files.filter(file => file.path !== `uploads/${image}`) };
+  writeFileSync(join(directory, "manifest.json"), JSON.stringify(incomplete));
+  await assert.rejects(verifyBackup(directory), /Thiếu ảnh/);
+});

@@ -26,7 +26,7 @@ export default function Header() {
         return handle.title;
       }
     }
-  }, [handle, categories]);
+  }, [handle, categories, match.params]);
 
   const showBack = location.key !== "default" && handle?.back !== false;
 

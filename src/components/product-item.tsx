@@ -1,6 +1,7 @@
+import { useMoney } from "@/components/currency-provider";
 import ContentImage from "@/components/content-image";
 import { Product } from "@/types";
-import { formatPrice } from "@/utils/format";
+
 import TransitionLink from "./transition-link";
 import { useState } from "react";
 
@@ -14,6 +15,7 @@ export interface ProductItemProps {
 }
 
 export default function ProductItem(props: ProductItemProps) {
+  const formatPrice = useMoney();
   const [selected, setSelected] = useState(false);
 
   return (

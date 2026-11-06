@@ -1,8 +1,9 @@
 import { useEffect } from "react";
+import { translate } from "@/i18n/store";
 
 const dirtyForms = new Set<symbol>();
 export function confirmDiscardChanges() {
-  return dirtyForms.size === 0 || window.confirm("Bạn có thay đổi chưa lưu. Rời phần đang nhập và bỏ các thay đổi này?");
+  return dirtyForms.size === 0 || window.confirm(translate("Bạn có thay đổi chưa lưu. Rời phần đang nhập và bỏ các thay đổi này?"));
 }
 export function useUnsavedChanges(dirty: boolean) {
   useEffect(() => {

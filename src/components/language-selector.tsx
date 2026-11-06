@@ -1,16 +1,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
-const languages = [
-  ["vi", "Tiếng Việt", "vn"], ["zh-TW", "繁體中文", "tw"], ["ja", "日本語", "jp"],
-  ["ko", "한국어", "kr"], ["th", "ภาษาไทย", "th"], ["uk", "Українська", "ua"],
-  ["ar", "العربية", "globe"], ["id", "Bahasa Indonesia", "id"], ["ms", "Bahasa Melayu", "my"],
-  ["da", "Dansk", "dk"], ["de", "Deutsch", "de"], ["en", "English", "globe"],
-  ["es", "Español", "es"], ["fr", "Français", "fr"], ["it", "Italiano", "it"],
-  ["nl", "Nederlands", "nl"], ["pl", "Polski", "pl"], ["pt-BR", "Português (Brasil)", "br"],
-  ["fi", "Suomi", "fi"], ["sv", "Svenska", "se"], ["tr", "Türkçe", "tr"],
-  ["el", "Ελληνικά", "gr"], ["ru", "Русский", "ru"],
-] as const;
+import { languages, useLanguage } from "@/i18n/store";
 
 function LanguageIcon({ country }: { country: string }) {
   const clip = useId();
@@ -44,16 +35,11 @@ function LanguageIcon({ country }: { country: string }) {
 }
 
 export default function LanguageSelector() {
-  const [selected, setSelected] = useState(() => {
-    try { return languages.find(item => item[0] === localStorage.getItem("travel-language"))?.[0] ?? "vi"; }
-    catch { return "vi"; }
-  });
+  const { language: selected, setLanguage, t } = useLanguage();
   const [open, setOpen] = useState(false);
-  const [tab, setTab] = useState("language");
   const dialog = useRef<HTMLDialogElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
   const titleId = useId();
-  const panelId = useId();
   const current = languages.find(item => item[0] === selected)!;
 
   useEffect(() => {
@@ -63,31 +49,27 @@ export default function LanguageSelector() {
     return () => { element?.close(); trigger.current?.focus(); };
   }, [open]);
 
-  function choose(code: typeof selected) {
-    setSelected(code);
-    try { localStorage.setItem("travel-language", code); } catch { /* Keep the selection for this session. */ }
+  function choose(code: string) {
+    setLanguage(code);
     setOpen(false);
   }
 
   return <>
-    <button ref={trigger} type="button" className="language-trigger" aria-label={`Chọn ngôn ngữ: ${current[1]}`} aria-haspopup="dialog" aria-expanded={open} onClick={() => { setTab("language"); setOpen(true); }}>
+    <button ref={trigger} type="button" className="language-trigger" aria-label={`${t("Ngôn Ngữ")}: ${current[1]}`} aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(true)}>
       <LanguageIcon country={current[2]} /><span>{current[1]}</span>
       <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m4 6 4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
     </button>
     {open && createPortal(<dialog ref={dialog} className="language-dialog" aria-labelledby={titleId} onCancel={event => { event.preventDefault(); setOpen(false); }} onClick={event => { if (event.target === event.currentTarget) { const rect = event.currentTarget.getBoundingClientRect(); if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) setOpen(false); } }}>
       <div className="language-dialog-header">
-        <div className="language-tabs" role="tablist" aria-label="Ngôn ngữ và tiền tệ">
-          <button type="button" id={`${titleId}-language`} role="tab" aria-selected={tab === "language"} aria-controls={panelId} tabIndex={tab === "language" ? 0 : -1} className={tab === "language" ? "is-active" : ""} onClick={() => setTab("language")} onKeyDown={event => { if (event.key === "ArrowRight" || event.key === "ArrowLeft") { setTab("currency"); document.getElementById(`${titleId}-currency`)?.focus(); } }}>Ngôn Ngữ</button>
-          <button type="button" id={`${titleId}-currency`} role="tab" aria-selected={tab === "currency"} aria-controls={panelId} tabIndex={tab === "currency" ? 0 : -1} className={tab === "currency" ? "is-active" : ""} onClick={() => setTab("currency")} onKeyDown={event => { if (event.key === "ArrowRight" || event.key === "ArrowLeft") { setTab("language"); document.getElementById(`${titleId}-language`)?.focus(); } }}>Tiền Tệ</button>
-        </div>
+        <h2 id={titleId} className="text-lg font-bold">Ngôn Ngữ</h2>
         <button type="button" className="language-close" aria-label="Đóng bảng chọn ngôn ngữ" onClick={() => setOpen(false)}><svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg></button>
       </div>
-      <div className="language-dialog-body" id={panelId} role="tabpanel" aria-labelledby={`${titleId}-${tab}`}>
-        <h2 id={titleId}>{tab === "language" ? "Tất Cả Ngôn Ngữ" : "Tiền Tệ"}</h2>
-        {tab === "language" && <p className="text-sm text-gray-600 mb-4">Ứng dụng hiện hiển thị bằng tiếng Việt. Lựa chọn bên dưới chỉ lưu ngôn ngữ ưu tiên trên thiết bị, chưa dịch nội dung.</p>}
-        {tab === "language" ? <div className="language-grid">
-          {languages.map(([code, label, country]) => <button type="button" key={code} lang={code} aria-pressed={selected === code} className={`language-option${selected === code ? " is-selected" : ""}`} onClick={() => choose(code)}><LanguageIcon country={country} /><span dir="auto">{label}</span></button>)}
-        </div> : <div className="language-currency"><button type="button" className="language-option is-selected" aria-pressed="true" onClick={() => setOpen(false)}><LanguageIcon country="vn" /><span>VND — Việt Nam Đồng</span></button><p>Giá và thanh toán hiện được tính bằng Việt Nam Đồng (VND).</p></div>}
+      <div className="language-dialog-body">
+        <p className="text-sm text-gray-600 mb-4">Ứng dụng hỗ trợ tiếng Việt và tiếng Anh.</p>
+        <div className="language-grid">
+          {languages.map(([code, label, country]) => <button type="button" key={code} lang={code} translate="no" aria-pressed={selected === code} className={`language-option${selected === code ? " is-selected" : ""}`} onClick={() => choose(code)}><LanguageIcon country={country} /><span dir="auto">{label}</span></button>)}
+        </div>
+
       </div>
     </dialog>, document.body)}
   </>;

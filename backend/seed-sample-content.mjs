@@ -1,6 +1,7 @@
 import { DatabaseSync } from "node:sqlite";
 import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
+import destinationGroups from "../src/pages/esims/destinations.json" with { type: "json" };
 
 const disclaimer = "Nội dung mẫu để minh họa giao diện, chưa phải dịch vụ đã xác nhận mở bán. Ảnh dùng để minh họa. Liên hệ FirstClass để được tư vấn lịch, giá và điều kiện thực tế.";
 const tourBase = {
@@ -30,6 +31,60 @@ const samples = {
   ],
 };
 
+const countrySamples = destinationGroups.flatMap(group => group.countries).map(country =>
+  samples.esims.find(item => item.coverage === `${country.name} (minh họa)`) ?? {
+    ...esimBase,
+    name: `eSIM mẫu · ${country.name} 5 GB`,
+    coverage: `${country.name} (minh họa)`,
+    allowance: "5 GB (minh họa)",
+    validity: "7 ngày (minh họa)",
+    summary: `Gói eSIM mẫu dành riêng cho chuyến đi đến ${country.name}: 5 GB trong 7 ngày. ${disclaimer}`,
+  }
+);
+
+// Illustrative VND prices for previewing the catalog, not supplier quotes.
+const tourPrices = [3490000, 2990000, 24900000, 5990000];
+samples.tours.forEach((item, index) => { item.price = tourPrices[index]; });
+const esimPrices = { "Nhật Bản": 249000, "Hàn Quốc": 349000, "Thái Lan": 179000, "Singapore": 159000 };
+for (const group of destinationGroups) {
+  for (const country of group.countries) {
+    const item = countrySamples.find(sample => sample.coverage === `${country.name} (minh họa)`);
+    if (item) item.price = esimPrices[country.name] ?? (group.name === "Châu Đại Dương" ? 449000 : 299000);
+  }
+}
+
+export function fillSamplePrices(db) {
+  const key = "sample_catalog_prices_v1";
+  if (db.prepare("SELECT value FROM settings WHERE key = ?").get(key)) return 0;
+  let updated = 0;
+  for (const [table, catalog] of [["tours", samples.tours], ["esims", countrySamples]]) {
+    for (const row of db.prepare(`SELECT id, data FROM ${table}`).all()) {
+      const item = JSON.parse(row.data);
+      const sample = catalog.find(candidate => candidate.name === item.name);
+      if (!sample || item.price != null) continue;
+      item.price = sample.price;
+      updated += Number(db.prepare(`UPDATE ${table} SET data = ? WHERE id = ?`).run(JSON.stringify(item), row.id).changes);
+    }
+  }
+  db.prepare("INSERT INTO settings (key, value) VALUES (?, ?)").run(key, String(updated));
+  return updated;
+}
+
+function seedCountryEsims(db) {
+  const key = "sample_country_esims_seeded_v1";
+  if (db.prepare("SELECT value FROM settings WHERE key = ?").get(key)) return 0;
+  const existing = new Set(db.prepare("SELECT data FROM esims").all().map(row => JSON.parse(row.data).name));
+  // The original marker also remembers samples that an admin renamed or deleted.
+  const originalSeeded = !!db.prepare("SELECT value FROM settings WHERE key = ?").get("sample_catalog_seeded_v1");
+  const ids = [];
+  for (const item of countrySamples) {
+    if (existing.has(item.name) || (originalSeeded && samples.esims.some(sample => sample.name === item.name))) continue;
+    ids.push(Number(db.prepare("INSERT INTO esims (data, published) VALUES (?, 1)").run(JSON.stringify(item)).lastInsertRowid));
+  }
+  db.prepare("INSERT INTO settings (key, value) VALUES (?, ?)").run(key, JSON.stringify(ids));
+  return ids.length;
+}
+
 // Only replace the original image on recognized samples; preserve admin uploads and visibility.
 export function refreshSampleImages(db) {
   const previous = { tours: ["news-4", "news-5", "news-3", "news-1"], esims: Array(4).fill("news-2") };
@@ -52,14 +107,19 @@ export function seedSampleCatalog(db) {
   db.exec("BEGIN IMMEDIATE");
   try {
     refreshSampleImages(db);
-    if (db.prepare("SELECT value FROM settings WHERE key = ?").get(key)) { db.exec("COMMIT"); return { addedTours: 0, addedEsims: 0 }; }
+    fillSamplePrices(db);
+    if (db.prepare("SELECT value FROM settings WHERE key = ?").get(key)) {
+      const addedEsims = seedCountryEsims(db);
+      db.exec("COMMIT"); return { addedTours: 0, addedEsims };
+    }
     const ids = {};
     for (const table of ["tours", "esims"]) {
       ids[table] = samples[table].map((item) => Number(db.prepare(`INSERT INTO ${table} (data, published) VALUES (?, 1)`).run(JSON.stringify(item)).lastInsertRowid));
     }
     db.prepare("INSERT INTO settings (key, value) VALUES (?, ?)").run(key, JSON.stringify(ids));
+    const addedCountryEsims = seedCountryEsims(db);
     db.exec("COMMIT");
-    return { addedTours: ids.tours.length, addedEsims: ids.esims.length };
+    return { addedTours: ids.tours.length, addedEsims: ids.esims.length + addedCountryEsims };
   } catch (error) { db.exec("ROLLBACK"); throw error; }
 }
 

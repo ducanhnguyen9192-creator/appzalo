@@ -1,8 +1,10 @@
+import { useMoney } from "@/components/currency-provider";
 import type { SelectedFlight } from "@/utils/flight-selection";
 import { vietjetFareLabel } from "@/utils/flight-selection";
-import { formatMoney, formatFlightDate } from "@/utils/bookings";
+import { formatFlightDate } from "@/utils/bookings";
 
 export default function SelectedFlightInfo({ flights, onClear, disabled = false, compact = false }: { flights: SelectedFlight[]; onClear?: () => void; disabled?: boolean; compact?: boolean }) {
+  const formatMoney = useMoney();
   if (!flights.length) return null;
   return <section aria-label="Chuyến bay đã chọn" className="rounded-xl border border-gold-200 bg-gold-50 p-3 space-y-3 text-sm">
     <h3 className="font-semibold">Chuyến bay đã chọn cho yêu cầu</h3>

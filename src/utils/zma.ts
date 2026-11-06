@@ -3,10 +3,11 @@ export function getBasePath() {
   const appEnv = urlParams.get("env");
 
   if (
-    import.meta.env.PROD ||
-    appEnv === "TESTING_LOCAL" ||
-    appEnv === "TESTING" ||
-    appEnv === "DEVELOPMENT"
+    window.APP_ID &&
+    (import.meta.env.PROD ||
+      appEnv === "TESTING_LOCAL" ||
+      appEnv === "TESTING" ||
+      appEnv === "DEVELOPMENT")
   ) {
     return `/zapps/${window.APP_ID}`;
   }

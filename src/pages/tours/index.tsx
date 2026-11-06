@@ -1,3 +1,4 @@
+import { useMoney } from "@/components/currency-provider";
 import { CatalogSkeleton } from "@/components/catalog-skeleton";
 import { FilterField, SortField, filterInputClass } from "@/components/catalog-filters";
 import { Link, Navigate, useParams, useSearchParams } from "react-router-dom";
@@ -25,6 +26,7 @@ export default function ToursPage({ kind = "" }: { kind?: TourKind | "" }) {
 }
 
 function TourCatalog({ kind }: { kind: TourKind | "" }) {
+  const money = useMoney();
   const [params, setParams] = useSearchParams();
   const search = (params.get("q") ?? "").slice(0, 200);
   const duration = params.get("duration") ?? "";
@@ -48,7 +50,7 @@ function TourCatalog({ kind }: { kind: TourKind | "" }) {
         <summary className="w-fit cursor-pointer rounded-lg bg-gray-100 px-3 py-2 text-xs font-medium text-gray-700">Bộ lọc & sắp xếp{filterCount > 0 ? ` (${filterCount})` : ""}</summary>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-3">
         <FilterField label="Thời lượng"><select className={filterInputClass} value={duration} onChange={(event) => update("duration", event.target.value)}><option value="">Tất cả thời lượng</option>{filterOptions(items.map((tour) => tour.duration)).map((value) => <option key={value}>{value}</option>)}{duration && !items.some((tour) => tour.duration === duration) && <option>{duration}</option>}</select></FilterField>
-        <FilterField label="Khoảng giá"><select className={filterInputClass} value={budget} onChange={(event) => update("budget", event.target.value)}><option value="">Tất cả mức giá</option><option value="low">Đến 5 triệu đồng</option><option value="mid">Trên 5 đến 10 triệu đồng</option><option value="high">Trên 10 triệu đồng</option><option value="contact">Giá liên hệ</option></select></FilterField>
+        <FilterField label="Khoảng giá"><select className={filterInputClass} value={budget} onChange={(event) => update("budget", event.target.value)}><option value="">Tất cả mức giá</option><option value="low">Đến {money(5000000)}</option><option value="mid">Trên {money(5000000)} đến {money(10000000)}</option><option value="high">Trên {money(10000000)}</option><option value="contact">Giá liên hệ</option></select></FilterField>
         <SortField value={sort} onChange={(value) => update("sort", value)} />
       </div>
         <p className="mt-3 text-xs text-gray-500">Tour chưa có giá được xếp cuối khi sắp xếp theo giá. Giá thực tế cần được xác nhận khi tư vấn.</p>

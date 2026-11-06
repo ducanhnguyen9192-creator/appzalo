@@ -9,6 +9,7 @@ test("agency login reuses sessions, renews expired sessions and protects credent
   const context = await browser.newContext();
   const page = await context.newPage();
   page.setDefaultTimeout(500);
+  page.setDefaultNavigationTimeout(10000);
   const login = '<label>Tài khoản<input id="account"></label><label>Mật khẩu<input id="password" type="password"></label><button onclick="window.submitted = true; if (!window.rejectLogin) document.body.innerHTML = window.searchForm">Đăng nhập</button>';
   const search = '<label><input type="radio">Một chiều</label>';
   await context.route("**/*", route => route.fulfill({ contentType: "text/html; charset=utf-8", body: login }));

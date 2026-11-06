@@ -4,8 +4,10 @@ import { Link, useSearchParams } from "react-router-dom";
 import { getConfig } from "@/utils/template";
 import { Tour, tourPrice, useContentData } from "@/utils/tours";
 import { Esim } from "@/utils/esims";
+import { useLanguage } from "@/i18n/store";
 
 function ConsultationContext({ service, id }: { service: "tour" | "esim"; id: string }) {
+  const { t } = useLanguage();
   const { data, loading, error, retry } = useContentData<Tour | Esim>(`${service === "tour" ? "tours" : "esims"}/${id}`);
   const [copied, setCopied] = useState(false);
   const [copyError, setCopyError] = useState(false);
@@ -16,12 +18,12 @@ function ConsultationContext({ service, id }: { service: "tour" | "esim"; id: st
     ? `Tôi muốn được tư vấn tour: ${data.name} (mã tour ${id}).\nĐiểm đến: ${data.destination}. Thời lượng: ${data.duration}.\nGiá tham khảo: ${tourPrice(data.price)}.\nNgày dự kiến đi: …\nSố người lớn / trẻ em: …\nNhờ FirstClass xác nhận lịch khởi hành, số chỗ và giá.`
     : "coverage" in data ? `Tôi muốn được tư vấn eSIM: ${data.name} (mã gói ${id}).\nVùng phủ sóng: ${data.coverage}.\nDung lượng: ${data.allowance}. Thời hạn: ${data.validity}.\nGiá tham khảo: ${tourPrice(data.price)}.\nNgày sử dụng: …\nThiết bị tôi dùng: …\nNhờ FirstClass kiểm tra tính tương thích và điều kiện kích hoạt.` : "";
   async function copy() {
-    try { await navigator.clipboard.writeText(message); setCopied(true); setCopyError(false); }
+    try { await navigator.clipboard.writeText(t(message)); setCopied(true); setCopyError(false); }
     catch { setCopyError(true); }
   }
   return <section className="rounded-xl border p-4 space-y-3 break-words"><h2 className="font-semibold">Bạn đang cần tư vấn: {data.name}</h2><Link to={detailPath} className="text-sm text-gold-600">Xem lại thông tin →</Link>
     <p className="text-sm text-gray-600">Sao chép nội dung gợi ý, mở Zalo bên dưới rồi dán vào chat và bổ sung những mục có dấu “…”.</p>
-    <label htmlFor="consultation-message" className="block text-sm font-medium">Nội dung gợi ý gửi FirstClass</label><textarea id="consultation-message" readOnly value={message} rows={7} onFocus={(event) => event.currentTarget.select()} className="w-full border rounded-xl p-3 text-sm bg-gray-50" />
+    <label htmlFor="consultation-message" className="block text-sm font-medium">Nội dung gợi ý gửi FirstClass</label><textarea id="consultation-message" readOnly value={t(message)} rows={7} onFocus={(event) => event.currentTarget.select()} className="w-full border rounded-xl p-3 text-sm bg-gray-50" />
     <button onClick={copy} className="rounded-xl border border-gold-200 text-gold-600 px-4 py-3 text-sm font-medium">Sao chép nội dung</button>
     {copied && <p role="status" className="text-sm text-green-700">Đã sao chép. Bạn có thể dán vào chat Zalo.</p>}
     {copyError && <p role="status" className="text-sm text-gray-600">Trình duyệt chưa cho phép sao chép. Chạm vào ô nội dung, chọn Sao chép trên thiết bị.</p>}

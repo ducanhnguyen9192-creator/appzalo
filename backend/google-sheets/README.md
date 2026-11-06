@@ -8,11 +8,19 @@
 2. Tạo chuỗi bí mật ngẫu nhiên bằng `node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"` trên máy quản trị. Trong Apps Script → **Project Settings → Script properties**, thêm `BOOKING_SHEETS_SECRET` với chuỗi này. Không gửi chuỗi bí mật vào chat hay đưa vào frontend.
 3. **Deploy → New deployment → Web app**: Execute as **Me**, Who has access **Anyone**, rồi cấp quyền Google Sheets cho script. Lấy URL kết thúc bằng `/exec`. Chỉ endpoint nhận dữ liệu được truy cập công khai; không cần công khai nội dung Sheet. Nếu tổ chức không cho phép Web app kiểu này, cần quản trị Google Workspace hỗ trợ cấu hình.
 4. Trong `backend/.env`, thêm `BOOKING_SHEETS_URL=<URL /exec>` và `BOOKING_SHEETS_SECRET=<chuỗi bước 2>`. Khởi động lại backend xử lý `/api/bookings` (thường `npm run dev:backend`, hoặc `npm run dev:app-api` khi dùng worker hãng riêng).
-5. Gửi một yêu cầu thử qua app với tài khoản thử. Kiểm tra có đúng một dòng và cột **Trạng thái gọi** là **Chờ gọi**. Nhân viên điền các cột cuối: trạng thái gọi, người phụ trách, thời gian gọi và ghi chú xác nhận. Xóa dòng thử sau khi kiểm tra xong.
+5. Gửi một yêu cầu thử qua app với tài khoản thử. Kiểm tra có đúng một dòng và cột **Trạng thái gọi** là **Chờ gọi**. Nhân viên điền trạng thái gọi và thời gian gọi. Xóa dòng thử sau khi kiểm tra xong.
 
 Script chỉ khởi tạo tiêu đề khi tab trống. Nếu tab có dữ liệu với tiêu đề khác, script trả `header_mismatch` và không sửa dữ liệu. Khi đó cần đối chiếu cấu trúc hiện tại để điều chỉnh ánh xạ trước khi bật đồng bộ; không xóa dữ liệu cũ. Tiêu đề yêu cầu nằm trong `HEADERS` của `Code.gs`.
 
 ## Hành vi
+
+### Cập nhật bảng đang có dữ liệu
+
+Thay mã Apps Script bằng `Code.gs`, lưu và chạy `upgradeBookingSheet`. Hàm tạo tab sao lưu trước khi bỏ hai cột **Nhân viên phụ trách**, **Ghi chú xác nhận** và chuyển phần giữ chỗ do hệ thống ghép vào ghi chú sang **Thông tin giữ chỗ**. Ghi chú khách tự nhập và thời gian gọi được giữ nguyên. Tiêu đề lạ bị từ chối trước khi sửa.
+
+Cập nhật deployment hiện có sang phiên bản mới trong **Manage deployments** để giữ nguyên URL `/exec`. Khởi động lại backend khi áp dụng bản backend mới. Script vẫn xử lý được payload cũ đang chờ gửi.
+
+Số tiền trong giá tham khảo và tổng tiền hãng hiển thị dạng `1,672,381 VND`. Bảng dùng Arial 10, tiêu đề xanh đậm, dòng xen kẽ, bộ lọc, cố định tiêu đề và ba cột đầu, xuống dòng tự động. Trạng thái gọi có danh sách chọn và màu theo trạng thái. Chạy lại `upgradeBookingSheet` để làm mới định dạng; mỗi lần chạy tạo một tab sao lưu.
 
 - Áp dụng cho yêu cầu đặt vé mới từ `/api/bookings`, không tự xuất dữ liệu khách cũ, tour hoặc eSIM.
 - Backend xác thực phiên khách và kiểm tra tên, định dạng điện thoại, ngày bay, số khách, hành trình và chuyến đã chọn trước khi lưu. Đây không phải xác minh danh tính/OTP hoặc xác nhận giữ chỗ với hãng.

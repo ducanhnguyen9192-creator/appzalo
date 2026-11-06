@@ -1,6 +1,7 @@
+import { useMoney } from "@/components/currency-provider";
 import { useEffect, useRef, useState } from "react";
 import { API_BASE } from "@/utils/tours";
-import { formatMoney } from "@/utils/bookings";
+
 import type { FlightForm, TripType } from "@/utils/flight-form";
 import AIRPORTS from "@/mock/airports.json";
 import type { SelectedFlight } from "@/utils/flight-selection";
@@ -14,6 +15,7 @@ export function airportCode(value: string) {
   return code && AIRPORTS.some(a => a.code === code) ? code : null;
 }
 export default function FlightResults({ form, tripType, selectedFlights = [], onSelectionChange, disabled = false, autoSearch = false, searchRequest = 0 }: { form: FlightForm; tripType: TripType; selectedFlights?: SelectedFlight[]; onSelectionChange?: (value: SelectedFlight[]) => void; disabled?: boolean; autoSearch?: boolean; searchRequest?: number }) {
+  const formatMoney = useMoney();
   const [results, setResults] = useState<{ result: SearchResult; origin: string; destination: string; date: string }[]>([]);
   const [activeLeg, setActiveLeg] = useState(0);
   const [sortMode, setSortMode] = useState<FlightSortMode>("price");
@@ -93,15 +95,17 @@ export default function FlightResults({ form, tripType, selectedFlights = [], on
         <div className="flex flex-wrap items-center gap-2"><span className="text-sm font-medium">Sắp xếp:</span>{([["price", "Giá thấp nhất"], ["departure", "Khởi hành sớm nhất"]] as const).map(([mode, label]) => <button key={mode} type="button" aria-pressed={sortMode === mode} onClick={() => setSortMode(mode)} className={`flight-sort-option ${sortMode === mode ? "is-active" : ""}`}>{label}</button>)}</div>
         <p className="text-xs text-gray-500">Chuyến hết chỗ hoặc chưa có giá {requestedFare} được xếp cuối.</p>
       </div>}
-      {sortedFlights.map(flight => <article key={`${flight.number}/${flight.departure}`} aria-label={`Chuyến ${flight.number}`} className={`flight-result-card ${flightFareAmount(flight, requestedFare) === null ? "is-unavailable" : ""}`}>
+      <div className="flight-results-grid">{sortedFlights.map(flight => <article key={`${flight.number}/${flight.departure}`} aria-label={`Chuyến ${flight.number}`} className={`flight-result-card ${flightFareAmount(flight, requestedFare) === null ? "is-unavailable" : ""}`}>
+        <div className="flight-result-summary">
         <p className="flight-result-times"><span>{flight.departure}</span><span aria-hidden="true" className="flight-result-arrow">→</span><span>{flight.arrival}</span>{flight.arrivalNextDay && <span className="flight-result-next-day">+1 ngày</span>}</p>
-        <p className="text-sm text-gray-500 mt-1">{flight.number} · {flight.aircraft} · Bay thẳng</p>
-        <div className="mt-3">{flight.fares.filter(fare => fareLabel(fare.name) === requestedFare).map(fare => {
+        <p className="flight-result-meta">{flight.number} · {flight.aircraft} · Bay thẳng</p>
+        </div>
+        <div className="flight-result-options">{flight.fares.filter(fare => fareLabel(fare.name) === requestedFare).map(fare => {
           const chosen = selectedFlights.some(item => item.leg === (activeLeg === 0 ? "outbound" : "inbound") && item.number === flight.number && item.departure === flight.departure && item.fareName === fare.name);
           return <button type="button" key={fare.name} aria-label={`Chọn ${flight.number} ${fareLabel(fare.name)}`} aria-pressed={chosen} disabled={fare.amount === null || disabled || loading || !onSelectionChange} onClick={() => selectFare(flight, fare)} className={`flight-result-fare ${chosen ? "is-selected" : ""}`}><span className="text-sm text-gray-600">{fareLabel(fare.name)}</span><span className={fare.amount === null ? "text-sm text-gray-500 font-medium" : "flight-result-price"}>{fare.amount === null ? "Hết chỗ" : formatMoney(fare.amount)}</span>{fare.amount !== null && <span className="text-xs text-gold-700">{chosen ? "✓ Đã chọn" : "Chọn giá này →"}</span>}</button>;
         })}</div>
         {!flight.fares.some(fare => fareLabel(fare.name) === requestedFare) && <p className="mt-3 text-sm text-gray-500">Chưa có giá {requestedFare} cho chuyến này.</p>}
-      </article>)}
+      </article>)}</div>
       {!result.flights.length && <p>Không có chuyến phù hợp với ngày đã chọn.</p>}
     </div>}
   </section>;

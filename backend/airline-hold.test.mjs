@@ -64,7 +64,8 @@ test('booking API authenticates, deduplicates concurrent requests and returns pe
     assert.equal(saved.booking.airlineHold.pnr, result.pnr);
     assert.equal(saved.booking.airlineHold.status, 'held');
     assert.equal(deliveries.length, 1);
-    assert.match(deliveries[0].note, /Mã đặt chỗ Vietjet: ABC123/);
+    assert.equal(deliveries[0].note, booking.note);
+    assert.equal(deliveries[0].airlineHold.pnr, 'ABC123');
     assert.equal(deliveries[0].passengers, undefined);
     assert.equal((await request(`/api/bookings/${records[0].booking.id}/retry`, {}, cookie)).status, 409);
     assert.equal((await request(`/api/bookings/${records[0].booking.id}`)).status, 401);
@@ -73,4 +74,31 @@ test('booking API authenticates, deduplicates concurrent requests and returns pe
     assert.equal(calls, 1);
     assert.equal((await request('/api/bookings', { ...payload, phone: '0909876543' }, cookie)).status, 409);
   } finally { finish(); server.close(); await once(server, 'close'); }
+});
+
+test('retrying an older failed hold reacquires deduplication before contacting the airline', async () => {
+  let calls = 0, finish;
+  const pending = new Promise(resolve => { finish = resolve; });
+  const server = createAuthServer({ databasePath: ':memory:', mailer: null, rateLimit: 100, holdAgency: async () => {
+    calls++;
+    if (calls <= 2) throw new Error('Not submitted');
+    await pending;
+    return result;
+  } });
+  server.listen(0, '127.0.0.1'); await once(server, 'listening');
+  const base = `http://127.0.0.1:${server.address().port}`;
+  let cookie = '';
+  const request = (path, body) => fetch(base + path, { method: body ? 'POST' : 'GET', headers: { 'Content-Type': 'application/json', Cookie: cookie }, ...(body ? { body: JSON.stringify(body) } : {}) });
+  try {
+    const registration = await request('/api/auth/register', { name: 'Retry Customer', email: 'retry@example.test', password: 'Test-password-2026!' });
+    cookie = registration.headers.get('set-cookie');
+    const first = await (await request('/api/bookings', { ...booking, requestKey: randomUUID() })).json();
+    const second = await (await request('/api/bookings', { ...booking, requestKey: randomUUID() })).json();
+    assert.notEqual(first.booking.id, second.booking.id);
+    assert.equal(calls, 2);
+    assert.equal((await request(`/api/bookings/${first.booking.id}/retry`, {})).status, 202);
+    const duplicate = await (await request('/api/bookings', { ...booking, requestKey: randomUUID() })).json();
+    assert.equal(duplicate.booking.id, first.booking.id);
+    assert.equal(calls, 3, 'the active retry must block a duplicate airline submission');
+  } finally { finish(); await new Promise(resolve => setImmediate(resolve)); server.close(); await once(server, 'close'); }
 });

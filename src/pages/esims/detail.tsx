@@ -1,12 +1,14 @@
+import { useMoney } from "@/components/currency-provider";
 import { DetailSkeleton } from "@/components/catalog-skeleton";
 import { usePageTitle } from "@/utils/page-title";
 import ContentImage from "@/components/content-image";
 import { Link, useParams } from "react-router-dom";
 import { Esim } from "@/utils/esims";
-import { tourPrice, useContentData } from "@/utils/tours";
+import { useContentData } from "@/utils/tours";
 import ServiceConsultation from "@/components/service-consultation";
 
 export default function EsimDetail() {
+  const tourPrice = useMoney();
   const { id } = useParams();
   const { data: item, loading, error, retry } = useContentData<Esim>(`esims/${id}`);
   usePageTitle(item?.name);

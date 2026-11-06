@@ -4,7 +4,7 @@ import { createServer } from "vite";
 import { chromium } from "playwright";
 
 test("statistics tab filters, renders counts, empty and error states on desktop and mobile", { timeout: 90000 }, async () => {
-  const server = await createServer({ root: process.cwd(), server: { host: "127.0.0.1", port: 0, open: false, watch: null } });
+  const server = await createServer({ root: process.cwd(), server: { host: "127.0.0.1", port: 5197, strictPort: true, open: false, watch: null } });
   let browser;
   try {
     await server.listen();

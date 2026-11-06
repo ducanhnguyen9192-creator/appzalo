@@ -1,3 +1,4 @@
+import { useMoney } from "@/components/currency-provider";
 import ServiceRequestList from "@/components/service-request-list";
 import { ServiceRequest } from "@/utils/service-requests";
 import { useEffect, useState } from "react";
@@ -6,9 +7,10 @@ import AccountPanel from "@/components/account-panel";
 import BookingInfo from "@/components/booking-info";
 import CopyButton from "@/components/copy-button";
 import { Account, authRequest } from "@/utils/auth";
-import { Booking, Transaction, BookingApiError, BOOKING_STATUS, formatBookingRoute, bookingApi, formatMoney, formatDateTime } from "@/utils/bookings";
+import { Booking, Transaction, BookingApiError, BOOKING_STATUS, formatBookingRoute, bookingApi, formatDateTime } from "@/utils/bookings";
 
 export default function HistoryPage() {
+  const formatMoney = useMoney();
   const [params, setParams] = useSearchParams();
   const tab = params.get("tab") === "transactions" ? "transactions" : params.get("tab") === "services" ? "services" : "bookings";
   const [account, setAccount] = useState<Account | null>(null);

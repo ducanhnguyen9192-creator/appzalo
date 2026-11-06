@@ -1,0 +1,16 @@
+@media (prefers-reduced-motion: no-preference) {
+  .scroll-reveal-pending { opacity: 0; }
+  .scroll-reveal-pending:focus-within { opacity: 1; }
+  .scroll-reveal-enter {
+    animation: scroll-reveal-up 650ms cubic-bezier(.22, 1, .36, 1) var(--reveal-delay, 0ms) both;
+  }
+}
+
+@keyframes scroll-reveal-up {
+  from { opacity: 0; transform: translate3d(0, 28px, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+@media print {
+  .scroll-reveal-pending, .scroll-reveal-enter { opacity: 1 !important; animation: none !important; }
+}

@@ -1,8 +1,9 @@
+import { useMoney } from "@/components/currency-provider";
 import Checkbox from "@/components/checkbox";
 import QuantityInput from "@/components/quantity-input";
 import { useAddToCart } from "@/hooks";
 import { CartItem as CartItemProps } from "@/types";
-import { formatPrice } from "@/utils/format";
+
 import { animated, useSpring } from "@react-spring/web";
 import { useDrag } from "@use-gesture/react";
 import { RemoveIcon } from "@/components/vectors";
@@ -13,6 +14,7 @@ import { useEffect, useMemo, useState } from "react";
 const SWIPE_TO_DELTE_OFFSET = 80;
 
 export default function CartItem(props: CartItemProps) {
+  const formatPrice = useMoney();
   const [quantity, setQuantity] = useState(props.quantity);
   const { addToCart } = useAddToCart(props.product, props.id);
 

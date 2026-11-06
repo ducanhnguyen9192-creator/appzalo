@@ -55,6 +55,16 @@
   .language-option { font-size: 12px; }
 }
 .mobile-header, .mobile-footer { flex-shrink: 0; }
+.profile-quick-card { cursor: pointer; transition: background-color .2s ease, border-color .2s ease, box-shadow .2s ease, transform .2s ease; }
+@media (hover: hover) and (pointer: fine) {
+  .profile-quick-card:hover { background-color: #fffbf2; border-color: #c49b3b; box-shadow: 0 8px 20px #76531418; transform: translateY(-3px); }
+}
+.profile-quick-card:focus-visible { outline: 2px solid #c49b3b; outline-offset: 3px; background-color: #fffbf2; }
+.profile-quick-card:active { background-color: #faf3df; transform: scale(.99); }
+@media (prefers-reduced-motion: reduce) {
+  .profile-quick-card { transition: none; }
+  .profile-quick-card:hover, .profile-quick-card:active { transform: none; }
+}
 .mobile-bottom-nav { display: grid; width: 100%; padding: 8px max(4px, env(safe-area-inset-right)) 16px max(4px, env(safe-area-inset-left)); }
 .mobile-bottom-nav-item { display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 4px; min-width: 0; min-height: 48px; padding: 4px 0 2px; text-align: center; }
 .mobile-bottom-nav-label { font-size: 12px; line-height: 16px; white-space: nowrap; }
@@ -206,16 +216,29 @@ input, select, textarea { min-width: 0; }
 .flight-next:disabled, .flight-back:disabled { opacity: .5; }
 .flight-sort-option { min-height: 44px; padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 10px; font-size: 13px; color: #475569; }
 .flight-sort-option.is-active { border-color: var(--brand-gold); background: var(--brand-gold-soft); color: var(--brand-gold-dark); font-weight: 600; }
-.flight-result-card { padding: 16px; border: 1px solid #dbe3ef; border-radius: 16px; background: white; }
+.flight-results-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+.flight-result-card { display: flex; flex-direction: column; min-width: 0; gap: 10px; padding: 12px; border: 1px solid #dbe3ef; border-radius: 10px; background: white; }
+.flight-result-card:has(.is-selected) { border-color: var(--brand-gold); background: var(--brand-gold-soft); }
 .flight-result-card.is-unavailable { background: #f8fafc; }
-.flight-result-times { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font-size: 24px; font-weight: 700; line-height: 1.3; font-variant-numeric: tabular-nums; color: #0f172a; }
+.flight-result-summary, .flight-result-options { min-width: 0; }
+.flight-result-meta { margin-top: 4px; font-size: 11px; line-height: 1.5; color: #64748b; }
+.flight-result-times { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 18px; font-weight: 700; line-height: 1.3; font-variant-numeric: tabular-nums; color: #0f172a; }
 .flight-result-arrow { font-size: 18px; font-weight: 400; color: #94a3b8; }
 .flight-result-next-day { font-size: 12px; font-weight: 500; color: #64748b; }
-.flight-result-fare { display: flex; flex-direction: column; gap: 4px; width: 100%; padding: 12px; border: 1px solid var(--brand-gold-border); border-radius: 12px; background: var(--brand-gold-soft); text-align: left; }
+.flight-result-fare { display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; width: 100%; min-height: 44px; padding: 8px 0 0; border-top: 1px solid #e8e3d8; background: transparent; text-align: left; }
+.flight-result-fare > :first-child { font-size: 12px; }
+.flight-result-fare > :last-child:not(:nth-child(2)) { display: block; margin-top: 2px; padding: 7px 8px; border-radius: 6px; background: var(--brand-gold-soft); text-align: center; font-weight: 600; }
+.flight-result-fare.is-selected > :last-child { background: var(--brand-gold); color: white; }
+.flight-result-fare:focus-visible { outline: 2px solid var(--brand-gold); outline-offset: 4px; border-radius: 6px; }
+.flight-result-fare:disabled { cursor: not-allowed; opacity: .65; }
 .flight-result-fare + .flight-result-fare { margin-top: 8px; }
-.flight-result-fare.is-selected { border-color: var(--brand-gold); }
-.flight-result-fare:disabled { background: #f1f5f9; border-color: #e2e8f0; }
-.flight-result-price { font-size: 24px; font-weight: 700; line-height: 1.3; color: var(--brand-gold-dark); font-variant-numeric: tabular-nums; }
+.flight-result-price { font-size: 20px; font-weight: 700; line-height: 1.3; color: var(--brand-gold-dark); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+@media (min-width: 640px) {
+  .flight-results-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (min-width: 1024px) {
+  .flight-results-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
 @media (min-width: 640px) {
   .flight-steps button { font-size: 14px; }
   .flight-next { flex: 0 1 auto; min-width: 240px; }
@@ -234,3 +257,18 @@ input, select, textarea { min-width: 0; }
 .app-shell { background: var(--brand-canvas); }
 .desktop-brand, .desktop-home-intro h1 { color: #503816; }
 input[type="checkbox"], input[type="radio"] { accent-color: var(--brand-gold); }
+.currency-search-label { display: block; margin-bottom: 8px; font-size: 13px; color: #475569; }
+.currency-search { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; background: #fff; color: #0f172a; }
+.language-currency .currency-preference { margin: 12px 0 16px; }
+.currency-notice { padding: 10px 16px; font-size: 12px; line-height: 1.6; color: #685423; background: #faf6e9; }
+.currency-notice a, .currency-notice button { text-decoration: underline; }
+.currency-notice button { margin-left: 8px; font-weight: 600; }
+.mobile-currency-selector { display: flex; justify-content: flex-end; padding: 0 8px; border-top: 1px solid #f1f1f1; }
+.mobile-currency-selector .language-trigger { padding: 6px 10px; font-size: 12px; }
+
+/* Direction follows the selected language, including the portal selector. */
+.admin-language-bar { display: flex; justify-content: flex-end; padding: 8px 20px; background: #fff; }
+.language-option, .currency-search, .language-dialog-body { text-align: start; }
+[dir="rtl"] .text-left { text-align: right; }
+[dir="rtl"] .language-dialog-header { direction: rtl; }
+[dir="rtl"] input[type="email"], [dir="rtl"] input[type="tel"], [dir="rtl"] input[type="number"], [dir="rtl"] input[type="date"] { direction: ltr; }
